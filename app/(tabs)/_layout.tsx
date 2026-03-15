@@ -52,11 +52,11 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="briefcase.fill" color={color} />,
         }}
       />
-      {/* Add Asset tab: form or flow to add a new asset (add-asset.tsx) */}
+      {/* Add tab: form to add a new asset (add-asset.tsx) */}
       <Tabs.Screen
         name="add-asset"
         options={{
-          title: 'Add Asset',
+          title: 'Add',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.circle.fill" color={color} />,
         }}
       />
