@@ -1,13 +1,45 @@
-import { Stack } from "expo-router";
+/**
+ * TAB LAYOUT — Expo Router
+ *
+ * Renders a bottom tab bar for Dashboard and Insights.
+ * Uses Tabs (not Stack) so users can switch between screens.
+ * Uses @expo/vector-icons directly (IconSymbol lacks mappings for our icon names).
+ */
 
-export default function RootLayout() {
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Tabs } from 'expo-router';
+import React from 'react';
+
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+
+export default function TabLayout() {
+  const colorScheme = useColorScheme();
+
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="modal"
-        options={{ presentation: "modal" }}
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        headerShown: false,
+      }}>
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="pie-chart" size={24} color={color} />
+          ),
+        }}
       />
-    </Stack>
+      <Tabs.Screen
+        name="insights"
+        options={{
+          title: 'Insights',
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="lightbulb-outline" size={24} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
   );
 }

@@ -14,22 +14,24 @@
  * Dark UI, collapsible sections, spacing. Comments explain each part for beginners.
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { deleteAsset, getAssets } from '@/lib/asset-storage';
+import { setEditingAssetId } from '@/lib/edit-asset-store';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SimpleAsset } from '@/types/asset';
-
-const ASSETS_STORAGE_KEY = 'assets';
+import { saveSnapshot } from '@/lib/snapshots';
 
 // Category and type order (matches Add screen)
 const CATEGORY_ORDER = [
@@ -41,19 +43,8 @@ const CATEGORY_ORDER = [
 
 const TYPE_ORDER = ['Stock', 'ETF', 'Fund', 'Deposit', 'Gold'] as const;
 
-/**
- * Returns one asset's value. If shares and price exist and > 0: value = shares * price.
- * Otherwise: use the stored value (e.g. for cash assets).
- */
+/** Returns an asset's value (always stored in asset.value). */
 function getAssetValue(asset: SimpleAsset): number {
-  if (
-    typeof asset.shares === 'number' &&
-    typeof asset.price === 'number' &&
-    asset.shares > 0 &&
-    asset.price > 0
-  ) {
-    return asset.shares * asset.price;
-  }
   return typeof asset.value === 'number' ? asset.value : 0;
 }
 
@@ -88,14 +79,54 @@ function groupByCategoryAndType(
 }
 
 /**
- * Single asset row: Name on left, Total Value on right. Indented under a Type.
+ * Single asset row: Name, optional type label, value, and edit indicator.
+ * Tap opens edit modal; long press triggers delete (with confirmation).
  */
-function AssetRow({ name, value }: { name: string; value: number }) {
+function AssetRow({
+  asset,
+  value,
+  onEdit,
+  onDelete,
+}: {
+  asset: SimpleAsset;
+  value: number;
+  onEdit: (asset: SimpleAsset) => void;
+  onDelete: (id: string) => void;
+}) {
+  const handleLongPress = useCallback(() => {
+    Alert.alert('Delete Asset', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => onDelete(asset.id),
+      },
+    ]);
+  }, [asset.id, onDelete]);
+
   return (
-    <View style={styles.assetRow}>
-      <Text style={styles.assetName}>{name}</Text>
-      <Text style={styles.assetValue}>{formatCurrency(value)}</Text>
-    </View>
+    <Pressable
+      style={({ pressed }) => [styles.assetRow, pressed && styles.assetRowPressed]}
+      onPress={() => onEdit(asset)}
+      onLongPress={handleLongPress}
+      delayLongPress={500}
+    >
+      <View style={styles.assetRowLeft}>
+        <Text style={styles.assetName}>{asset.name}</Text>
+        {asset.type && (
+          <Text style={styles.assetTypeLabel}>{asset.type}</Text>
+        )}
+      </View>
+      <View style={styles.assetRowRight}>
+        <Text style={styles.assetValue}>{formatCurrency(value)}</Text>
+        <MaterialIcons
+          name="chevron-right"
+          size={20}
+          color="rgba(156, 163, 175, 0.6)"
+          style={styles.assetChevron}
+        />
+      </View>
+    </Pressable>
   );
 }
 
@@ -122,7 +153,10 @@ function DashboardHeader({
       <Text style={styles.headerTitle}>Dashboard</Text>
       <Pressable
         style={styles.headerAddButton}
-        onPress={() => router.push('/modal')}
+        onPress={() => {
+          setEditingAssetId(null);
+          router.push({ pathname: '/modal', params: {} });
+        }}
       >
         <Text style={styles.headerAddText}>+</Text>
       </Pressable>
@@ -158,22 +192,41 @@ export default function Dashboard() {
     });
   }, []);
 
-  const loadAssets = useCallback(async () => {
+  const loadAssets = useCallback(async (): Promise<SimpleAsset[]> => {
     try {
-      const stored = await AsyncStorage.getItem(ASSETS_STORAGE_KEY);
-      const list: SimpleAsset[] = stored ? JSON.parse(stored) : [];
+      const list = await getAssets();
       setAssets(list);
+      return list;
     } catch {
       setAssets([]);
+      return [];
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const handleDeleteAsset = useCallback(
+    async (id: string) => {
+      await deleteAsset(id);
+      const list = await loadAssets();
+      const totalValue = list.reduce((sum, a) => sum + getAssetValue(a), 0);
+      saveSnapshot(totalValue);
+    },
+    [loadAssets]
+  );
+
+  const handleEditAsset = useCallback((asset: SimpleAsset) => {
+    setEditingAssetId(asset.id);
+    router.push({ pathname: '/modal', params: { id: asset.id } });
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      loadAssets();
+      loadAssets().then((list) => {
+        const totalValue = list.reduce((sum, a) => sum + getAssetValue(a), 0);
+        saveSnapshot(totalValue); // Saves once per day; saveSnapshot skips if today exists
+      });
     }, [loadAssets])
   );
 
@@ -302,8 +355,10 @@ export default function Dashboard() {
                               typesMap[type].map((asset) => (
                                 <AssetRow
                                   key={asset.id}
-                                  name={asset.name}
+                                  asset={asset}
                                   value={getAssetValue(asset)}
+                                  onEdit={handleEditAsset}
+                                  onDelete={handleDeleteAsset}
                                 />
                               ))}
                           </View>
@@ -458,25 +513,48 @@ const styles = StyleSheet.create({
   },
   assetRow: {
     marginLeft: 16,
+    marginBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     backgroundColor: '#1C1C1E',
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
   },
+  assetRowPressed: {
+    opacity: 0.85,
+    backgroundColor: '#222224',
+  },
+  assetRowLeft: {
+    flex: 1,
+    gap: 2,
+  },
+  assetRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   assetName: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#E5E7EB',
+    fontWeight: '600',
+  },
+  assetTypeLabel: {
+    fontSize: 12,
+    color: '#6B7280',
     fontWeight: '500',
+    textTransform: 'capitalize',
   },
   assetValue: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#34C759',
     fontWeight: '600',
+  },
+  assetChevron: {
+    marginLeft: 2,
   },
   emptyCard: {
     backgroundColor: '#15161A',

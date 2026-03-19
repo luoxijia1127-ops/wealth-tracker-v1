@@ -17,9 +17,11 @@
  *   Cash/Other → Total Value
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { addAsset, getAssets, updateAsset } from '@/lib/asset-storage';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
+import { getEditingAssetId, clearEditingAssetId } from '@/lib/edit-asset-store';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -30,9 +32,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { AssetCategory, AssetType, SimpleAsset } from '@/types/asset';
-
-const ASSETS_STORAGE_KEY = 'assets';
+import {
+  type AssetCategory,
+  type AssetType,
+  generateAssetId,
+  type SimpleAsset,
+} from '@/types/asset';
 
 const CATEGORY_OPTIONS: AssetCategory[] = [
   'ShortTermInvestment',
@@ -49,10 +54,28 @@ const TYPE_BY_CATEGORY: Record<AssetCategory, AssetType[]> = {
   Other: ['Gold'],
 };
 
+function formatCurrency(v: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(v);
+}
+
 export default function AddModal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useGlobalSearchParams<{ id?: string }>();
+  /** Edit mode: store (primary) or URL params. Store works reliably in Expo Go. */
+  const editingId = (getEditingAssetId() ?? params.id) ?? undefined;
 
+  /** Clear store when modal loses focus so next open starts fresh. */
+  useFocusEffect(
+    useCallback(() => () => clearEditingAssetId(), [])
+  );
+
+  const [editingAsset, setEditingAsset] = useState<SimpleAsset | null>(null);
   const [category, setCategory] = useState<AssetCategory>('ShortTermInvestment');
   const [type, setType] = useState<AssetType>('Stock');
   const [name, setName] = useState('');
@@ -60,12 +83,37 @@ export default function AddModal() {
   const [shares, setShares] = useState('');
   const [price, setPrice] = useState('');
   const [saving, setSaving] = useState(false);
+  /** Load and pre-fill asset when editing. */
+  useEffect(() => {
+    if (!editingId) return;
+    let cancelled = false;
+    (async () => {
+      const assets = await getAssets();
+      const asset = assets.find((a) => a.id === editingId);
+      if (!cancelled && asset) {
+        setEditingAsset(asset);
+        setName(asset.name);
+        setValue(String(asset.value));
+        const cat = asset.category as AssetCategory;
+        const validTypes = TYPE_BY_CATEGORY[cat] ?? ['Stock'];
+        const validType = validTypes.includes(asset.type as AssetType)
+          ? (asset.type as AssetType)
+          : validTypes[0];
+        setCategory(cat);
+        setType(validType);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editingId]);
 
-  /** Investment categories use Shares + Price; Cash/Other use Total Value. */
+  /** Edit mode: pre-fill from stored asset. When editing, always use Total Value (we only store value). */
+  const isEditMode = !!editingId;
   const isInvestment =
     category === 'ShortTermInvestment' || category === 'LongTermInvestment';
-  const showSharesPrice = isInvestment;
-  const showTotalValue = !isInvestment;
+  const showSharesPrice = isInvestment && !isEditMode;
+  const showTotalValue = !isInvestment || isEditMode;
 
   /** When category changes, reset type to first valid option. */
   const handleCategoryChange = useCallback((cat: AssetCategory) => {
@@ -100,33 +148,26 @@ export default function AddModal() {
 
     setSaving(true);
     try {
-      const existing = await AsyncStorage.getItem(ASSETS_STORAGE_KEY);
-      const assets: SimpleAsset[] = existing ? JSON.parse(existing) : [];
-
-      let sharesNum = 0;
-      let priceNum = 0;
       let valueNum = 0;
-
       if (showSharesPrice) {
-        sharesNum = parseFloat(shares);
-        priceNum = parseFloat(price);
-        valueNum = sharesNum * priceNum;
+        valueNum = parseFloat(shares) * parseFloat(price);
       } else {
         valueNum = parseFloat(value);
       }
 
-      const newAsset: SimpleAsset = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      const assetToSave: SimpleAsset = {
+        id: isEditMode && (editingAsset?.id ?? editingId) ? (editingAsset?.id ?? editingId!) : generateAssetId(),
         name: name.trim(),
+        value: valueNum,
         category,
         type,
-        shares: sharesNum,
-        price: priceNum,
-        value: valueNum,
       };
 
-      assets.push(newAsset);
-      await AsyncStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(assets));
+      if (isEditMode && assetToSave.id) {
+        await updateAsset(assetToSave);
+      } else {
+        await addAsset(assetToSave);
+      }
 
       router.back();
     } catch (e) {
@@ -147,7 +188,7 @@ export default function AddModal() {
       }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>Add Asset</Text>
+      <Text style={styles.title}>{isEditMode ? 'Edit Asset' : 'Add Asset'}</Text>
 
       {/* Category selection — 4 options, highlight selected */}
       <Text style={styles.label}>Category</Text>
@@ -226,14 +267,22 @@ export default function AddModal() {
 
       {showTotalValue && (
         <>
-          <Text style={styles.label}>Total Value ($)</Text>
+          <Text style={styles.label}>
+            {isEditMode ? 'Current Value' : 'Total Value ($)'}
+          </Text>
+          {isEditMode && editingAsset != null && (
+            <Text style={styles.previousValue}>
+              Previous: {formatCurrency(editingAsset.value)}
+            </Text>
+          )}
           <TextInput
             placeholder="Amount"
             placeholderTextColor="#6B7280"
-            style={styles.input}
+            style={[styles.input, isEditMode && styles.valueInputHighlight]}
             value={value}
             onChangeText={setValue}
             keyboardType="numeric"
+            autoFocus={isEditMode}
           />
         </>
       )}
@@ -302,6 +351,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  valueInputHighlight: {
+    borderColor: '#34C759',
+    borderWidth: 2,
+    backgroundColor: 'rgba(52, 199, 89, 0.08)',
+  },
+  previousValue: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 6,
   },
   saveButton: {
     marginTop: 32,
