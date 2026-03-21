@@ -1,13 +1,15 @@
 /**
- * INSIGHTS SCREEN
+ * Insights：净值曲线页
  *
- * Loads snapshots from AsyncStorage on mount, transforms to chart format,
- * and renders a LineChart. Handles empty and loading states.
+ * 进入后先读本地快照出图，再在后台 syncNetWorthFromMarket（拉行情 + 按需写快照）刷新。
+ * 曲线上每个点是「多币种数值直接相加、未做汇率折算」的合计，展示上不用美元符号误导。
  */
 
+import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { getSnapshots } from '@/lib/snapshots';
 import type { Snapshot } from '@/lib/snapshots';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -24,14 +26,12 @@ type ChartData = {
   datasets: [{ data: number[] }];
 };
 
-/** Formats a value as US currency. */
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+/** 快照合计：不用某一国货币符号，只格式化为数字 + 中文说明「未折算」 */
+function formatUnconvertedTotal(value: number): string {
+  return value.toLocaleString('zh-CN', {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
+    maximumFractionDigits: 2,
+  });
 }
 
 /** Formats daily change as "+1200 (+2.3%)" or "-500 (-1.2%)". */
@@ -86,20 +86,36 @@ export default function Insights() {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadSnapshots = useCallback(async () => {
-    try {
-      const data = await getSnapshots();
-      setSnapshots(data);
-    } catch {
-      setSnapshots([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadSnapshots();
-  }, [loadSnapshots]);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          const local = await getSnapshots();
+          if (!cancelled) {
+            setSnapshots(local);
+            setLoading(false);
+          }
+        } catch {
+          if (!cancelled) {
+            setSnapshots([]);
+            setLoading(false);
+          }
+        }
+        if (cancelled) return;
+        try {
+          await syncNetWorthFromMarket();
+          const data = await getSnapshots();
+          if (!cancelled) setSnapshots(data);
+        } catch {
+          /* 保留已显示快照 */
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
 
   const chartData = toChartData(snapshots);
   const hasData = chartData.labels.length > 0 && chartData.datasets[0].data.length > 0;
@@ -131,7 +147,10 @@ export default function Insights() {
             <>
               <View style={styles.summary}>
                 <Text style={styles.currentValue}>
-                  {latest ? formatCurrency(latest.totalValue) : ''}
+                  {latest ? formatUnconvertedTotal(latest.totalValue) : ''}
+                </Text>
+                <Text style={styles.unconvertedHint}>
+                  未汇率折算的混合资产合计（各币种数值直接相加）
                 </Text>
                 {dailyChange && (
                   <Text
@@ -206,7 +225,13 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: '700',
     color: '#E5E7EB',
-    marginBottom: 4,
+    marginBottom: 6,
+  },
+  unconvertedHint: {
+    fontSize: 12,
+    color: 'rgba(148, 163, 184, 0.85)',
+    marginBottom: 8,
+    lineHeight: 17,
   },
   changeText: {
     fontSize: 14,

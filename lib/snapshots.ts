@@ -1,29 +1,17 @@
 /**
- * Asset snapshot utilities
- *
- * Stores daily net worth snapshots in AsyncStorage for tracking value over time.
- * Snapshot format: { date: YYYY-MM-DD, totalValue: number }
+ * 每日净值快照：{ date, totalValue }，date 使用上海日历日与资产/历史一致。
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getShanghaiDateString } from '@/lib/date-shanghai';
 
 export const SNAPSHOTS_STORAGE_KEY = 'snapshots';
 
-/** A single daily snapshot of total net worth. */
 export type Snapshot = {
-  date: string; // YYYY-MM-DD
+  date: string;
   totalValue: number;
 };
 
-/** Returns the current date in YYYY-MM-DD format. */
-function getTodayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-/**
- * Returns all snapshots from storage.
- * Returns empty array if none exist or on parse error.
- */
 export async function getSnapshots(): Promise<Snapshot[]> {
   try {
     const stored = await AsyncStorage.getItem(SNAPSHOTS_STORAGE_KEY);
@@ -36,17 +24,17 @@ export async function getSnapshots(): Promise<Snapshot[]> {
 }
 
 /**
- * Saves a snapshot for today's date if one doesn't already exist.
- * Does nothing if today's snapshot is already stored.
+ * 按上海「今天」upsert 一条；其它日期不动；按日期排序后写回。
  */
 export async function saveSnapshot(totalValue: number): Promise<void> {
   const snapshots = await getSnapshots();
-  const today = getTodayDateString();
-
-  if (snapshots.some((s) => s.date === today)) {
-    return;
+  const today = getShanghaiDateString();
+  const idx = snapshots.findIndex((s) => s.date === today);
+  if (idx >= 0) {
+    snapshots[idx] = { date: today, totalValue };
+  } else {
+    snapshots.push({ date: today, totalValue });
   }
-
-  snapshots.push({ date: today, totalValue });
+  snapshots.sort((a, b) => a.date.localeCompare(b.date));
   await AsyncStorage.setItem(SNAPSHOTS_STORAGE_KEY, JSON.stringify(snapshots));
 }

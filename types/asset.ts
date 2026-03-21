@@ -1,45 +1,137 @@
 /**
- * Shared asset types used across Dashboard, Add Asset, Portfolio, etc.
- *
- * Asset structure: { id, name, value, category, type, history? }
- * - id: unique (timestamp or uuid)
- * - value: total dollar amount
- * - category, type: classification strings
- * - history: optional array of { date, value } for value changes over time
+ * 全应用唯一的资产数据形状定义（勿再使用已删除的 lib/asset-types.ts）。
+ * - 扁平五大类：股票 / 基金 / ETF / 现金类 / 黄金
+ * - 场内：symbol、exchange、shares；价格分 markPrice（盘中现价）与 lastClose（日 K 结算）
+ * - 可选 purpose / purposeTarget
  */
 
-/** A single history record for an asset value at a given date (YYYY-MM-DD). */
+/** 交易所：沪 / 深 / 北；OTC 为场外开放式基金（东财 secid 前缀 2） */
+export type ChinaExchange = 'SH' | 'SZ' | 'BJ' | 'OTC';
+
+/** 资产大类（存储与逻辑的唯一分类来源，不再单独存 type 字段） */
+export const ASSET_CATEGORY_ORDER = [
+  'Stock',
+  'Fund',
+  'ETF',
+  'Cash',
+  'Gold',
+] as const;
+
+export type AssetCategory = (typeof ASSET_CATEGORY_ORDER)[number];
+
+/** 界面展示用中文名 */
+export const CATEGORY_LABEL_ZH: Record<AssetCategory, string> = {
+  Stock: '股票',
+  Fund: '基金',
+  ETF: 'ETF',
+  Cash: '现金类',
+  Gold: '黄金',
+};
+
+/**
+ * 是否「场内证券类」——需要代码、交易所、份额与行情的那几类。
+ * 集中维护，避免在多个文件里写死 Stock|Fund|ETF。
+ */
+export function isListedAssetCategory(c: AssetCategory): boolean {
+  return c === 'Stock' || c === 'Fund' || c === 'ETF';
+}
+
+/** 旧版 category + type → 新版扁平 AssetCategory */
+export function migrateLegacyCategoryType(
+  category: string,
+  type: string
+): AssetCategory {
+  const flat: AssetCategory[] = [
+    'Stock',
+    'Fund',
+    'ETF',
+    'Cash',
+    'Gold',
+  ];
+  if (flat.includes(category as AssetCategory)) {
+    return category as AssetCategory;
+  }
+  if (category === 'Other') {
+    if (type === 'Gold') return 'Gold';
+    return 'Cash';
+  }
+  if (
+    category === 'ShortTermInvestment' ||
+    category === 'LongTermInvestment'
+  ) {
+    if (type === 'Stock') return 'Stock';
+    if (type === 'ETF') return 'ETF';
+    if (type === 'Fund') return 'Fund';
+    if (type === 'Deposit') return 'Cash';
+    if (type === 'Gold') return 'Gold';
+    return 'Stock';
+  }
+  return 'Cash';
+}
+
+/** 单条「某日资产市值」历史（用于编辑后追溯） */
 export type AssetHistoryEntry = {
   date: string;
   value: number;
 };
 
-export type AssetCategory =
-  | 'ShortTermInvestment'
-  | 'LongTermInvestment'
-  | 'Cash'
-  | 'Other';
-
-export type AssetType = 'Stock' | 'ETF' | 'Fund' | 'Deposit' | 'Gold';
-
+/**
+ * SimpleAsset：AsyncStorage 里一条资产的完整形状。
+ * category 是唯一类别来源；已废弃的 type 字段在读盘时会被忽略，仅参与迁移推断。
+ */
 export type SimpleAsset = {
   id: string;
   name: string;
   value: number;
-  category: string;
-  type: string;
-  /** Value history: [{ date, value }]. Appended on updates, never overwritten. */
+  category: AssetCategory;
   history?: AssetHistoryEntry[];
+  /** 场内六位代码 */
+  symbol?: string;
+  exchange?: ChinaExchange;
+  /** 东财 push2/K 线用 secid（联想 QuoteID，如 1.600519、150.012922）；有则优先于 exchange+symbol 推导 */
+  emSecid?: string;
+  shares?: number;
+  /** 日 K 结算价（来自 K 线接口，语义为「收盘价/结算价」） */
+  lastClose?: number;
+  /** lastClose 对应的交易日（K 线日期） */
+  lastCloseDate?: string;
+  /** push2 最新价/现价（盘中刷新），与 lastClose 分离 */
+  markPrice?: number;
+  /** markPrice 对应的上海日历日（记录是哪一天抓到的现价） */
+  markPriceDate?: string;
+  currency?: string;
+  purpose?: string;
+  purposeTarget?: number;
 };
 
-/** Generates a unique id (timestamp + random string). */
 export function generateAssetId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+/** 读盘时兼容 JSON 里 shares 被写成字符串的情况 */
+function coercePositiveShares(raw: unknown): number | undefined {
+  if (typeof raw === 'number' && !Number.isNaN(raw) && raw > 0) {
+    return raw;
+  }
+  if (typeof raw === 'string') {
+    const n = parseFloat(raw.trim().replace(/,/g, ''));
+    if (!Number.isNaN(n) && n > 0) return n;
+  }
+  return undefined;
+}
+
+/** 列出资产用于估值的有效单价：优先盘中现价，否则用日 K 结算价 */
+export function getListedUnitPrice(a: SimpleAsset): number | null {
+  if (typeof a.markPrice === 'number' && a.markPrice > 0) return a.markPrice;
+  if (typeof a.lastClose === 'number' && a.lastClose > 0) return a.lastClose;
+  return null;
+}
+
 /**
- * Ensures an asset has an id. Migrates legacy format (shares, price) to value-only.
- * Call when loading from storage to support old data.
+ * 从存储原始 JSON 读出并规范化：
+ * - 迁移旧分类、补齐 category
+ * - 丢弃重复字段 type（若存在仅用于迁移）
+ * - 有完整场内字段时，用 markPrice 或 lastClose 重算 value
  */
 export function ensureAsset(raw: unknown): SimpleAsset {
   const o = raw as Record<string, unknown>;
@@ -48,18 +140,63 @@ export function ensureAsset(raw: unknown): SimpleAsset {
       ? o.id
       : generateAssetId();
   const name = typeof o.name === 'string' ? o.name : '';
-  const category = typeof o.category === 'string' ? o.category : 'Other';
-  const type = typeof o.type === 'string' ? o.type : 'Other';
+  const rawCat = typeof o.category === 'string' ? o.category : 'Cash';
+  const rawType = typeof o.type === 'string' ? o.type : '';
+  let category = migrateLegacyCategoryType(rawCat, rawType);
+  if (!ASSET_CATEGORY_ORDER.includes(category as AssetCategory)) {
+    category = 'Cash';
+  }
 
-  // Value: prefer stored value; for legacy (shares+price), compute
+  const shares = coercePositiveShares(o.shares);
+  const symbolRaw = typeof o.symbol === 'string' ? o.symbol.trim() : '';
+  const symbol = symbolRaw.length > 0 ? symbolRaw : undefined;
+  let exchange: ChinaExchange | undefined;
+  if (
+    o.exchange === 'SH' ||
+    o.exchange === 'SZ' ||
+    o.exchange === 'BJ' ||
+    o.exchange === 'OTC'
+  ) {
+    exchange = o.exchange;
+  }
+  const emSecidRaw = typeof o.emSecid === 'string' ? o.emSecid.trim() : '';
+  const emSecid =
+    emSecidRaw.length > 0 && /^\d+\.\d+$/.test(emSecidRaw)
+      ? emSecidRaw
+      : undefined;
+  const lastClose =
+    typeof o.lastClose === 'number' && !Number.isNaN(o.lastClose)
+      ? o.lastClose
+      : undefined;
+  const lastCloseDate =
+    typeof o.lastCloseDate === 'string' ? o.lastCloseDate : undefined;
+  const markPrice =
+    typeof o.markPrice === 'number' && !Number.isNaN(o.markPrice)
+      ? o.markPrice
+      : undefined;
+  const markPriceDate =
+    typeof o.markPriceDate === 'string' ? o.markPriceDate : undefined;
+  const currency =
+    typeof o.currency === 'string' && o.currency.length > 0
+      ? o.currency
+      : undefined;
+
+  const purposeRaw = typeof o.purpose === 'string' ? o.purpose.trim() : '';
+  const purpose = purposeRaw.length > 0 ? purposeRaw : undefined;
+  const pt =
+    typeof o.purposeTarget === 'number' && !Number.isNaN(o.purposeTarget)
+      ? o.purposeTarget
+      : undefined;
+  const purposeTarget =
+    pt !== undefined && pt > 0 ? pt : undefined;
+
   let value = typeof o.value === 'number' && !Number.isNaN(o.value) ? o.value : 0;
-  if (value === 0 && typeof o.shares === 'number' && typeof o.price === 'number') {
-    if (o.shares > 0 && o.price > 0) {
-      value = o.shares * o.price;
+  if (value === 0 && shares !== undefined && typeof o.price === 'number') {
+    if (o.price > 0) {
+      value = shares * o.price;
     }
   }
 
-  // History: preserve if valid array of { date, value }
   let history: AssetHistoryEntry[] | undefined;
   if (Array.isArray(o.history)) {
     history = o.history
@@ -70,9 +207,51 @@ export function ensureAsset(raw: unknown): SimpleAsset {
           typeof (h as AssetHistoryEntry).date === 'string' &&
           typeof (h as AssetHistoryEntry).value === 'number'
       )
-      .slice(); // copy, don't mutate source
+      .slice();
     if (history.length === 0) history = undefined;
   }
 
-  return { id, name, value, category, type, ...(history && { history }) };
+  const asset: SimpleAsset = {
+    id,
+    name,
+    value,
+    category,
+    ...(history && { history }),
+  };
+  if (shares !== undefined) asset.shares = shares;
+  if (symbol) asset.symbol = symbol;
+  if (exchange) asset.exchange = exchange;
+  if (lastClose !== undefined) asset.lastClose = lastClose;
+  if (lastCloseDate) asset.lastCloseDate = lastCloseDate;
+  if (markPrice !== undefined && markPrice > 0) asset.markPrice = markPrice;
+  if (markPriceDate) asset.markPriceDate = markPriceDate;
+  if (emSecid) asset.emSecid = emSecid;
+  if (currency && /^[A-Z]{3}$/.test(currency)) {
+    asset.currency = currency;
+  }
+  if (purpose) asset.purpose = purpose;
+  if (purposeTarget !== undefined) asset.purposeTarget = purposeTarget;
+
+  /** 是否具备「按单价算市值」的场内完整信息 */
+  const listedComplete =
+    isListedAssetCategory(asset.category) &&
+    typeof asset.shares === 'number' &&
+    asset.shares > 0 &&
+    typeof asset.symbol === 'string' &&
+    /^\d{6}$/.test(asset.symbol) &&
+    (asset.exchange === 'SH' ||
+      asset.exchange === 'SZ' ||
+      asset.exchange === 'BJ' ||
+      asset.exchange === 'OTC');
+
+  const unit = getListedUnitPrice(asset);
+  if (listedComplete && unit !== null) {
+    asset.value = asset.shares! * unit;
+  }
+
+  if (typeof asset.currency !== 'string' || !/^[A-Z]{3}$/.test(asset.currency)) {
+    asset.currency = 'CNY';
+  }
+
+  return asset;
 }

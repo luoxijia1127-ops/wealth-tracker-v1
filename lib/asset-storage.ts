@@ -1,51 +1,47 @@
 /**
- * Asset storage utility
- *
- * Centralizes all AsyncStorage operations for assets.
- * Storage key: "assets". Uses ensureAsset for legacy migration on read.
- *
- * All functions are async and reusable. Data consistency: read-modify-write
- * is done atomically (load → modify → save) to avoid race conditions.
+ * 资产列表的 AsyncStorage 读写。读失败时打日志并尽量返回上一次成功结果（内存缓存，仅本次进程有效）。
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getShanghaiDateString } from '@/lib/date-shanghai';
+import { getAssetDisplayValue } from '@/lib/asset-value';
 import { ensureAsset, type SimpleAsset } from '@/types/asset';
 
 export const ASSETS_STORAGE_KEY = 'assets';
 
-/**
- * Loads all assets from storage. Migrates legacy format via ensureAsset.
- * Returns empty array on error or if no data.
- */
+/** 本次 App 运行内最后一次成功解析的资产列表（解析失败时回退） */
+let lastGoodAssets: SimpleAsset[] | null = null;
+
 export async function getAssets(): Promise<SimpleAsset[]> {
   try {
     const stored = await AsyncStorage.getItem(ASSETS_STORAGE_KEY);
     const raw: unknown[] = stored ? JSON.parse(stored) : [];
-    return raw.map((item) => ensureAsset(item));
-  } catch {
-    return [];
+    if (!Array.isArray(raw)) {
+      throw new Error('stored assets is not an array');
+    }
+    const list = raw.map((item) => ensureAsset(item));
+    lastGoodAssets = list;
+    return list;
+  } catch (e) {
+    console.warn(
+      '[wealth-tracker] getAssets 解析失败，使用上次成功缓存或空数组',
+      e
+    );
+    return lastGoodAssets ?? [];
   }
 }
 
-/**
- * Saves the full assets array to storage. Overwrites existing data.
- */
 export async function saveAssets(assets: SimpleAsset[]): Promise<void> {
   await AsyncStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(assets));
+  lastGoodAssets = assets;
 }
 
-/**
- * Appends one asset to storage. Loads current list, pushes, saves.
- */
 export async function addAsset(asset: SimpleAsset): Promise<void> {
   const assets = await getAssets();
   assets.push(asset);
   await saveAssets(assets);
 }
 
-/**
- * Removes an asset by id. No-op if id not found.
- */
 export async function deleteAsset(id: string): Promise<void> {
   const assets = await getAssets();
   const filtered = assets.filter((a) => a.id !== id);
@@ -54,14 +50,8 @@ export async function deleteAsset(id: string): Promise<void> {
   }
 }
 
-function getTodayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 /**
- * Replaces an existing asset with the same id.
- * When value changes, appends { date, value } to history (never overwrites).
- * If id not found, appends as new asset (fallback).
+ * 按 id 替换一条资产；若展示市值变化则往 history 追加一条（日期为上海当天）。
  */
 export async function updateAsset(updatedAsset: SimpleAsset): Promise<void> {
   const assets = await getAssets();
@@ -69,10 +59,10 @@ export async function updateAsset(updatedAsset: SimpleAsset): Promise<void> {
   if (index >= 0) {
     const existing = assets[index];
     let history = existing.history ? [...existing.history] : [];
-    const oldValue = typeof existing.value === 'number' ? existing.value : 0;
-    const newValue = typeof updatedAsset.value === 'number' ? updatedAsset.value : 0;
+    const oldValue = getAssetDisplayValue(existing);
+    const newValue = getAssetDisplayValue(updatedAsset);
     if (newValue !== oldValue) {
-      history.push({ date: getTodayDateString(), value: newValue });
+      history.push({ date: getShanghaiDateString(), value: newValue });
     }
     assets[index] = {
       ...updatedAsset,

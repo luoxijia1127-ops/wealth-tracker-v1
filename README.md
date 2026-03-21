@@ -2,6 +2,23 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## 资产与行情 — 唯一数据源说明（wealth-tracker）
+
+| 用途 | 位置 |
+|------|------|
+| **资产类型与字段** | `types/asset.ts`（`SimpleAsset`、`AssetCategory`） |
+| **业务「今天」日期** | `lib/date-shanghai.ts`（上海时区 `YYYY-MM-DD`，与 UTC 的 `toISOString` 不同） |
+| **东方财富公共参数** | `lib/eastmoney-config.ts` |
+| **secid 构造 / QuoteID 推断** | `lib/eastmoney-secid.ts` |
+| **添加资产表单校验与组装** | `lib/add-asset-form.ts` |
+| **可选资产币种（非场内）** | `lib/asset-currency.ts` |
+
+Dashboard 与 Tab 场景底色采用 **sea** 色板：`#B1D4F8` 雾蓝底、`#98CCF8` 天蓝、`#FAB8B4` 珊瑚、`#5C6390` 靛灰（主文案/强调）、`#B286B3` 灰紫；类别条与 `app/(tabs)/index.tsx` 中 `SEA` 常量一致。
+
+- **`markPrice`**：push2 最新价（盘中）。**`lastClose`**：日 K 结算价。市值优先用 `markPrice`。
+- **场外开放式基金**：联想里 `Classify=OTCFUND`，存 `exchange: 'OTC'`；`emSecid` 多为 `150.xxxxxx`。刷新估值时走 `lib/eastmoney-fund-nav.ts`（F10 `lsjz` 单位净值），因 push2 对基金常无有效现价。
+- 旧的 `lib/asset-types.ts` 已删除，请勿再引用另一套 `Asset` 类型。
+
 ## Get started
 
 1. Install dependencies
