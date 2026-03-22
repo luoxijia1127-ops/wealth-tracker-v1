@@ -14,14 +14,17 @@
  * 浅色「文件夹」交互：大类默认只显示合计 + 资产名摘要；点击展开明细；展开时头部用类别色条填充。
  */
 
+import { useAppPalette } from '@/contexts/app-palette-context';
 import { deleteAsset, getAssets } from '@/lib/asset-storage';
 import {
-    formatMoney,
-    formatNetWorthLines,
-    formatNetWorthSummary,
-    getAssetCurrency,
-    getAssetDisplayValue,
+  formatMoney,
+  formatNetWorthLines,
+  formatNetWorthSummary,
+  getAssetCurrency,
+  getAssetDisplayValue,
 } from '@/lib/asset-value';
+import { rgbaFromHex } from '@/lib/color-utils';
+import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
 import { setEditingAssetId } from '@/lib/edit-asset-store';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import {
@@ -38,47 +41,20 @@ import { router } from 'expo-router';
 import * as ExpoStatusBar from 'expo-status-bar';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CATEGORY_ORDER = ASSET_CATEGORY_ORDER;
 
-/**
- * sea 配色（coolors）：雾蓝底 / 天蓝 / 珊瑚 / 靛灰文案与强调 / 灰紫。
- */
-const SEA = {
-  mist: '#B1D4F8',
-  sky: '#98CCF8',
-  coral: '#FAB8B4',
-  slate: '#5C6390',
-  lavender: '#B286B3',
-} as const;
-
-const PAGE_BG = SEA.mist;
-
-const CATEGORY_ACCENTS: Record<AssetCategory, string> = {
-  Stock: SEA.slate,
-  Fund: SEA.coral,
-  ETF: SEA.sky,
-  Cash: SEA.lavender,
-  /** 与基金同属暖色块；条形色仍清晰可辨 */
-  Gold: SEA.coral,
-};
-
 function categoryTitle(cat: string): string {
   return CATEGORY_LABEL_ZH[cat as AssetCategory] ?? cat;
-}
-
-function getCategoryAccent(category: string): string {
-  return CATEGORY_ACCENTS[category as AssetCategory] ?? SEA.slate;
 }
 
 const CATEGORY_ROW_ICONS: Record<
@@ -129,10 +105,12 @@ function AssetPrimaryValue({
   amount,
   currency,
   accentColor,
+  styles,
 }: {
   amount: number;
   currency: string;
   accentColor: string;
+  styles: DashboardStyles;
 }) {
   if (currency === 'CNY' && Number.isFinite(amount)) {
     const [intRaw, dec = '00'] = amount.toFixed(2).split('.');
@@ -215,11 +193,15 @@ function categoryQuoteFootnote(assets: SimpleAsset[]): string | null {
 function AssetRow({
   asset,
   accentColor,
+  styles,
+  chevronMuted,
   onEdit,
   onDelete,
 }: {
   asset: SimpleAsset;
   accentColor: string;
+  styles: DashboardStyles;
+  chevronMuted: string;
   onEdit: (asset: SimpleAsset) => void;
   onDelete: (id: string) => void;
 }) {
@@ -290,6 +272,7 @@ function AssetRow({
             amount={amount}
             currency={currency}
             accentColor={accentColor}
+            styles={styles}
           />
           {quoteDate ? (
             <Text style={styles.assetQuoteDate}>{quoteDate}</Text>
@@ -298,7 +281,7 @@ function AssetRow({
         <MaterialIcons
           name="chevron-right"
           size={20}
-          color="rgba(92, 99, 144, 0.38)"
+          color={chevronMuted}
           style={styles.assetChevron}
         />
       </View>
@@ -321,8 +304,10 @@ function AssetRow({
  */
 function DashboardHeader({
   insets,
+  styles,
 }: {
   insets: { top: number; right: number; left: number };
+  styles: DashboardStyles;
 }) {
   return (
     <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -345,6 +330,13 @@ function DashboardHeader({
 }
 
 export default function Dashboard() {
+  const { theme } = useAppPalette();
+  const styles = useMemo(() => createDashboardStyles(theme), [theme]);
+  const chevronMuted = useMemo(
+    () => rgbaFromHex(theme.primary, 0.38),
+    [theme.primary]
+  );
+
   const insets = useSafeAreaInsets();
   const [assets, setAssets] = useState<SimpleAsset[]>([]);
   /** 仅首屏：本地读盘完成前显示全页加载 */
@@ -437,9 +429,9 @@ export default function Dashboard() {
   if (loading) {
     return (
       <View style={styles.screenWrapper}>
-        <DashboardHeader insets={insets} />
+        <DashboardHeader insets={insets} styles={styles} />
         <View style={[styles.container, styles.centered]}>
-          <ActivityIndicator size="large" color={SEA.slate} />
+          <ActivityIndicator size="large" color={theme.primary} />
         </View>
       </View>
     );
@@ -447,7 +439,7 @@ export default function Dashboard() {
 
   return (
     <View style={styles.screenWrapper}>
-      <DashboardHeader insets={insets} />
+      <DashboardHeader insets={insets} styles={styles} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={[
@@ -455,7 +447,7 @@ export default function Dashboard() {
           {
             paddingBottom: insets.bottom + 32,
             flexGrow: 1,
-            backgroundColor: PAGE_BG,
+            backgroundColor: theme.pageBg,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -478,7 +470,7 @@ export default function Dashboard() {
         )}
         {syncingQuotes ? (
           <View style={styles.syncRow}>
-            <ActivityIndicator size="small" color={SEA.slate} />
+            <ActivityIndicator size="small" color={theme.primary} />
             <Text style={styles.syncRowText}>正在同步行情…</Text>
           </View>
         ) : null}
@@ -504,7 +496,9 @@ export default function Dashboard() {
 
               const isCategoryExpanded = expandedCategories.has(category);
               const categoryTotalText = formatNetWorthLines(list);
-              const accent = getCategoryAccent(category);
+              const accent =
+                theme.categoryAccents[category as AssetCategory] ??
+                theme.primary;
 
               const subtitle = categoryNamesSubtitle(list);
               const foot = categoryQuoteFootnote(list);
@@ -588,6 +582,8 @@ export default function Dashboard() {
                               key={asset.id}
                               asset={asset}
                               accentColor={accent}
+                              styles={styles}
+                              chevronMuted={chevronMuted}
                               onEdit={handleEditAsset}
                               onDelete={handleDeleteAsset}
                             />
@@ -606,333 +602,3 @@ export default function Dashboard() {
     </View>
   );
 }
-
-/**
- * STYLES — Light “Apple Wallet” glass: periwinkle page + blurred category cards
- */
-const styles = StyleSheet.create({
-  screenWrapper: {
-    flex: 1,
-    backgroundColor: PAGE_BG,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: PAGE_BG,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    backgroundColor: PAGE_BG,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: SEA.slate,
-  },
-  headerAddFab: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: SEA.slate,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    ...Platform.select({
-      ios: {
-        shadowColor: SEA.slate,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.35,
-        shadowRadius: 14,
-      },
-      android: {
-        elevation: 6,
-      },
-      default: {},
-    }),
-  },
-  headerAddFabPressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.96 }],
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 24,
-  },
-  // Net Worth: centered at top, large text
-  netWorthSection: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  netWorthLabel: {
-    fontSize: 13,
-    color: 'rgba(92, 99, 144, 0.65)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  netWorthValue: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: SEA.slate,
-    textAlign: 'center',
-  },
-  netWorthValueCompact: {
-    fontSize: 28,
-    lineHeight: 36,
-  },
-  netWorthFootnote: {
-    fontSize: 11,
-    color: 'rgba(92, 99, 144, 0.5)',
-    textAlign: 'center',
-    marginTop: 10,
-    paddingHorizontal: 12,
-    lineHeight: 16,
-  },
-  syncRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-  syncRowText: {
-    fontSize: 12,
-    color: 'rgba(92, 99, 144, 0.55)',
-  },
-  // Spacing between Net Worth and asset structure
-  spacer: {
-    height: 24,
-  },
-  assetStructureSection: {
-    flex: 1,
-  },
-  groupsContainer: {
-    gap: 18,
-  },
-  categoryCardShadow: {
-    borderRadius: 22,
-    backgroundColor: 'transparent',
-  },
-  categoryCardShadowIOS: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-  },
-  categoryCardShadowAndroid: {
-    elevation: 6,
-  },
-  folderCard: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 0, 0, 0.04)',
-  },
-  folderAccentStrip: {
-    width: 7,
-    minHeight: 72,
-  },
-  folderBody: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  folderHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-  folderHeaderTextCol: {
-    flex: 1,
-    minWidth: 0,
-    paddingRight: 6,
-  },
-  folderTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: SEA.slate,
-    letterSpacing: -0.2,
-  },
-  folderTitleOnAccent: {
-    color: '#FFFFFF',
-  },
-  folderSubtitle: {
-    fontSize: 13,
-    color: 'rgba(92, 99, 144, 0.55)',
-    marginTop: 6,
-    lineHeight: 18,
-  },
-  folderSubtitleOnAccent: {
-    color: 'rgba(255, 255, 255, 0.88)',
-  },
-  folderHeaderRight: {
-    alignItems: 'flex-end',
-    maxWidth: '46%',
-  },
-  folderTotal: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: SEA.slate,
-    textAlign: 'right',
-  },
-  folderTotalOnAccent: {
-    color: '#FFFFFF',
-  },
-  folderFootDate: {
-    fontSize: 11,
-    color: 'rgba(92, 99, 144, 0.48)',
-    marginTop: 6,
-    textAlign: 'right',
-  },
-  folderChevron: {
-    fontSize: 11,
-    color: 'rgba(92, 99, 144, 0.4)',
-    marginTop: 8,
-    fontWeight: '600',
-  },
-  folderChevronOnAccent: {
-    color: 'rgba(255, 255, 255, 0.75)',
-  },
-  folderAssetList: {
-    paddingHorizontal: 10,
-    paddingBottom: 12,
-    paddingTop: 4,
-    backgroundColor: 'rgba(177, 212, 248, 0.45)',
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
-  },
-  assetIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    flexShrink: 0,
-  },
-  assetRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-      },
-      android: { elevation: 2 },
-      default: {},
-    }),
-  },
-  assetRowPressed: {
-    opacity: 0.94,
-    backgroundColor: '#FAFAFC',
-  },
-  assetRowLeft: {
-    flex: 1,
-    gap: 2,
-    minWidth: 0,
-  },
-  assetRowRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginLeft: 8,
-    paddingTop: 2,
-  },
-  assetRowRightStack: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  assetValueSplit: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  assetValueInt: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  assetValueDec: {
-    fontSize: 14,
-    fontWeight: '700',
-    paddingTop: 2,
-  },
-  assetQuoteDate: {
-    fontSize: 11,
-    color: 'rgba(92, 99, 144, 0.48)',
-  },
-  assetName: {
-    fontSize: 17,
-    color: SEA.slate,
-    fontWeight: '600',
-  },
-  assetHoldings: {
-    fontSize: 13,
-    color: 'rgba(92, 99, 144, 0.58)',
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  assetPurpose: {
-    fontSize: 13,
-    color: SEA.lavender,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  assetPurposeMeta: {
-    fontSize: 12,
-    color: 'rgba(92, 99, 144, 0.55)',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  assetValue: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  assetChevron: {
-    marginLeft: 2,
-    marginTop: 4,
-  },
-  emptyCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderRadius: 20,
-    padding: 32,
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-      },
-      android: { elevation: 4 },
-    }),
-  },
-  emptyText: {
-    fontSize: 17,
-    color: 'rgba(92, 99, 144, 0.55)',
-  },
-});
