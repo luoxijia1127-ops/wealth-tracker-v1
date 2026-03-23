@@ -22,16 +22,15 @@ import {
   formatNetWorthSummary,
   getAssetCurrency,
   getAssetDisplayValue,
+  isHeldChineseAsset,
 } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
-import { setEditingAssetId } from '@/lib/edit-asset-store';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import {
     ASSET_CATEGORY_ORDER,
     CATEGORY_LABEL_ZH,
     getListedUnitPrice,
-    isListedAssetCategory,
     type AssetCategory,
     type SimpleAsset,
 } from '@/types/asset';
@@ -133,17 +132,15 @@ function AssetPrimaryValue({
   );
 }
 
-/** 列表展示用：有份额+六位代码即可显示持仓行（不强制行情已同步） */
-function hasListedHoldingsForDisplay(asset: SimpleAsset): boolean {
-  if (!isListedAssetCategory(asset.category)) return false;
-  if (typeof asset.shares !== 'number' || asset.shares <= 0) return false;
-  const sym = typeof asset.symbol === 'string' ? asset.symbol.trim() : '';
-  return /^\d{6}$/.test(sym);
+/** 列表展示用：场内或行情型黄金，有持仓+六位代码即可显示（不强制行情已同步） */
+function hasHeldHoldingsForDisplay(asset: SimpleAsset): boolean {
+  return isHeldChineseAsset(asset);
 }
 
 function listedHoldingsSubtitle(asset: SimpleAsset): string | null {
-  if (!hasListedHoldingsForDisplay(asset)) return null;
+  if (!hasHeldHoldingsForDisplay(asset)) return null;
   const shares = asset.shares!;
+  const gram = asset.category === 'Gold';
   let unit = getListedUnitPrice(asset);
   if (unit === null || unit <= 0) {
     const v = typeof asset.value === 'number' && !Number.isNaN(asset.value) ? asset.value : 0;
@@ -152,14 +149,15 @@ function listedHoldingsSubtitle(asset: SimpleAsset): string | null {
     }
   }
   const sharesText = formatListedSharesText(shares);
+  const qty = gram ? '克' : '份';
   if (unit === null || unit <= 0 || !Number.isFinite(unit)) {
-    return `持仓 ${sharesText}（单价待同步）`;
+    return `持仓 ${sharesText} ${qty}（单价待同步）`;
   }
-  return `持仓 ${sharesText}，¥${formatListedUnitText(unit)}`;
+  return `持仓 ${sharesText} ${qty}，¥${formatListedUnitText(unit)}`;
 }
 
 function listedQuoteDateLabel(asset: SimpleAsset): string | null {
-  if (!hasListedHoldingsForDisplay(asset)) return null;
+  if (!hasHeldHoldingsForDisplay(asset)) return null;
   const iso = asset.lastCloseDate ?? asset.markPriceDate;
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
   const [, m, d] = iso.split('-');
@@ -246,6 +244,11 @@ function AssetRow({
       </View>
       <View style={styles.assetRowLeft}>
         <Text style={styles.assetName}>{asset.name}</Text>
+        {asset.account?.trim() ? (
+          <Text style={styles.assetAccount} numberOfLines={1}>
+            {asset.account.trim()}
+          </Text>
+        ) : null}
         {holdingsLine ? (
           <Text style={styles.assetHoldings}>{holdingsLine}</Text>
         ) : null}
@@ -318,7 +321,6 @@ function DashboardHeader({
           pressed && styles.headerAddFabPressed,
         ]}
         onPress={() => {
-          setEditingAssetId(null);
           router.push({ pathname: '/modal', params: {} });
         }}
         accessibilityLabel="添加资产"
@@ -369,8 +371,7 @@ export default function Dashboard() {
   }, []);
 
   const handleEditAsset = useCallback((asset: SimpleAsset) => {
-    setEditingAssetId(asset.id);
-    router.push({ pathname: '/modal', params: { id: asset.id } });
+    router.push({ pathname: '/asset-action', params: { id: asset.id } });
   }, []);
 
   useFocusEffect(

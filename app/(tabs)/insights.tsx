@@ -12,7 +12,10 @@ import {
   getAssetDisplayValue,
 } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
-import { setEditingAssetId } from '@/lib/edit-asset-store';
+import {
+  buildAggregatedGoalRows,
+  type GoalProgressDisplayRow,
+} from '@/lib/goal-aggregate';
 import { createInsightsStyles, type InsightsStyles } from '@/lib/insights-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { getSnapshots } from '@/lib/snapshots';
@@ -129,56 +132,6 @@ const CATEGORY_GOAL_ICONS: Record<
   Gold: 'star',
 };
 
-type GoalProgressRow = {
-  id: string;
-  label: string;
-  assetName: string;
-  current: number;
-  target: number;
-  currency: string;
-  pct: number;
-  category: AssetCategory;
-  ringColor: string;
-  iconTint: string;
-};
-
-function buildGoalProgressRows(
-  assets: SimpleAsset[],
-  goalRingColors: readonly string[],
-  primaryFallback: string
-): GoalProgressRow[] {
-  const rows: GoalProgressRow[] = [];
-  let colorIdx = 0;
-  for (const a of assets) {
-    if (typeof a.purposeTarget !== 'number' || a.purposeTarget <= 0) continue;
-    const current = getAssetDisplayValue(a);
-    const currency = getAssetCurrency(a);
-    const pct = Math.min(
-      100,
-      Math.round((current / a.purposeTarget) * 100)
-    );
-    const purposeTrim = a.purpose?.trim() ?? '';
-    const label = purposeTrim.length > 0 ? purposeTrim : a.name;
-    const ringColor =
-      goalRingColors[colorIdx % goalRingColors.length] ?? primaryFallback;
-    colorIdx += 1;
-    rows.push({
-      id: a.id,
-      label,
-      assetName: a.name,
-      current,
-      target: a.purposeTarget,
-      currency,
-      pct,
-      category: a.category,
-      ringColor,
-      iconTint: ringColor,
-    });
-  }
-  rows.sort((x, y) => y.pct - x.pct);
-  return rows;
-}
-
 function GoalProgressRing({
   pct,
   color,
@@ -238,18 +191,20 @@ function GoalProgressCard({
   primary,
   ringTrackColor,
 }: {
-  row: GoalProgressRow;
+  row: GoalProgressDisplayRow;
   styles: InsightsStyles;
   textSecondary: string;
   textMuted: string;
   primary: string;
   ringTrackColor: string;
 }) {
-  const showAssetLine =
-    row.label !== row.assetName && row.assetName.trim().length > 0;
+  const showDetailLine =
+    row.detailLine.trim().length > 0 && row.detailLine !== row.label;
   const onOpen = () => {
-    setEditingAssetId(row.id);
-    router.push({ pathname: '/modal', params: { id: row.id } });
+    router.push({
+      pathname: '/asset-action',
+      params: { id: row.primaryAssetId },
+    });
   };
 
   return (
@@ -281,13 +236,13 @@ function GoalProgressCard({
         >
           {row.label}
         </Text>
-        {showAssetLine ? (
+        {showDetailLine ? (
           <Text
             style={[styles.goalCardAssetName, { color: textMuted }]}
-            numberOfLines={1}
+            numberOfLines={2}
             ellipsizeMode="tail"
           >
-            {row.assetName}
+            {row.detailLine}
           </Text>
         ) : null}
         <Text style={[styles.goalCardValues, { color: primary }]}>
@@ -633,7 +588,7 @@ export default function Insights() {
   const donutTotal = donutSlices.reduce((s, x) => s + x.value, 0);
   const goalRows = useMemo(
     () =>
-      buildGoalProgressRows(assets, theme.goalRingColors, theme.primary),
+      buildAggregatedGoalRows(assets, theme.goalRingColors, theme.primary),
     [assets, theme.goalRingColors, theme.primary]
   );
 

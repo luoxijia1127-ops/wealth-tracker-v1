@@ -14,7 +14,10 @@ export type ListedFormInput = {
   symbol: string;
   exchange: SimpleAsset['exchange'];
   shares: string;
+  /** 日 K / 参考收盘价，写入 lastClose */
   price: string;
+  /** 成本价/买价（CNY/份），写入 avgCost */
+  costPrice: string;
   category: AssetCategory;
   purpose: string;
   purposeTarget: string;
@@ -28,6 +31,8 @@ export type CashLikeFormInput = {
   category: AssetCategory;
   purpose: string;
   purposeTarget: string;
+  /** 可选本金 */
+  costBasis: string;
 };
 
 /**
@@ -51,6 +56,16 @@ export function validateListedForm(input: ListedFormInput): FormValidationError 
   ) {
     return '请输入有效份额与收盘价 / 参考价（CNY）。';
   }
+  const costNum = parseFloat(input.costPrice);
+  if (!input.isEditMode) {
+    if (Number.isNaN(costNum) || costNum <= 0) {
+      return '请填写有效的成本价/买价（CNY/份）。';
+    }
+  } else if (input.costPrice.trim() !== '') {
+    if (Number.isNaN(costNum) || costNum <= 0) {
+      return '成本价须为正数。';
+    }
+  }
   return null;
 }
 
@@ -60,6 +75,10 @@ export function validateCashLikeForm(input: CashLikeFormInput): FormValidationEr
   const valueNum = parseFloat(input.value);
   if (Number.isNaN(valueNum) || valueNum < 0) {
     return '请输入有效的当前金额。';
+  }
+  if (input.costBasis.trim() !== '') {
+    const c = parseFloat(input.costBasis);
+    if (Number.isNaN(c) || c < 0) return '本金须为有效非负数。';
   }
   return null;
 }
@@ -88,7 +107,10 @@ export type BuildListedParams = {
   shares: number;
   /** 用户手填的初始「日 K 参考价」，写入 lastClose；盘中现价由同步逻辑写入 markPrice */
   initialLastClose: number;
+  /** 持仓成本单价（CNY/份） */
+  avgCost: number;
   purposeFields: Pick<SimpleAsset, 'purpose' | 'purposeTarget'>;
+  account?: string;
   /** 来自联想的东财 secid，场外基金等必用以避免错用 0/1 市场前缀 */
   emSecid?: string;
 };
@@ -96,6 +118,8 @@ export type BuildListedParams = {
 /** 组装一条「场内」资产（含初始 lastClose，不含 markPrice） */
 export function buildListedAsset(p: BuildListedParams): SimpleAsset {
   const value = p.shares * p.initialLastClose;
+  const accountRaw =
+    typeof p.account === 'string' ? p.account.trim() : '';
   const asset: SimpleAsset = {
     id: p.id,
     name: p.name.trim(),
@@ -107,8 +131,10 @@ export function buildListedAsset(p: BuildListedParams): SimpleAsset {
     lastClose: p.initialLastClose,
     lastCloseDate: getShanghaiDateString(),
     currency: 'CNY',
+    avgCost: p.avgCost,
     ...p.purposeFields,
   };
+  if (accountRaw.length > 0) asset.account = accountRaw;
   if (p.emSecid && /^\d+\.\d+$/.test(p.emSecid.trim())) {
     asset.emSecid = p.emSecid.trim();
   }
@@ -123,15 +149,19 @@ export type BuildCashLikeParams = {
   /** ISO 4217，默认人民币 */
   currency: string;
   purposeFields: Pick<SimpleAsset, 'purpose' | 'purposeTarget'>;
+  account?: string;
+  costBasis?: number;
 };
 
-/** 组装现金类、黄金等仅金额型资产 */
+/** 组装现金类、黄金等不按行情代码估值的资产（黄金若走行情请用 buildListedAsset） */
 export function buildCashLikeAsset(p: BuildCashLikeParams): SimpleAsset {
   const cur =
     typeof p.currency === 'string' && /^[A-Z]{3}$/.test(p.currency)
       ? p.currency
       : 'CNY';
-  return {
+  const accountRaw =
+    typeof p.account === 'string' ? p.account.trim() : '';
+  const out: SimpleAsset = {
     id: p.id,
     name: p.name.trim(),
     value: p.value,
@@ -139,6 +169,15 @@ export function buildCashLikeAsset(p: BuildCashLikeParams): SimpleAsset {
     currency: cur,
     ...p.purposeFields,
   };
+  if (accountRaw.length > 0) out.account = accountRaw;
+  if (
+    typeof p.costBasis === 'number' &&
+    !Number.isNaN(p.costBasis) &&
+    p.costBasis >= 0
+  ) {
+    out.costBasis = p.costBasis;
+  }
+  return out;
 }
 
 /** 生成新 id 或沿用编辑中的 id */

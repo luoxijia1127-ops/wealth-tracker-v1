@@ -3,6 +3,7 @@
  * - 扁平五大类：股票 / 基金 / ETF / 现金类 / 黄金
  * - 场内：symbol、exchange、shares；价格分 markPrice（盘中现价）与 lastClose（日 K 结算）
  * - 可选 purpose / purposeTarget
+ * - 可选 account（所在账户）、avgCost（场内成本单价）、costBasis（现金类等本金）
  */
 
 /** 交易所：沪 / 深 / 北；OTC 为场外开放式基金（东财 secid 前缀 2） */
@@ -34,6 +35,16 @@ export const CATEGORY_LABEL_ZH: Record<AssetCategory, string> = {
  */
 export function isListedAssetCategory(c: AssetCategory): boolean {
   return c === 'Stock' || c === 'Fund' || c === 'ETF';
+}
+
+/** 是否按克+行情管理的黄金（与场内同一套代码/交易所字段） */
+export function isGoldAssetCategory(c: AssetCategory): boolean {
+  return c === 'Gold';
+}
+
+/** 会与「同代码」合并去重的类别：场内三类 + 黄金 */
+export function isHeldMergeCategory(c: AssetCategory): boolean {
+  return isListedAssetCategory(c) || c === 'Gold';
 }
 
 /** 旧版 category + type → 新版扁平 AssetCategory */
@@ -75,6 +86,27 @@ export type AssetHistoryEntry = {
   value: number;
 };
 
+/** 场内加减仓流水（买卖均需记录单价）；黄金时 shares 为克、单价为 CNY/克 */
+export type TradeLedgerEntry = {
+  id: string;
+  /** YYYY-MM-DD */
+  tradeDate: string;
+  side: 'buy' | 'sell';
+  shares: number;
+  /** 成交单价 CNY/份 或 CNY/克（黄金） */
+  unitPriceCny: number;
+};
+
+/** 现金类余额变动流水（仅金额，无单价） */
+export type CashLedgerEntry = {
+  id: string;
+  /** YYYY-MM-DD */
+  entryDate: string;
+  side: 'in' | 'out';
+  /** 变动金额，与资产币种一致，恒为正数 */
+  amount: number;
+};
+
 /**
  * SimpleAsset：AsyncStorage 里一条资产的完整形状。
  * category 是唯一类别来源；已废弃的 type 字段在读盘时会被忽略，仅参与迁移推断。
@@ -100,12 +132,96 @@ export type SimpleAsset = {
   /** markPrice 对应的上海日历日（记录是哪一天抓到的现价） */
   markPriceDate?: string;
   currency?: string;
+  /** 所在账户，如支付宝、招商银行储蓄卡、同花顺 */
+  account?: string;
+  /**
+   * 场内：持仓平均成本单价（CNY/份），用于后续收益率。
+   * 现金类/黄金：可不填；也可用 costBasis 表示本金。
+   */
+  avgCost?: number;
+  /** 现金类等：可选总本金/成本（与当前市值分开时使用） */
+  costBasis?: number;
   purpose?: string;
   purposeTarget?: number;
+  /** 场内：加减仓流水；编辑/删除流水后会重算 shares / avgCost */
+  tradeHistory?: TradeLedgerEntry[];
+  /** 现金类：入金/出金流水，重算 value */
+  cashLedger?: CashLedgerEntry[];
 };
 
 export function generateAssetId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+/** 流水 JSON 里份额、单价可能被存成字符串，读盘时统一成 number */
+function coerceLedgerShares(raw: unknown): number | null {
+  if (typeof raw === 'number' && !Number.isNaN(raw) && raw > 0) return raw;
+  if (typeof raw === 'string') {
+    const n = parseFloat(raw.trim().replace(/,/g, ''));
+    if (!Number.isNaN(n) && n > 0) return n;
+  }
+  return null;
+}
+
+function coerceLedgerUnitPrice(raw: unknown): number | null {
+  if (typeof raw === 'number' && !Number.isNaN(raw) && raw >= 0) return raw;
+  if (typeof raw === 'string') {
+    const n = parseFloat(raw.trim().replace(/,/g, ''));
+    if (!Number.isNaN(n) && n >= 0) return n;
+  }
+  return null;
+}
+
+function parseTradeHistoryRaw(raw: unknown): TradeLedgerEntry[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: TradeLedgerEntry[] = [];
+  for (const x of raw) {
+    if (typeof x !== 'object' || x === null) continue;
+    const o = x as Record<string, unknown>;
+    const id = typeof o.id === 'string' && o.id.length > 0 ? o.id : null;
+    const tradeDate =
+      typeof o.tradeDate === 'string' && o.tradeDate.length > 0
+        ? o.tradeDate
+        : null;
+    const side = o.side === 'buy' || o.side === 'sell' ? o.side : null;
+    const shares = coerceLedgerShares(o.shares);
+    const unitPriceCny = coerceLedgerUnitPrice(o.unitPriceCny);
+    if (id && tradeDate && side && shares !== null && unitPriceCny !== null) {
+      out.push({ id, tradeDate, side, shares, unitPriceCny });
+    }
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+function coerceCashLedgerAmount(raw: unknown): number | null {
+  if (typeof raw === 'number' && !Number.isNaN(raw) && raw > 0) return raw;
+  if (typeof raw === 'string') {
+    const n = parseFloat(raw.trim().replace(/,/g, ''));
+    if (!Number.isNaN(n) && n > 0) return n;
+  }
+  return null;
+}
+
+function parseCashLedgerRaw(raw: unknown): CashLedgerEntry[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: CashLedgerEntry[] = [];
+  for (const x of raw) {
+    if (typeof x !== 'object' || x === null) continue;
+    const o = x as Record<string, unknown>;
+    const id = typeof o.id === 'string' && o.id.length > 0 ? o.id : null;
+    const entryDate =
+      typeof o.entryDate === 'string' && o.entryDate.length > 0
+        ? o.entryDate
+        : typeof o.tradeDate === 'string' && o.tradeDate.length > 0
+          ? o.tradeDate
+          : null;
+    const side = o.side === 'in' || o.side === 'out' ? o.side : null;
+    const amount = coerceCashLedgerAmount(o.amount);
+    if (id && entryDate && side && amount !== null) {
+      out.push({ id, entryDate, side, amount });
+    }
+  }
+  return out.length > 0 ? out : undefined;
 }
 
 /** 读盘时兼容 JSON 里 shares 被写成字符串的情况 */
@@ -181,6 +297,25 @@ export function ensureAsset(raw: unknown): SimpleAsset {
       ? o.currency
       : undefined;
 
+  const accountRaw = typeof o.account === 'string' ? o.account.trim() : '';
+  const account = accountRaw.length > 0 ? accountRaw : undefined;
+
+  const avgCostRaw = o.avgCost;
+  const avgCost =
+    typeof avgCostRaw === 'number' &&
+    !Number.isNaN(avgCostRaw) &&
+    avgCostRaw > 0
+      ? avgCostRaw
+      : undefined;
+
+  const costBasisRaw = o.costBasis;
+  const costBasis =
+    typeof costBasisRaw === 'number' &&
+    !Number.isNaN(costBasisRaw) &&
+    costBasisRaw >= 0
+      ? costBasisRaw
+      : undefined;
+
   const purposeRaw = typeof o.purpose === 'string' ? o.purpose.trim() : '';
   const purpose = purposeRaw.length > 0 ? purposeRaw : undefined;
   const pt =
@@ -231,10 +366,19 @@ export function ensureAsset(raw: unknown): SimpleAsset {
   }
   if (purpose) asset.purpose = purpose;
   if (purposeTarget !== undefined) asset.purposeTarget = purposeTarget;
+  if (account) asset.account = account;
+  if (avgCost !== undefined) asset.avgCost = avgCost;
+  if (costBasis !== undefined) asset.costBasis = costBasis;
 
-  /** 是否具备「按单价算市值」的场内完整信息 */
+  const th = parseTradeHistoryRaw(o.tradeHistory);
+  if (th) asset.tradeHistory = th;
+
+  const cl = parseCashLedgerRaw(o.cashLedger);
+  if (cl) asset.cashLedger = cl;
+
+  /** 是否具备「按单价算市值」的场内完整信息（含黄金 ETF/现货代码） */
   const listedComplete =
-    isListedAssetCategory(asset.category) &&
+    (isListedAssetCategory(asset.category) || asset.category === 'Gold') &&
     typeof asset.shares === 'number' &&
     asset.shares > 0 &&
     typeof asset.symbol === 'string' &&

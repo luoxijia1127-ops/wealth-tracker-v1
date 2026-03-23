@@ -26,6 +26,32 @@ export default function RootLayout() {
               presentation: 'modal',
               title: 'Add Asset',
               gestureEnabled: true,
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="asset-action"
+            options={{
+              presentation: 'modal',
+              title: '资产',
+              gestureEnabled: true,
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="trade-edit"
+            options={{
+              presentation: 'modal',
+              gestureEnabled: true,
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="cash-ledger-edit"
+            options={{
+              presentation: 'modal',
+              gestureEnabled: true,
+              headerShadowVisible: false,
             }}
           />
         </Stack>

@@ -9,7 +9,7 @@ import { fetchPush2LastPrice } from '@/lib/eastmoney-push';
 import { toEastMoneySecid } from '@/lib/eastmoney-secid';
 import { getAssets, saveAssets } from '@/lib/asset-storage';
 import { getListedUnitPrice, type SimpleAsset } from '@/types/asset';
-import { isListedChineseAsset } from '@/lib/asset-value';
+import { isHeldChineseAsset } from '@/lib/asset-value';
 
 function listedEastMoneySecid(a: SimpleAsset): string {
   const raw = typeof a.emSecid === 'string' ? a.emSecid.trim() : '';
@@ -67,7 +67,7 @@ function assetsJsonEqual(a: SimpleAsset[], b: SimpleAsset[]): boolean {
 
 export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
   const assets = await getAssets();
-  const listed = assets.filter(isListedChineseAsset);
+  const listed = assets.filter(isHeldChineseAsset);
   if (listed.length === 0) return assets;
 
   const uniqueSecids = [...new Set(listed.map(listedEastMoneySecid))];
@@ -111,7 +111,7 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
   );
 
   const next = assets.map((a) => {
-    if (!isListedChineseAsset(a)) return a;
+    if (!isHeldChineseAsset(a)) return a;
     const secid = listedEastMoneySecid(a);
     const pack = secidPack.get(secid);
     if (!pack) return a;

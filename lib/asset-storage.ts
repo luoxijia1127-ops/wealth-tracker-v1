@@ -5,7 +5,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { getAssetDisplayValue } from '@/lib/asset-value';
+import { mergeListedDuplicateAssets } from '@/lib/listed-merge';
 import { ensureAsset, type SimpleAsset } from '@/types/asset';
+
+function assetsJsonEqual(a: SimpleAsset[], b: SimpleAsset[]): boolean {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
 
 export const ASSETS_STORAGE_KEY = 'assets';
 
@@ -20,6 +29,12 @@ export async function getAssets(): Promise<SimpleAsset[]> {
       throw new Error('stored assets is not an array');
     }
     const list = raw.map((item) => ensureAsset(item));
+    const merged = mergeListedDuplicateAssets(list);
+    if (!assetsJsonEqual(list, merged)) {
+      lastGoodAssets = merged;
+      await AsyncStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    }
     lastGoodAssets = list;
     return list;
   } catch (e) {

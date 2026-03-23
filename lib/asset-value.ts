@@ -12,17 +12,7 @@ import {
   type SimpleAsset,
 } from '@/types/asset';
 
-export { toEastMoneySecid };
-export type { ChinaExchange };
-
-/** @deprecated 请优先使用 getShanghaiDateString；保留别名减少调用方改动 */
-export function todayShanghaiDateString(): string {
-  return getShanghaiDateString();
-}
-
-/** 是否应按「场内证券」拉行情：类别 + 代码 + 交易所 + 份额 */
-export function isListedChineseAsset(a: SimpleAsset): boolean {
-  if (!isListedAssetCategory(a.category)) return false;
+function heldLikeShape(a: SimpleAsset): boolean {
   if (typeof a.shares !== 'number' || a.shares <= 0) return false;
   if (typeof a.symbol !== 'string' || !/^\d{6}$/.test(a.symbol.trim())) {
     return false;
@@ -31,8 +21,35 @@ export function isListedChineseAsset(a: SimpleAsset): boolean {
   return ex === 'SH' || ex === 'SZ' || ex === 'BJ' || ex === 'OTC';
 }
 
+/** 股票/基金/ETF 且具备六位代码与交易所（拉行情、按份额估值） */
+export function isListedChineseAsset(a: SimpleAsset): boolean {
+  if (!isListedAssetCategory(a.category)) return false;
+  return heldLikeShape(a);
+}
+
+/**
+ * 黄金且具备六位代码与交易所（按克持仓 + 行情价，与场内同一套逻辑）
+ */
+export function isGoldChineseAsset(a: SimpleAsset): boolean {
+  if (a.category !== 'Gold') return false;
+  return heldLikeShape(a);
+}
+
+/** 场内证券或行情型黄金 */
+export function isHeldChineseAsset(a: SimpleAsset): boolean {
+  return isListedChineseAsset(a) || isGoldChineseAsset(a);
+}
+
+export { toEastMoneySecid };
+export type { ChinaExchange };
+
+/** @deprecated 请优先使用 getShanghaiDateString；保留别名减少调用方改动 */
+export function todayShanghaiDateString(): string {
+  return getShanghaiDateString();
+}
+
 export function getAssetDisplayValue(a: SimpleAsset): number {
-  if (isListedChineseAsset(a)) {
+  if (isHeldChineseAsset(a)) {
     const unit = getListedUnitPrice(a);
     if (unit !== null) return a.shares! * unit;
   }
@@ -40,7 +57,7 @@ export function getAssetDisplayValue(a: SimpleAsset): number {
 }
 
 export function getAssetCurrency(a: SimpleAsset): string {
-  if (isListedChineseAsset(a)) return 'CNY';
+  if (isHeldChineseAsset(a)) return 'CNY';
   if (typeof a.currency === 'string' && /^[A-Z]{3}$/.test(a.currency)) {
     return a.currency;
   }

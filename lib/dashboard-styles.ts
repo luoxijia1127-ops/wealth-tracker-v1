@@ -291,6 +291,12 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       color: t.primary,
       fontWeight: '600',
     },
+    assetAccount: {
+      fontSize: 12,
+      color: p55,
+      marginTop: 2,
+      fontWeight: '500',
+    },
     assetHoldings: {
       fontSize: 13,
       color: p58,
