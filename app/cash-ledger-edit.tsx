@@ -5,11 +5,12 @@
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createAddModalStyles } from '@/lib/modal-styles';
-import { getAssets, updateAsset } from '@/lib/asset-storage';
+import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
 import {
   deleteCashLedgerEntry,
   updateCashLedgerEntry,
 } from '@/lib/cash-ledger';
+import { deleteListedTradeEntry, updateListedTradeEntry } from '@/lib/trade-ledger';
 import { useGlobalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
@@ -109,6 +110,12 @@ export default function CashLedgerEditScreen() {
       Alert.alert('无法保存', '日期请使用 YYYY-MM-DD。');
       return;
     }
+    const linkedTradeAssetId = entry.relatedAssetId;
+    const linkedTransferId = entry.transferId;
+    if (linkedTradeAssetId && side !== 'out') {
+      Alert.alert('无法保存', '该流水关联了买入交易，类型必须保持为出金。');
+      return;
+    }
     setSaving(true);
     try {
       const next = updateCashLedgerEntry(asset, entry.id, {
@@ -116,7 +123,37 @@ export default function CashLedgerEditScreen() {
         amount: q,
         entryDate: d,
       });
-      await updateAsset(next);
+      if (linkedTradeAssetId && linkedTransferId) {
+        const all = await getAssets();
+        const srcIdx = all.findIndex((x) => x.id === asset.id);
+        const tradeAssetIdx = all.findIndex((x) => x.id === linkedTradeAssetId);
+        if (srcIdx >= 0 && tradeAssetIdx >= 0) {
+          const tradeAsset = all[tradeAssetIdx]!;
+          const linkedTrade = (tradeAsset.tradeHistory ?? []).find(
+            (t) => t.transferId === linkedTransferId
+          );
+          if (linkedTrade) {
+            if (!(linkedTrade.shares > 0)) {
+              Alert.alert('无法保存', '关联交易份额无效，无法按金额回算单价。');
+              return;
+            }
+            const patchedTrade = updateListedTradeEntry(tradeAsset, linkedTrade.id, {
+              side: 'buy',
+              tradeDate: d,
+              unitPriceCny: q / linkedTrade.shares,
+            });
+            all[srcIdx] = next;
+            all[tradeAssetIdx] = patchedTrade;
+            await saveAssets(all);
+          } else {
+            await updateAsset(next);
+          }
+        } else {
+          await updateAsset(next);
+        }
+      } else {
+        await updateAsset(next);
+      }
       router.back();
     } catch (e) {
       Alert.alert(
@@ -139,7 +176,31 @@ export default function CashLedgerEditScreen() {
           setSaving(true);
           try {
             const next = deleteCashLedgerEntry(asset, entry.id);
-            await updateAsset(next);
+            if (entry.relatedAssetId && entry.transferId) {
+              const all = await getAssets();
+              const srcIdx = all.findIndex((x) => x.id === asset.id);
+              const tradeAssetIdx = all.findIndex(
+                (x) => x.id === entry.relatedAssetId
+              );
+              if (srcIdx >= 0 && tradeAssetIdx >= 0) {
+                const tradeAsset = all[tradeAssetIdx]!;
+                const linkedTrade = (tradeAsset.tradeHistory ?? []).find(
+                  (t) => t.transferId === entry.transferId
+                );
+                if (linkedTrade) {
+                  all[tradeAssetIdx] = deleteListedTradeEntry(
+                    tradeAsset,
+                    linkedTrade.id
+                  );
+                }
+                all[srcIdx] = next;
+                await saveAssets(all);
+              } else {
+                await updateAsset(next);
+              }
+            } else {
+              await updateAsset(next);
+            }
             router.back();
           } catch (e) {
             Alert.alert(

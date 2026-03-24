@@ -21,21 +21,20 @@ function heldLikeShape(a: SimpleAsset): boolean {
   return ex === 'SH' || ex === 'SZ' || ex === 'BJ' || ex === 'OTC';
 }
 
-/** 股票/基金/ETF 且具备六位代码与交易所（拉行情、按份额估值） */
+/** 股票/基金/ETF 且具备六位代码与交易所（东财行情、按份额估值） */
 export function isListedChineseAsset(a: SimpleAsset): boolean {
   if (!isListedAssetCategory(a.category)) return false;
   return heldLikeShape(a);
 }
 
 /**
- * 黄金且具备六位代码与交易所（按克持仓 + 行情价，与场内同一套逻辑）
+ * 黄金（账户金/实物记账）：按克持仓 + CNY/克 参考价，不依赖证券代码。
  */
 export function isGoldChineseAsset(a: SimpleAsset): boolean {
-  if (a.category !== 'Gold') return false;
-  return heldLikeShape(a);
+  return a.category === 'Gold' && typeof a.shares === 'number' && a.shares > 0;
 }
 
-/** 场内证券或行情型黄金 */
+/** 场内证券，或按克计价的黄金 */
 export function isHeldChineseAsset(a: SimpleAsset): boolean {
   return isListedChineseAsset(a) || isGoldChineseAsset(a);
 }

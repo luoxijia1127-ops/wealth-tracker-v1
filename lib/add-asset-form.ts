@@ -113,6 +113,9 @@ export type BuildListedParams = {
   account?: string;
   /** 来自联想的东财 secid，场外基金等必用以避免错用 0/1 市场前缀 */
   emSecid?: string;
+  fundingSourceAssetId?: string;
+  fundingSourceAssetName?: string;
+  fundingTransferId?: string;
 };
 
 /** 组装一条「场内」资产（含初始 lastClose，不含 markPrice） */
@@ -132,6 +135,22 @@ export function buildListedAsset(p: BuildListedParams): SimpleAsset {
     lastCloseDate: getShanghaiDateString(),
     currency: 'CNY',
     avgCost: p.avgCost,
+    tradeHistory: [
+      {
+        id: `baseline-${p.id}`,
+        tradeDate: getShanghaiDateString(),
+        side: 'buy',
+        shares: p.shares,
+        unitPriceCny: p.avgCost,
+        ...(p.fundingSourceAssetId
+          ? { fundingSourceAssetId: p.fundingSourceAssetId }
+          : {}),
+        ...(p.fundingSourceAssetName
+          ? { fundingSourceAssetName: p.fundingSourceAssetName }
+          : {}),
+        ...(p.fundingTransferId ? { transferId: p.fundingTransferId } : {}),
+      },
+    ],
     ...p.purposeFields,
   };
   if (accountRaw.length > 0) asset.account = accountRaw;
@@ -153,7 +172,78 @@ export type BuildCashLikeParams = {
   costBasis?: number;
 };
 
-/** 组装现金类、黄金等不按行情代码估值的资产（黄金若走行情请用 buildListedAsset） */
+export type GoldFormInput = {
+  name: string;
+  shares: string;
+  /** 购买单价 CNY/克 → avgCost */
+  costPrice: string;
+  purpose: string;
+  purposeTarget: string;
+};
+
+/** 校验黄金：名称、克数、购买单价 */
+export function validateGoldForm(input: GoldFormInput): FormValidationError {
+  if (!input.name.trim()) return '请填写资产名称。';
+  const grams = parseFloat(input.shares);
+  if (Number.isNaN(grams) || grams <= 0) {
+    return '请填写有效的持有克数。';
+  }
+  const cost = parseFloat(input.costPrice);
+  if (Number.isNaN(cost) || cost <= 0) {
+    return '请填写有效的购买单价（CNY/克）。';
+  }
+  return null;
+}
+
+export type BuildGoldParams = {
+  id: string;
+  name: string;
+  shares: number;
+  avgCost: number;
+  purposeFields: Pick<SimpleAsset, 'purpose' | 'purposeTarget'>;
+  account?: string;
+  fundingSourceAssetId?: string;
+  fundingSourceAssetName?: string;
+  fundingTransferId?: string;
+};
+
+/** 组装黄金资产（无证券代码） */
+export function buildGoldAsset(p: BuildGoldParams): SimpleAsset {
+  // 新增时先按购买价估算，后续由行情同步写入 markPrice/lastClose 更新净值。
+  const value = p.shares * p.avgCost;
+  const accountRaw =
+    typeof p.account === 'string' ? p.account.trim() : '';
+  const out: SimpleAsset = {
+    id: p.id,
+    name: p.name.trim(),
+    value,
+    category: 'Gold',
+    shares: p.shares,
+    avgCost: p.avgCost,
+    tradeHistory: [
+      {
+        id: `baseline-${p.id}`,
+        tradeDate: getShanghaiDateString(),
+        side: 'buy',
+        shares: p.shares,
+        unitPriceCny: p.avgCost,
+        ...(p.fundingSourceAssetId
+          ? { fundingSourceAssetId: p.fundingSourceAssetId }
+          : {}),
+        ...(p.fundingSourceAssetName
+          ? { fundingSourceAssetName: p.fundingSourceAssetName }
+          : {}),
+        ...(p.fundingTransferId ? { transferId: p.fundingTransferId } : {}),
+      },
+    ],
+    currency: 'CNY',
+    ...p.purposeFields,
+  };
+  if (accountRaw.length > 0) out.account = accountRaw;
+  return out;
+}
+
+/** 组装现金类等只记总额的资产 */
 export function buildCashLikeAsset(p: BuildCashLikeParams): SimpleAsset {
   const cur =
     typeof p.currency === 'string' && /^[A-Z]{3}$/.test(p.currency)

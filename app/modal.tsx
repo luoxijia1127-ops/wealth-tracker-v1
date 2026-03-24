@@ -6,12 +6,16 @@
 
 import {
   buildCashLikeAsset,
+  buildGoldAsset,
   buildListedAsset,
   buildPurposeFields,
   validateCashLikeForm,
+  validateGoldForm,
   validateListedForm,
 } from '@/lib/add-asset-form';
-import { addAsset } from '@/lib/asset-storage';
+import { getAssets, saveAssets } from '@/lib/asset-storage';
+import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
+import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
   formatExchangeSymbol,
   searchSecurities,
@@ -86,6 +90,8 @@ export default function AddModal() {
   const [account, setAccount] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [costBasis, setCostBasis] = useState('');
+  const [fundingOptions, setFundingOptions] = useState<SimpleAsset[]>([]);
+  const [fundingSourceId, setFundingSourceId] = useState('');
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -101,11 +107,39 @@ export default function AddModal() {
   }, [navigation, theme.pageBg, theme.primary]);
 
   const isListedCategory = isListedAssetCategory(category);
-  const showListedFields = isListedCategory || category === 'Gold';
-  const showTotalValue = !showListedFields;
+  const showGoldForm = category === 'Gold';
+  const showListedSecuritiesForm = isListedCategory;
+  /** 用途目标金额与人民币展示：场内或黄金 */
+  const purposeYuan = showGoldForm || showListedSecuritiesForm;
+  const showTotalValue = !showGoldForm && !showListedSecuritiesForm;
+  const canChooseFundingSource = showGoldForm || showListedSecuritiesForm;
 
   useEffect(() => {
-    if (!showListedFields) {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await getAssets();
+        if (cancelled) return;
+        setFundingOptions(
+          list.filter(
+            (a) =>
+              usesCashAmountLedger(a) &&
+              normalizeAssetCurrency(a.currency) === 'CNY' &&
+              typeof a.value === 'number' &&
+              a.value > 0
+          )
+        );
+      } catch {
+        if (!cancelled) setFundingOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showListedSecuritiesForm) {
       setSuggestions([]);
       setSuggestLoading(false);
       return;
@@ -134,17 +168,21 @@ export default function AddModal() {
       clearTimeout(t);
       ac.abort();
     };
-  }, [searchText, showListedFields]);
+  }, [searchText, showListedSecuritiesForm]);
 
   const handleCategoryChange = useCallback((cat: AssetCategory) => {
     setCategory(cat);
-    if (!isListedAssetCategory(cat) && cat !== 'Gold') {
+    if (!isListedAssetCategory(cat)) {
       setInstrumentPick(null);
       setSearchText('');
       setSuggestions([]);
       setSymbol('');
-    } else {
+    }
+    if (isListedAssetCategory(cat) || cat === 'Gold') {
       setAssetCurrency('CNY');
+    }
+    if (!(isListedAssetCategory(cat) || cat === 'Gold')) {
+      setFundingSourceId('');
     }
   }, []);
 
@@ -175,7 +213,38 @@ export default function AddModal() {
     try {
       let assetToSave: SimpleAsset;
 
-      if (showListedFields) {
+      const transferId =
+        canChooseFundingSource && fundingSourceId.trim().length > 0
+          ? `xf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+          : undefined;
+
+      if (showGoldForm) {
+        const err = validateGoldForm({
+          name,
+          shares,
+          costPrice,
+          purpose,
+          purposeTarget,
+        });
+        if (err) {
+          Alert.alert('无法保存', err);
+          return;
+        }
+        const grams = parseFloat(shares);
+        const costNum = parseFloat(costPrice);
+        const src = fundingOptions.find((x) => x.id === fundingSourceId);
+        assetToSave = buildGoldAsset({
+          id,
+          name,
+          shares: grams,
+          avgCost: costNum,
+          purposeFields,
+          account: accountTrim || undefined,
+          fundingSourceAssetId: src?.id,
+          fundingSourceAssetName: src?.name,
+          fundingTransferId: transferId,
+        });
+      } else if (showListedSecuritiesForm) {
         const err = validateListedForm({
           name,
           symbol,
@@ -198,6 +267,7 @@ export default function AddModal() {
         const parsedCost = parseFloat(costPrice);
         const finalShares = parseFloat(shares);
         const finalAvg = parsedCost;
+        const src = fundingOptions.find((x) => x.id === fundingSourceId);
 
         assetToSave = buildListedAsset({
           id,
@@ -211,6 +281,9 @@ export default function AddModal() {
           purposeFields,
           emSecid: instrumentPick?.quoteId,
           account: accountTrim || undefined,
+          fundingSourceAssetId: src?.id,
+          fundingSourceAssetName: src?.name,
+          fundingTransferId: transferId,
         });
       } else {
         const err = validateCashLikeForm({
@@ -251,7 +324,52 @@ export default function AddModal() {
         delete assetToSave.account;
       }
 
-      await addAsset(assetToSave);
+      if (canChooseFundingSource && fundingSourceId.trim().length > 0) {
+        const all = await getAssets();
+        const srcIdx = all.findIndex((a) => a.id === fundingSourceId);
+        if (srcIdx < 0) {
+          Alert.alert('无法保存', '资金来源资产不存在，请重新选择。');
+          return;
+        }
+        const src = all[srcIdx]!;
+        if (!usesCashAmountLedger(src)) {
+          Alert.alert('无法保存', '所选资金来源不是可扣减余额的现金类资产。');
+          return;
+        }
+        const amount =
+          showGoldForm || showListedSecuritiesForm
+            ? parseFloat(shares) * parseFloat(costPrice)
+            : 0;
+        if (!(amount > 0)) {
+          Alert.alert('无法保存', '买入金额计算失败，请检查克数/份额与购买单价。');
+          return;
+        }
+        let debited: SimpleAsset;
+        try {
+          debited = appendCashMovement(
+            src,
+            'out',
+            amount,
+            getShanghaiDateString(),
+            {
+              relatedAssetId: assetToSave.id,
+              relatedAssetName: assetToSave.name,
+              note: `买入${assetToSave.category === 'Gold' ? '黄金' : '资产'}资金划转`,
+              transferId,
+            }
+          );
+        } catch (e) {
+          Alert.alert('无法保存', e instanceof Error ? e.message : '资金来源余额不足。');
+          return;
+        }
+        all[srcIdx] = debited;
+        all.push(assetToSave);
+        await saveAssets(all);
+      } else {
+        const all = await getAssets();
+        all.push(assetToSave);
+        await saveAssets(all);
+      }
       router.back();
     } catch (e) {
       console.error(e);
@@ -312,7 +430,88 @@ export default function AddModal() {
           onChangeText={setAccount}
         />
 
-        {showListedFields && (
+        {showGoldForm && (
+          <>
+            <Text style={styles.label}>名称</Text>
+            <TextInput
+              placeholder="如：工行如意金、实物金条"
+              placeholderTextColor={placeholderColor}
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+            />
+            <Text style={styles.label}>持有克数</Text>
+            <TextInput
+              placeholder="购买或当前记账克数"
+              placeholderTextColor={placeholderColor}
+              style={styles.input}
+              value={shares}
+              onChangeText={setShares}
+              keyboardType="decimal-pad"
+            />
+            <Text style={styles.label}>购买单价（CNY/克）</Text>
+            <Text style={styles.hintMuted}>
+              建仓或加仓时的每克成本。参考市价由 Dashboard 同步行情自动更新，不需要手填。
+            </Text>
+            <View style={styles.amountRow}>
+              <View style={styles.currencyChipStatic}>
+                <Text style={styles.currencyChipText}>¥</Text>
+              </View>
+              <TextInput
+                placeholder="如 520"
+                placeholderTextColor={placeholderColor}
+                style={[styles.input, styles.amountInputFlex]}
+                value={costPrice}
+                onChangeText={setCostPrice}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <Text style={styles.label}>资金来源（选填）</Text>
+            <Text style={styles.hintMuted}>
+              选择后会自动扣减该现金类资产余额，并写入两边交易记录。
+            </Text>
+            <View style={styles.optionsRow}>
+              <Pressable
+                style={[
+                  styles.option,
+                  fundingSourceId === '' && styles.optionSelected,
+                ]}
+                onPress={() => setFundingSourceId('')}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    fundingSourceId === '' && styles.optionTextSelected,
+                  ]}
+                >
+                  不扣减
+                </Text>
+              </Pressable>
+              {fundingOptions.slice(0, 6).map((fo) => (
+                <Pressable
+                  key={fo.id}
+                  style={[
+                    styles.option,
+                    fundingSourceId === fo.id && styles.optionSelected,
+                  ]}
+                  onPress={() => setFundingSourceId(fo.id)}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      fundingSourceId === fo.id && styles.optionTextSelected,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {fo.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+
+        {showListedSecuritiesForm && (
           <>
             <Text style={styles.label}>搜索证券（代码或简称）</Text>
             <TextInput
@@ -390,26 +589,18 @@ export default function AddModal() {
               onChangeText={setName}
             />
 
-            <Text style={styles.label}>
-              {category === 'Gold' ? '克数' : '份额'}
-            </Text>
+            <Text style={styles.label}>份额</Text>
             <TextInput
-              placeholder={category === 'Gold' ? '持有克数' : '持有数量'}
+              placeholder="持有数量"
               placeholderTextColor={placeholderColor}
               style={styles.input}
               value={shares}
               onChangeText={setShares}
               keyboardType="decimal-pad"
             />
-            <Text style={styles.label}>
-              {category === 'Gold'
-                ? '成本价 / 买价（人民币/克）'
-                : '成本价 / 买价（人民币/份）'}
-            </Text>
+            <Text style={styles.label}>成本价 / 买价（人民币/份）</Text>
             <Text style={styles.hintMuted}>
-              {category === 'Gold'
-                ? '记录每克成本；可与下方参考价不同。'
-                : '记录真实持仓成本，便于日后算收益率；可与下方参考收盘价不同。'}
+              记录真实持仓成本，便于日后算收益率；可与下方参考收盘价不同。
             </Text>
             <View style={styles.amountRow}>
               <View style={styles.currencyChipStatic}>
@@ -441,6 +632,48 @@ export default function AddModal() {
                 onChangeText={setPrice}
                 keyboardType="decimal-pad"
               />
+            </View>
+            <Text style={styles.label}>资金来源（选填）</Text>
+            <Text style={styles.hintMuted}>
+              选择后会自动扣减该现金类资产余额，并写入两边交易记录。
+            </Text>
+            <View style={styles.optionsRow}>
+              <Pressable
+                style={[
+                  styles.option,
+                  fundingSourceId === '' && styles.optionSelected,
+                ]}
+                onPress={() => setFundingSourceId('')}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    fundingSourceId === '' && styles.optionTextSelected,
+                  ]}
+                >
+                  不扣减
+                </Text>
+              </Pressable>
+              {fundingOptions.slice(0, 6).map((fo) => (
+                <Pressable
+                  key={fo.id}
+                  style={[
+                    styles.option,
+                    fundingSourceId === fo.id && styles.optionSelected,
+                  ]}
+                  onPress={() => setFundingSourceId(fo.id)}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      fundingSourceId === fo.id && styles.optionTextSelected,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {fo.name}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
           </>
         )}
@@ -518,7 +751,7 @@ export default function AddModal() {
             />
             <Text style={styles.label}>
               目标金额（
-              {showListedFields
+              {purposeYuan
                 ? '¥'
                 : assetCurrencySymbol(assetCurrency)}{' '}
               与上方面额同币种）

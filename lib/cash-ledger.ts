@@ -88,7 +88,11 @@ export function appendCashMovement(
   asset: SimpleAsset,
   side: 'in' | 'out',
   amount: number,
-  entryDate: string
+  entryDate: string,
+  meta?: Pick<
+    CashLedgerEntry,
+    'relatedAssetId' | 'relatedAssetName' | 'note' | 'transferId'
+  >
 ): SimpleAsset {
   if (!(amount > 0) || Number.isNaN(amount)) {
     throw new Error('金额须为正数');
@@ -99,6 +103,10 @@ export function appendCashMovement(
     entryDate,
     side,
     amount,
+    ...(meta?.relatedAssetId ? { relatedAssetId: meta.relatedAssetId } : {}),
+    ...(meta?.relatedAssetName ? { relatedAssetName: meta.relatedAssetName } : {}),
+    ...(meta?.note ? { note: meta.note } : {}),
+    ...(meta?.transferId ? { transferId: meta.transferId } : {}),
   };
   const history = [...base, entry];
   return applyCashLedgerReplay({ ...asset, cashLedger: history }, history);
@@ -107,7 +115,18 @@ export function appendCashMovement(
 export function updateCashLedgerEntry(
   asset: SimpleAsset,
   entryId: string,
-  patch: Partial<Pick<CashLedgerEntry, 'side' | 'amount' | 'entryDate'>>
+  patch: Partial<
+    Pick<
+      CashLedgerEntry,
+      | 'side'
+      | 'amount'
+      | 'entryDate'
+      | 'relatedAssetId'
+      | 'relatedAssetName'
+      | 'note'
+      | 'transferId'
+    >
+  >
 ): SimpleAsset {
   const raw = asset.cashLedger ?? [];
   const h = raw.map((e) =>

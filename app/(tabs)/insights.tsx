@@ -50,6 +50,11 @@ type ChartData = {
   datasets: [{ data: number[] }];
 };
 
+type TrendChartModel = {
+  data: ChartData;
+  formatYLabel: (v: string) => string;
+};
+
 type DonutSlice = {
   category: AssetCategory;
   name: string;
@@ -69,10 +74,36 @@ function formatChange(diff: number, pct: number): string {
   return `${sign}${Math.round(diff).toLocaleString()} (${sign}${pct.toFixed(1)}%)`;
 }
 
-function toChartData(snapshots: Snapshot[]): ChartData {
+function toTrendChartModel(snapshots: Snapshot[]): TrendChartModel {
+  const labels = snapshots.map((s) => s.date.slice(5));
+  const raw = snapshots.map((s) => s.totalValue);
+  if (raw.length === 0) {
+    return {
+      data: { labels, datasets: [{ data: [] }] },
+      formatYLabel: () => '',
+    };
+  }
+  let min = Math.min(...raw);
+  let max = Math.max(...raw);
+  if (!(max > min)) {
+    const base = raw[0] ?? 0;
+    const pad = Math.max(1, Math.abs(base) * 0.002);
+    min = base - pad;
+    max = base + pad;
+  }
+  const span = max - min;
+  const normalized = raw.map((v) => ((v - min) / span) * 100);
   return {
-    labels: snapshots.map((s) => s.date.slice(5)),
-    datasets: [{ data: snapshots.map((s) => s.totalValue) }],
+    data: { labels, datasets: [{ data: normalized }] },
+    formatYLabel: (v: string) => {
+      const n = parseFloat(v);
+      if (Number.isNaN(n)) return '';
+      const actual = min + (n / 100) * span;
+      const k = actual / 1000;
+      const absK = Math.abs(k);
+      const digits = absK >= 100 ? 0 : absK >= 10 ? 1 : 2;
+      return `${k.toFixed(digits)}k`;
+    },
   };
 }
 
@@ -468,6 +499,11 @@ export default function Insights() {
   const [chartTabSeeded, setChartTabSeeded] = useState(false);
   const [selectedDistributionCategory, setSelectedDistributionCategory] =
     useState<AssetCategory | null>(null);
+  const [trendTip, setTrendTip] = useState<{
+    index: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const chartHeight = useMemo(() => {
     const h = Math.round(windowHeight * 0.33);
@@ -506,6 +542,16 @@ export default function Insights() {
     [theme.primary]
   );
 
+  const orderedSnapshots = useMemo(
+    () => [...snapshots].sort((a, b) => a.date.localeCompare(b.date)),
+    [snapshots]
+  );
+  const trendModel = useMemo(
+    () => toTrendChartModel(orderedSnapshots),
+    [orderedSnapshots]
+  );
+  const chartData = trendModel.data;
+
   const chartConfig = useMemo(
     () => ({
       backgroundColor: '#FFFFFF',
@@ -534,8 +580,9 @@ export default function Insights() {
       propsForVerticalLabels: {
         fontSize: 11,
       },
+      formatYLabel: trendModel.formatYLabel,
     }),
-    [theme, chartLabelColor]
+    [theme, chartLabelColor, trendModel]
   );
 
   useFocusEffect(
@@ -577,7 +624,6 @@ export default function Insights() {
     }, [])
   );
 
-  const chartData = toChartData(snapshots);
   const hasSnapshotTrend =
     chartData.labels.length > 0 && chartData.datasets[0].data.length > 0;
   const hasAssets = assets.length > 0;
@@ -620,9 +666,9 @@ export default function Insights() {
     donutRingHeight,
   ]);
 
-  const sorted = [...snapshots].sort((a, b) => a.date.localeCompare(b.date));
-  const latest = sorted.length > 0 ? sorted[sorted.length - 1] : null;
-  const dailyChange = getDailyChange(snapshots);
+  const latest =
+    orderedSnapshots.length > 0 ? orderedSnapshots[orderedSnapshots.length - 1] : null;
+  const dailyChange = getDailyChange(orderedSnapshots);
 
   const showChartChrome = hasSnapshotTrend || hasAssets;
   const chartBlockMinHeight = chartHeight + 24;
@@ -638,6 +684,10 @@ export default function Insights() {
 
   useEffect(() => {
     if (chartTab !== 'distribution') setSelectedDistributionCategory(null);
+  }, [chartTab]);
+
+  useEffect(() => {
+    if (chartTab !== 'trend') setTrendTip(null);
   }, [chartTab]);
 
   useEffect(() => {
@@ -744,8 +794,7 @@ export default function Insights() {
                       styles.chartSurface,
                       {
                         minHeight: chartBlockMinHeight,
-                        overflow:
-                          chartTab === 'distribution' ? 'visible' : 'hidden',
+                        overflow: 'visible',
                       },
                     ]}
                   >
@@ -762,22 +811,57 @@ export default function Insights() {
                             净值走势
                           </Text>
                         </View>
-                        <LineChart
-                          data={chartData}
-                          width={chartWidth}
-                          height={chartHeight}
-                          chartConfig={chartConfig}
-                          bezier
-                          withShadow
-                          withDots={false}
-                          withInnerLines
-                          withOuterLines={false}
-                          withVerticalLines={false}
-                          withHorizontalLines
-                          segments={4}
-                          style={styles.chart}
-                          fromZero={false}
-                        />
+                        <View style={styles.trendChartWrap}>
+                          <LineChart
+                            data={chartData}
+                            width={chartWidth}
+                            height={chartHeight}
+                            chartConfig={chartConfig}
+                            formatYLabel={trendModel.formatYLabel}
+                            withShadow
+                            withDots
+                            withInnerLines
+                            withOuterLines={false}
+                            withVerticalLabels
+                            withVerticalLines={false}
+                            withHorizontalLabels
+                            withHorizontalLines
+                            yLabelsOffset={24}
+                            xLabelsOffset={4}
+                            segments={4}
+                            style={styles.chart}
+                            fromZero={false}
+                            onDataPointClick={({ index, x, y }) => {
+                              setTrendTip({ index, x, y });
+                            }}
+                          />
+                          {trendTip &&
+                          trendTip.index >= 0 &&
+                          trendTip.index < orderedSnapshots.length ? (
+                            <View
+                              style={[
+                                styles.trendTooltip,
+                                {
+                                  left: Math.max(
+                                    8,
+                                    Math.min(chartWidth - 180, trendTip.x - 74)
+                                  ),
+                                  top: Math.max(8, trendTip.y - 58),
+                                },
+                              ]}
+                            >
+                              <Text style={styles.trendTooltipDate}>
+                                {orderedSnapshots[trendTip.index]!.date}
+                              </Text>
+                              <Text style={styles.trendTooltipValue}>
+                                {formatMoney(
+                                  orderedSnapshots[trendTip.index]!.totalValue,
+                                  'CNY'
+                                )}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
                       </>
                     )}
 

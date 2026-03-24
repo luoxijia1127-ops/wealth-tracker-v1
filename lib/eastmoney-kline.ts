@@ -67,7 +67,8 @@ export function resolveSettlementDailyClose(
  * 拉最近 20 根日 K，再按 resolveSettlementDailyClose 选结算价（非「只取 API 最后一根」的偷懒写法）。
  */
 export async function fetchDailySettlementClose(
-  secid: string
+  secid: string,
+  signal?: AbortSignal
 ): Promise<DailyCloseQuote | null> {
   const params = new URLSearchParams({
     secid,
@@ -80,7 +81,7 @@ export async function fetchDailySettlementClose(
     lmt: '20',
   });
   const url = `${KLINE_URL}?${params.toString()}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { signal });
   if (!res.ok) return null;
   const json = (await res.json()) as {
     rc?: number;

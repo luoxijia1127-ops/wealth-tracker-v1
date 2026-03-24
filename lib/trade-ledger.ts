@@ -130,7 +130,11 @@ export function appendListedTrade(
   side: 'buy' | 'sell',
   qty: number,
   unitPriceCny: number,
-  tradeDate: string
+  tradeDate: string,
+  meta?: Pick<
+    TradeLedgerEntry,
+    'fundingSourceAssetId' | 'fundingSourceAssetName' | 'transferId'
+  >
 ): SimpleAsset {
   const base = ensureBaselineLedger(asset);
   const entry: TradeLedgerEntry = {
@@ -139,6 +143,13 @@ export function appendListedTrade(
     side,
     shares: qty,
     unitPriceCny,
+    ...(meta?.fundingSourceAssetId
+      ? { fundingSourceAssetId: meta.fundingSourceAssetId }
+      : {}),
+    ...(meta?.fundingSourceAssetName
+      ? { fundingSourceAssetName: meta.fundingSourceAssetName }
+      : {}),
+    ...(meta?.transferId ? { transferId: meta.transferId } : {}),
   };
   const history = [...base, entry];
   return applyReplayToListedAsset(
@@ -150,7 +161,18 @@ export function appendListedTrade(
 export function updateListedTradeEntry(
   asset: SimpleAsset,
   tradeId: string,
-  patch: Partial<Pick<TradeLedgerEntry, 'side' | 'shares' | 'unitPriceCny' | 'tradeDate'>>
+  patch: Partial<
+    Pick<
+      TradeLedgerEntry,
+      | 'side'
+      | 'shares'
+      | 'unitPriceCny'
+      | 'tradeDate'
+      | 'fundingSourceAssetId'
+      | 'fundingSourceAssetName'
+      | 'transferId'
+    >
+  >
 ): SimpleAsset {
   const raw = asset.tradeHistory ?? [];
   const h = raw.map((t) =>

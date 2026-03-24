@@ -7,14 +7,30 @@ import { fetchDailySettlementClose } from '@/lib/eastmoney-kline';
 import { fetchOtcFundLatestNav } from '@/lib/eastmoney-fund-nav';
 import { fetchPush2LastPrice } from '@/lib/eastmoney-push';
 import { toEastMoneySecid } from '@/lib/eastmoney-secid';
+import { fetchGoldReferenceCnyPerGram } from '@/lib/gold-quote';
 import { getAssets, saveAssets } from '@/lib/asset-storage';
 import { getListedUnitPrice, type SimpleAsset } from '@/types/asset';
-import { isHeldChineseAsset } from '@/lib/asset-value';
+import { isListedAssetCategory } from '@/types/asset';
 
 function listedEastMoneySecid(a: SimpleAsset): string {
   const raw = typeof a.emSecid === 'string' ? a.emSecid.trim() : '';
   if (raw.length > 0 && /^\d+\.\d+$/.test(raw)) return raw;
   return toEastMoneySecid(a.exchange!, a.symbol!.trim());
+}
+
+function isQuoteEligibleListedAsset(a: SimpleAsset): boolean {
+  if (!isListedAssetCategory(a.category)) return false;
+  if (typeof a.shares !== 'number' || a.shares <= 0) return false;
+  const em = typeof a.emSecid === 'string' ? a.emSecid.trim() : '';
+  if (em.length > 0 && /^\d+\.\d+$/.test(em)) return true;
+  return (
+    typeof a.symbol === 'string' &&
+    /^\d{6}$/.test(a.symbol.trim()) &&
+    (a.exchange === 'SH' ||
+      a.exchange === 'SZ' ||
+      a.exchange === 'BJ' ||
+      a.exchange === 'OTC')
+  );
 }
 
 /**
@@ -65,12 +81,33 @@ function assetsJsonEqual(a: SimpleAsset[], b: SimpleAsset[]): boolean {
   }
 }
 
+async function withTimeout<T>(
+  ms: number,
+  run: (signal: AbortSignal) => Promise<T>
+): Promise<T | null> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), ms);
+  try {
+    return await run(ac.signal);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
   const assets = await getAssets();
-  const listed = assets.filter(isHeldChineseAsset);
-  if (listed.length === 0) return assets;
+  const emListed = assets.filter(isQuoteEligibleListedAsset);
+  const hasGoldHeld = assets.some(
+    (a) =>
+      a.category === 'Gold' &&
+      typeof a.shares === 'number' &&
+      a.shares > 0
+  );
+  if (emListed.length === 0 && !hasGoldHeld) return assets;
 
-  const uniqueSecids = [...new Set(listed.map(listedEastMoneySecid))];
+  const uniqueSecids = [...new Set(emListed.map(listedEastMoneySecid))];
 
   const secidPack = new Map<
     string,
@@ -82,10 +119,12 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
 
   await Promise.all(
     uniqueSecids.map(async (secid) => {
-      const sample = listed.find((a) => listedEastMoneySecid(a) === secid);
+      const sample = emListed.find((a) => listedEastMoneySecid(a) === secid);
       try {
         if (sample?.exchange === 'OTC' && sample.symbol) {
-          const nav = await fetchOtcFundLatestNav(sample.symbol.trim());
+          const nav = await withTimeout(8000, (signal) =>
+            fetchOtcFundLatestNav(sample.symbol!.trim(), signal)
+          );
           if (nav) {
             secidPack.set(secid, {
               push: { price: nav.close },
@@ -100,23 +139,50 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
           return;
         }
         const [push, kline] = await Promise.all([
-          fetchPush2LastPrice(secid),
-          fetchDailySettlementClose(secid),
+          withTimeout(8000, (signal) => fetchPush2LastPrice(secid, signal)),
+          withTimeout(8000, (signal) =>
+            fetchDailySettlementClose(secid, signal)
+          ),
         ]);
-        secidPack.set(secid, { push, kline });
+        secidPack.set(secid, { push: push ?? null, kline: kline ?? null });
       } catch {
         secidPack.set(secid, { push: null, kline: null });
       }
     })
   );
 
-  const next = assets.map((a) => {
-    if (!isHeldChineseAsset(a)) return a;
+  let next = assets.map((a) => {
+    if (!isQuoteEligibleListedAsset(a)) return a;
     const secid = listedEastMoneySecid(a);
     const pack = secidPack.get(secid);
     if (!pack) return a;
     return mergeListedQuotes(a, pack.push, pack.kline);
   });
+
+  const spot = await withTimeout(8000, (signal) =>
+    fetchGoldReferenceCnyPerGram(signal)
+  );
+  if (spot != null && spot.price > 0) {
+    const today = getShanghaiDateString();
+    next = next.map((a) => {
+      if (a.category !== 'Gold') return a;
+      if (typeof a.shares !== 'number' || !(a.shares > 0)) return a;
+      const merged: SimpleAsset = {
+        ...a,
+        markPrice: spot.price,
+        markPriceDate: today,
+      };
+      const unit = getListedUnitPrice(merged);
+      if (unit !== null) {
+        return {
+          ...merged,
+          value: merged.shares! * unit,
+          currency: 'CNY',
+        };
+      }
+      return merged;
+    });
+  }
 
   if (!assetsJsonEqual(assets, next)) {
     await saveAssets(next);

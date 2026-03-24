@@ -385,6 +385,26 @@ export default function Dashboard() {
     useCallback(() => {
       const gen = ++focusLoadGen.current;
       let cancelled = false;
+      let syncing = false;
+      let timer: ReturnType<typeof setInterval> | null = null;
+      const runSync = async () => {
+        if (syncing || cancelled || gen !== focusLoadGen.current) return;
+        syncing = true;
+        setSyncingQuotes(true);
+        try {
+          const updated = await syncNetWorthFromMarket();
+          if (!cancelled && gen === focusLoadGen.current) {
+            setAssets(updated);
+          }
+        } catch {
+          /* 保留本地列表 */
+        } finally {
+          syncing = false;
+          if (gen === focusLoadGen.current) {
+            setSyncingQuotes(false);
+          }
+        }
+      };
       (async () => {
         try {
           const local = await getAssets();
@@ -399,22 +419,14 @@ export default function Dashboard() {
           }
         }
         if (cancelled || gen !== focusLoadGen.current) return;
-        setSyncingQuotes(true);
-        try {
-          const updated = await syncNetWorthFromMarket();
-          if (!cancelled && gen === focusLoadGen.current) {
-            setAssets(updated);
-          }
-        } catch {
-          /* 保留本地列表 */
-        } finally {
-          if (gen === focusLoadGen.current) {
-            setSyncingQuotes(false);
-          }
-        }
+        await runSync();
+        timer = setInterval(() => {
+          void runSync();
+        }, 60_000);
       })();
       return () => {
         cancelled = true;
+        if (timer) clearInterval(timer);
       };
     }, [])
   );

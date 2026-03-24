@@ -1,6 +1,7 @@
 /**
  * 资产详情：
- * - 场内 / 黄金（与股票基金同一套）：加减仓 + 编辑信息（流水改份额或克、单价）
+ * - 场内证券：加减仓 + 编辑信息（流水改份额、单价）
+ * - 黄金：按克 + CNY/克，无证券代码；加减仓与编辑信息同流水模型
  * - 现金类：加减余额 + 编辑信息（流水仅金额）
  */
 
@@ -15,7 +16,7 @@ import { useAppPalette } from '@/contexts/app-palette-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createAddModalStyles } from '@/lib/modal-styles';
 import { createInsightsStyles } from '@/lib/insights-styles';
-import { getAssets, updateAsset } from '@/lib/asset-storage';
+import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
 import { tryApplyListedAdjustTrade } from '@/lib/listed-adjust-trade';
 import { formatExchangeSymbol } from '@/lib/eastmoney-suggest';
 import { ensureBaselineLedger } from '@/lib/trade-ledger';
@@ -44,6 +45,7 @@ import {
   getAssetCurrency,
   getAssetDisplayValue,
   isHeldChineseAsset,
+  isListedChineseAsset,
 } from '@/lib/asset-value';
 import {
   type AssetCategory,
@@ -76,12 +78,17 @@ function formatTradeLine(t: TradeLedgerEntry, useGram: boolean): string {
   const side = t.side === 'buy' ? '买入' : '卖出';
   const q = useGram ? '克' : '份';
   const u = useGram ? 'CNY/克' : 'CNY/份';
-  return `${t.tradeDate} · ${side} ${t.shares} ${q} @ ¥${t.unitPriceCny.toFixed(4)}（${u}）`;
+  const src =
+    t.side === 'buy' && t.fundingSourceAssetName
+      ? ` · 资金来源：${t.fundingSourceAssetName}`
+      : '';
+  return `${t.tradeDate} · ${side} ${t.shares} ${q} @ ¥${t.unitPriceCny.toFixed(4)}（${u}）${src}`;
 }
 
 function formatCashLine(e: CashLedgerEntry, currency: string): string {
   const lab = e.side === 'in' ? '入金' : '出金';
-  return `${e.entryDate} · ${lab} ${formatMoney(e.amount, currency)}`;
+  const rel = e.relatedAssetName ? ` · 关联：${e.relatedAssetName}` : '';
+  return `${e.entryDate} · ${lab} ${formatMoney(e.amount, currency)}${rel}`;
 }
 
 export default function AssetActionScreen() {
@@ -105,6 +112,8 @@ export default function AssetActionScreen() {
   const [tradeShares, setTradeShares] = useState('');
   const [tradePrice, setTradePrice] = useState('');
   const [adjustSaving, setAdjustSaving] = useState(false);
+  const [tradeFundingSourceId, setTradeFundingSourceId] = useState('');
+  const [tradeFundingOptions, setTradeFundingOptions] = useState<SimpleAsset[]>([]);
 
   const [listedMetaCategory, setListedMetaCategory] =
     useState<AssetCategory>('Stock');
@@ -150,6 +159,16 @@ export default function AssetActionScreen() {
     }
     const list = await getAssets();
     setAsset(list.find((a) => a.id === id) ?? null);
+    setTradeFundingOptions(
+      list.filter(
+        (a) =>
+          a.id !== id &&
+          usesCashAmountLedger(a) &&
+          normalizeAssetCurrency(a.currency) === 'CNY' &&
+          typeof a.value === 'number' &&
+          a.value > 0
+      )
+    );
     setLoading(false);
   }, [id]);
 
@@ -278,7 +297,7 @@ export default function AssetActionScreen() {
 
   const headerTitle = useMemo(() => {
     if (!asset) return '';
-    if (isHeldChineseAsset(asset)) {
+    if (isListedChineseAsset(asset)) {
       return `${formatExchangeSymbol(asset.exchange!, asset.symbol!)} · ${asset.name}`;
     }
     return asset.name;
@@ -288,19 +307,60 @@ export default function AssetActionScreen() {
     if (!asset || !isHeldChineseAsset(asset)) return;
     setAdjustSaving(true);
     try {
+      const transferId =
+        tradeMode === 'buy' && tradeFundingSourceId.trim().length > 0
+          ? `xf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+          : undefined;
       const r = tryApplyListedAdjustTrade(asset, {
         side: tradeMode,
         sharesStr: tradeShares,
         unitPriceStr: tradePrice,
+        fundingSourceAssetId:
+          tradeMode === 'buy' && tradeFundingSourceId
+            ? tradeFundingSourceId
+            : undefined,
+        fundingSourceAssetName:
+          tradeMode === 'buy'
+            ? tradeFundingOptions.find((x) => x.id === tradeFundingSourceId)?.name
+            : undefined,
+        transferId,
       });
       if (!r.ok) {
         Alert.alert('无法保存', r.message);
         return;
       }
-      await updateAsset(r.asset);
+      if (tradeMode === 'buy' && tradeFundingSourceId.trim().length > 0) {
+        const all = await getAssets();
+        const srcIdx = all.findIndex((a) => a.id === tradeFundingSourceId);
+        const curIdx = all.findIndex((a) => a.id === asset.id);
+        if (srcIdx < 0 || curIdx < 0) {
+          Alert.alert('无法保存', '资产数据已变化，请返回重试。');
+          return;
+        }
+        const src = all[srcIdx]!;
+        const amount = parseFloat(tradeShares) * parseFloat(tradePrice);
+        const debited = appendCashMovement(
+          src,
+          'out',
+          amount,
+          getShanghaiDateString(),
+          {
+            relatedAssetId: asset.id,
+            relatedAssetName: asset.name,
+            note: '加仓资金划转',
+            transferId,
+          }
+        );
+        all[srcIdx] = debited;
+        all[curIdx] = r.asset;
+        await saveAssets(all);
+      } else {
+        await updateAsset(r.asset);
+      }
       setTradeShares('');
       setTradePrice('');
       setTradeMode('buy');
+      setTradeFundingSourceId('');
       await load();
     } finally {
       setAdjustSaving(false);
@@ -625,6 +685,55 @@ export default function AssetActionScreen() {
                     onChangeText={setTradeShares}
                     keyboardType="decimal-pad"
                   />
+                  {tradeMode === 'buy' ? (
+                    <>
+                      <Text style={styles.label}>资金来源（选填）</Text>
+                      <Text style={styles.hintMuted}>
+                        选择后会同步扣减对应现金类资产余额。
+                      </Text>
+                      <View style={styles.optionsRow}>
+                        <Pressable
+                          style={[
+                            styles.option,
+                            tradeFundingSourceId === '' && styles.optionSelected,
+                          ]}
+                          onPress={() => setTradeFundingSourceId('')}
+                        >
+                          <Text
+                            style={[
+                              styles.optionText,
+                              tradeFundingSourceId === '' &&
+                                styles.optionTextSelected,
+                            ]}
+                          >
+                            不扣减
+                          </Text>
+                        </Pressable>
+                        {tradeFundingOptions.slice(0, 6).map((fo) => (
+                          <Pressable
+                            key={fo.id}
+                            style={[
+                              styles.option,
+                              tradeFundingSourceId === fo.id &&
+                                styles.optionSelected,
+                            ]}
+                            onPress={() => setTradeFundingSourceId(fo.id)}
+                          >
+                            <Text
+                              numberOfLines={1}
+                              style={[
+                                styles.optionText,
+                                tradeFundingSourceId === fo.id &&
+                                  styles.optionTextSelected,
+                              ]}
+                            >
+                              {fo.name}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </>
+                  ) : null}
                   <Text style={styles.label}>
                     {useGram ? '成交单价（CNY/克）' : '成交单价（CNY/份）'}
                   </Text>

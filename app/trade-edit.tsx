@@ -5,7 +5,8 @@
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createAddModalStyles } from '@/lib/modal-styles';
-import { getAssets, updateAsset } from '@/lib/asset-storage';
+import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
+import { deleteCashLedgerEntry, updateCashLedgerEntry } from '@/lib/cash-ledger';
 import {
   deleteListedTradeEntry,
   updateListedTradeEntry,
@@ -135,6 +136,7 @@ export default function TradeEditScreen() {
     }
     setSaving(true);
     try {
+      const oldAmount = trade.shares * trade.unitPriceCny;
       let next = updateListedTradeEntry(asset, trade.id, {
         side,
         shares: q,
@@ -143,7 +145,63 @@ export default function TradeEditScreen() {
       });
       next = preserveQuotes(asset, next);
       next = recalcValue(next);
-      await updateAsset(next);
+      if (trade.transferId && trade.fundingSourceAssetId) {
+        const all = await getAssets();
+        const curIdx = all.findIndex((x) => x.id === asset.id);
+        const srcIdx = all.findIndex((x) => x.id === trade.fundingSourceAssetId);
+        if (curIdx >= 0 && srcIdx >= 0) {
+          const src = all[srcIdx]!;
+          const srcRows = src.cashLedger ?? [];
+          const linked = srcRows.find((e) => e.transferId === trade.transferId);
+          if (linked) {
+            if (side === 'buy') {
+              const patched = updateCashLedgerEntry(src, linked.id, {
+                side: 'out',
+                amount: q * p,
+                entryDate: d,
+                relatedAssetId: asset.id,
+                relatedAssetName: asset.name,
+                note: linked.note ?? '资金划转',
+                transferId: trade.transferId,
+              });
+              all[srcIdx] = patched;
+            } else {
+              all[srcIdx] = deleteCashLedgerEntry(src, linked.id);
+              next = updateListedTradeEntry(next, trade.id, {
+                fundingSourceAssetId: undefined,
+                fundingSourceAssetName: undefined,
+                transferId: undefined,
+              });
+            }
+          } else if (side === 'buy') {
+            const fallback = srcRows.find(
+              (e) =>
+                e.side === 'out' &&
+                e.relatedAssetId === asset.id &&
+                Math.abs(e.amount - oldAmount) < 1e-6 &&
+                e.entryDate === trade.tradeDate
+            );
+            if (fallback) {
+              const patched = updateCashLedgerEntry(src, fallback.id, {
+                side: 'out',
+                amount: q * p,
+                entryDate: d,
+                relatedAssetId: asset.id,
+                relatedAssetName: asset.name,
+                note: fallback.note ?? '资金划转',
+                transferId: trade.transferId,
+              });
+              all[srcIdx] = patched;
+            }
+          }
+          all[curIdx] = next;
+          await saveAssets(all);
+        } else {
+          await updateAsset(next);
+        }
+      } else {
+        await updateAsset(next);
+      }
       router.back();
     } catch (e) {
       Alert.alert(
@@ -168,7 +226,28 @@ export default function TradeEditScreen() {
             let next = deleteListedTradeEntry(asset, trade.id);
             next = preserveQuotes(asset, next);
             next = recalcValue(next);
-            await updateAsset(next);
+            if (trade.transferId && trade.fundingSourceAssetId) {
+              const all = await getAssets();
+              const curIdx = all.findIndex((x) => x.id === asset.id);
+              const srcIdx = all.findIndex(
+                (x) => x.id === trade.fundingSourceAssetId
+              );
+              if (curIdx >= 0 && srcIdx >= 0) {
+                const src = all[srcIdx]!;
+                const linked = (src.cashLedger ?? []).find(
+                  (e) => e.transferId === trade.transferId
+                );
+                if (linked) {
+                  all[srcIdx] = deleteCashLedgerEntry(src, linked.id);
+                }
+                all[curIdx] = next;
+                await saveAssets(all);
+              } else {
+                await updateAsset(next);
+              }
+            } else {
+              await updateAsset(next);
+            }
             router.back();
           } catch (e) {
             Alert.alert(
