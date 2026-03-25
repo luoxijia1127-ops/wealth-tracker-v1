@@ -510,10 +510,12 @@ export default function Insights() {
     return Math.min(320, Math.max(200, h));
   }, [windowHeight]);
 
-  const chartWidth = useMemo(
-    () => Math.max(260, windowWidth - 48 - 32),
-    [windowWidth]
-  );
+  // 可用宽度 = 屏幕宽 - ScrollView 左右 padding(24*2) - card 左右 padding(20*2)
+  const chartWidth = useMemo(() => {
+    const outerPad = 24 * 2;
+    const cardPad = 20 * 2;
+    return Math.max(260, windowWidth - outerPad - cardPad);
+  }, [windowWidth]);
 
   /** 环形图 SVG 高度（与折线图区域视觉接近） */
   const donutRingHeight = useMemo(
@@ -794,7 +796,7 @@ export default function Insights() {
                       styles.chartSurface,
                       {
                         minHeight: chartBlockMinHeight,
-                        overflow: 'visible',
+                        overflow: 'hidden',
                       },
                     ]}
                   >
@@ -818,6 +820,7 @@ export default function Insights() {
                             height={chartHeight}
                             chartConfig={chartConfig}
                             formatYLabel={trendModel.formatYLabel}
+                            bezier
                             withShadow
                             withDots
                             withInnerLines

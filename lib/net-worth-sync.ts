@@ -6,6 +6,7 @@ import { sumDisplayValuesNaive } from '@/lib/asset-value';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { refreshListedQuotes } from '@/lib/quote-refresh';
 import { getSnapshots, saveSnapshot } from '@/lib/snapshots';
+import { saveAssetDailySnapshot } from '@/lib/asset-daily-snapshots';
 import type { SimpleAsset } from '@/types/asset';
 
 const EPS = 1e-6;
@@ -22,5 +23,7 @@ export async function syncNetWorthFromMarket(): Promise<SimpleAsset[]> {
   ) {
     await saveSnapshot(total);
   }
+  // 同步保存每日资产市值快照（用于设置页的残差拆解）
+  await saveAssetDailySnapshot(assets, today);
   return assets;
 }

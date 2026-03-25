@@ -112,9 +112,14 @@ export default function CashLedgerEditScreen() {
     }
     const linkedTradeAssetId = entry.relatedAssetId;
     const linkedTransferId = entry.transferId;
-    if (linkedTradeAssetId && side !== 'out') {
-      Alert.alert('无法保存', '该流水关联了买入交易，类型必须保持为出金。');
-      return;
+    if (linkedTradeAssetId && linkedTransferId) {
+      // 该流水是内部转账联动的一部分，不允许用户把 in/out 颠倒，否则会破坏对账关系
+      // （买入对应 out；卖出对应 in）
+      // 这里不做强推断，仅禁止改变原 side
+      if (side !== entry.side) {
+        Alert.alert('无法保存', '该流水为联动转账记录，类型不可修改（入金/出金）。');
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -138,7 +143,6 @@ export default function CashLedgerEditScreen() {
               return;
             }
             const patchedTrade = updateListedTradeEntry(tradeAsset, linkedTrade.id, {
-              side: 'buy',
               tradeDate: d,
               unitPriceCny: q / linkedTrade.shares,
             });

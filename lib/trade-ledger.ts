@@ -133,7 +133,11 @@ export function appendListedTrade(
   tradeDate: string,
   meta?: Pick<
     TradeLedgerEntry,
-    'fundingSourceAssetId' | 'fundingSourceAssetName' | 'transferId'
+    | 'fundingSourceAssetId'
+    | 'fundingSourceAssetName'
+    | 'cashDestinationAssetId'
+    | 'cashDestinationAssetName'
+    | 'transferId'
   >
 ): SimpleAsset {
   const base = ensureBaselineLedger(asset);
@@ -148,6 +152,12 @@ export function appendListedTrade(
       : {}),
     ...(meta?.fundingSourceAssetName
       ? { fundingSourceAssetName: meta.fundingSourceAssetName }
+      : {}),
+    ...(meta?.cashDestinationAssetId
+      ? { cashDestinationAssetId: meta.cashDestinationAssetId }
+      : {}),
+    ...(meta?.cashDestinationAssetName
+      ? { cashDestinationAssetName: meta.cashDestinationAssetName }
       : {}),
     ...(meta?.transferId ? { transferId: meta.transferId } : {}),
   };
@@ -170,6 +180,8 @@ export function updateListedTradeEntry(
       | 'tradeDate'
       | 'fundingSourceAssetId'
       | 'fundingSourceAssetName'
+      | 'cashDestinationAssetId'
+      | 'cashDestinationAssetName'
       | 'transferId'
     >
   >

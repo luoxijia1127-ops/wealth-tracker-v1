@@ -136,7 +136,6 @@ export default function TradeEditScreen() {
     }
     setSaving(true);
     try {
-      const oldAmount = trade.shares * trade.unitPriceCny;
       let next = updateListedTradeEntry(asset, trade.id, {
         side,
         shares: q,
@@ -145,45 +144,39 @@ export default function TradeEditScreen() {
       });
       next = preserveQuotes(asset, next);
       next = recalcValue(next);
-      if (trade.transferId && trade.fundingSourceAssetId) {
+      if (trade.transferId && (trade.fundingSourceAssetId || trade.cashDestinationAssetId)) {
         const all = await getAssets();
         const curIdx = all.findIndex((x) => x.id === asset.id);
-        const srcIdx = all.findIndex((x) => x.id === trade.fundingSourceAssetId);
-        if (curIdx >= 0 && srcIdx >= 0) {
-          const src = all[srcIdx]!;
-          const srcRows = src.cashLedger ?? [];
-          const linked = srcRows.find((e) => e.transferId === trade.transferId);
+        const peerId = trade.side === 'buy' ? trade.fundingSourceAssetId : trade.cashDestinationAssetId;
+        const peerIdx = peerId ? all.findIndex((x) => x.id === peerId) : -1;
+        if (curIdx >= 0 && peerIdx >= 0) {
+          const peer = all[peerIdx]!;
+          const peerRows = peer.cashLedger ?? [];
+          const linked = peerRows.find((e) => e.transferId === trade.transferId);
           if (linked) {
-            if (side === 'buy') {
-              const patched = updateCashLedgerEntry(src, linked.id, {
-                side: 'out',
-                amount: q * p,
-                entryDate: d,
-                relatedAssetId: asset.id,
-                relatedAssetName: asset.name,
-                note: linked.note ?? '资金划转',
-                transferId: trade.transferId,
-              });
-              all[srcIdx] = patched;
-            } else {
-              all[srcIdx] = deleteCashLedgerEntry(src, linked.id);
-              next = updateListedTradeEntry(next, trade.id, {
-                fundingSourceAssetId: undefined,
-                fundingSourceAssetName: undefined,
-                transferId: undefined,
-              });
-            }
+            const wantBuy = side === 'buy';
+            const patched = updateCashLedgerEntry(peer, linked.id, {
+              side: wantBuy ? 'out' : 'in',
+              amount: q * p,
+              entryDate: d,
+              relatedAssetId: asset.id,
+              relatedAssetName: asset.name,
+              note: linked.note ?? '资金划转',
+              transferId: trade.transferId,
+            });
+            all[peerIdx] = patched;
           } else if (side === 'buy') {
-            const fallback = srcRows.find(
+            const oldAmount = trade.shares * trade.unitPriceCny;
+            const fallback = peerRows.find(
               (e) =>
-                e.side === 'out' &&
+                e.side === (trade.side === 'buy' ? 'out' : 'in') &&
                 e.relatedAssetId === asset.id &&
                 Math.abs(e.amount - oldAmount) < 1e-6 &&
                 e.entryDate === trade.tradeDate
             );
             if (fallback) {
-              const patched = updateCashLedgerEntry(src, fallback.id, {
-                side: 'out',
+              const patched = updateCashLedgerEntry(peer, fallback.id, {
+                side: side === 'buy' ? 'out' : 'in',
                 amount: q * p,
                 entryDate: d,
                 relatedAssetId: asset.id,
@@ -191,7 +184,7 @@ export default function TradeEditScreen() {
                 note: fallback.note ?? '资金划转',
                 transferId: trade.transferId,
               });
-              all[srcIdx] = patched;
+              all[peerIdx] = patched;
             }
           }
           all[curIdx] = next;
@@ -226,19 +219,18 @@ export default function TradeEditScreen() {
             let next = deleteListedTradeEntry(asset, trade.id);
             next = preserveQuotes(asset, next);
             next = recalcValue(next);
-            if (trade.transferId && trade.fundingSourceAssetId) {
+            if (trade.transferId && (trade.fundingSourceAssetId || trade.cashDestinationAssetId)) {
               const all = await getAssets();
               const curIdx = all.findIndex((x) => x.id === asset.id);
-              const srcIdx = all.findIndex(
-                (x) => x.id === trade.fundingSourceAssetId
-              );
-              if (curIdx >= 0 && srcIdx >= 0) {
-                const src = all[srcIdx]!;
-                const linked = (src.cashLedger ?? []).find(
+              const peerId = trade.side === 'buy' ? trade.fundingSourceAssetId : trade.cashDestinationAssetId;
+              const peerIdx = peerId ? all.findIndex((x) => x.id === peerId) : -1;
+              if (curIdx >= 0 && peerIdx >= 0) {
+                const peer = all[peerIdx]!;
+                const linked = (peer.cashLedger ?? []).find(
                   (e) => e.transferId === trade.transferId
                 );
                 if (linked) {
-                  all[srcIdx] = deleteCashLedgerEntry(src, linked.id);
+                  all[peerIdx] = deleteCashLedgerEntry(peer, linked.id);
                 }
                 all[curIdx] = next;
                 await saveAssets(all);

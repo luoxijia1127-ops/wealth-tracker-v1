@@ -82,7 +82,11 @@ function formatTradeLine(t: TradeLedgerEntry, useGram: boolean): string {
     t.side === 'buy' && t.fundingSourceAssetName
       ? ` · 资金来源：${t.fundingSourceAssetName}`
       : '';
-  return `${t.tradeDate} · ${side} ${t.shares} ${q} @ ¥${t.unitPriceCny.toFixed(4)}（${u}）${src}`;
+  const dst =
+    t.side === 'sell' && t.cashDestinationAssetName
+      ? ` · 去向：${t.cashDestinationAssetName}`
+      : '';
+  return `${t.tradeDate} · ${side} ${t.shares} ${q} @ ¥${t.unitPriceCny.toFixed(4)}（${u}）${src}${dst}`;
 }
 
 function formatCashLine(e: CashLedgerEntry, currency: string): string {
@@ -114,6 +118,7 @@ export default function AssetActionScreen() {
   const [adjustSaving, setAdjustSaving] = useState(false);
   const [tradeFundingSourceId, setTradeFundingSourceId] = useState('');
   const [tradeFundingOptions, setTradeFundingOptions] = useState<SimpleAsset[]>([]);
+  const [tradeCashDestId, setTradeCashDestId] = useState('');
 
   const [listedMetaCategory, setListedMetaCategory] =
     useState<AssetCategory>('Stock');
@@ -308,7 +313,8 @@ export default function AssetActionScreen() {
     setAdjustSaving(true);
     try {
       const transferId =
-        tradeMode === 'buy' && tradeFundingSourceId.trim().length > 0
+        (tradeMode === 'buy' && tradeFundingSourceId.trim().length > 0) ||
+        (tradeMode === 'sell' && tradeCashDestId.trim().length > 0)
           ? `xf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
           : undefined;
       const r = tryApplyListedAdjustTrade(asset, {
@@ -322,6 +328,14 @@ export default function AssetActionScreen() {
         fundingSourceAssetName:
           tradeMode === 'buy'
             ? tradeFundingOptions.find((x) => x.id === tradeFundingSourceId)?.name
+            : undefined,
+        cashDestinationAssetId:
+          tradeMode === 'sell' && tradeCashDestId
+            ? tradeCashDestId
+            : undefined,
+        cashDestinationAssetName:
+          tradeMode === 'sell'
+            ? tradeFundingOptions.find((x) => x.id === tradeCashDestId)?.name
             : undefined,
         transferId,
       });
@@ -354,6 +368,31 @@ export default function AssetActionScreen() {
         all[srcIdx] = debited;
         all[curIdx] = r.asset;
         await saveAssets(all);
+      } else if (tradeMode === 'sell' && tradeCashDestId.trim().length > 0) {
+        const all = await getAssets();
+        const dstIdx = all.findIndex((a) => a.id === tradeCashDestId);
+        const curIdx = all.findIndex((a) => a.id === asset.id);
+        if (dstIdx < 0 || curIdx < 0) {
+          Alert.alert('无法保存', '资产数据已变化，请返回重试。');
+          return;
+        }
+        const dst = all[dstIdx]!;
+        const amount = parseFloat(tradeShares) * parseFloat(tradePrice);
+        const credited = appendCashMovement(
+          dst,
+          'in',
+          amount,
+          getShanghaiDateString(),
+          {
+            relatedAssetId: asset.id,
+            relatedAssetName: asset.name,
+            note: '减仓资金划转',
+            transferId,
+          }
+        );
+        all[dstIdx] = credited;
+        all[curIdx] = r.asset;
+        await saveAssets(all);
       } else {
         await updateAsset(r.asset);
       }
@@ -361,6 +400,7 @@ export default function AssetActionScreen() {
       setTradePrice('');
       setTradeMode('buy');
       setTradeFundingSourceId('');
+      setTradeCashDestId('');
       await load();
     } finally {
       setAdjustSaving(false);
@@ -724,6 +764,54 @@ export default function AssetActionScreen() {
                               style={[
                                 styles.optionText,
                                 tradeFundingSourceId === fo.id &&
+                                  styles.optionTextSelected,
+                              ]}
+                            >
+                              {fo.name}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </>
+                  ) : tradeMode === 'sell' ? (
+                    <>
+                      <Text style={styles.label}>资金去向（选填）</Text>
+                      <Text style={styles.hintMuted}>
+                        选择后会把卖出金额流入对应现金类资产余额（内部划转，净值不变）。
+                      </Text>
+                      <View style={styles.optionsRow}>
+                        <Pressable
+                          style={[
+                            styles.option,
+                            tradeCashDestId === '' && styles.optionSelected,
+                          ]}
+                          onPress={() => setTradeCashDestId('')}
+                        >
+                          <Text
+                            style={[
+                              styles.optionText,
+                              tradeCashDestId === '' &&
+                                styles.optionTextSelected,
+                            ]}
+                          >
+                            不入账
+                          </Text>
+                        </Pressable>
+                        {tradeFundingOptions.slice(0, 6).map((fo) => (
+                          <Pressable
+                            key={fo.id}
+                            style={[
+                              styles.option,
+                              tradeCashDestId === fo.id &&
+                                styles.optionSelected,
+                            ]}
+                            onPress={() => setTradeCashDestId(fo.id)}
+                          >
+                            <Text
+                              numberOfLines={1}
+                              style={[
+                                styles.optionText,
+                                tradeCashDestId === fo.id &&
                                   styles.optionTextSelected,
                               ]}
                             >

@@ -198,17 +198,17 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       fontWeight: '500',
     },
     chart: {
-      marginLeft: 14,
+      marginLeft: 0,
       marginRight: 0,
       paddingTop: 28,
-      paddingRight: 16,
+      paddingRight: 0,
       paddingBottom: 4,
       borderRadius: 18,
     },
     trendChartWrap: {
       position: 'relative',
-      paddingLeft: 10,
-      paddingRight: 4,
+      paddingLeft: 0,
+      paddingRight: 0,
       paddingBottom: 6,
     },
     trendTooltip: {

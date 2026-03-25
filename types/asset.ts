@@ -99,6 +99,10 @@ export type TradeLedgerEntry = {
   fundingSourceAssetId?: string;
   /** 可选：资金来源资产名称快照 */
   fundingSourceAssetName?: string;
+  /** 可选：本笔卖出的资金去向资产 id（如余额宝/银行卡现金类） */
+  cashDestinationAssetId?: string;
+  /** 可选：资金去向资产名称快照 */
+  cashDestinationAssetName?: string;
   /** 可选：与现金流水联动的一笔转账 id */
   transferId?: string;
 };
@@ -217,6 +221,18 @@ function parseTradeHistoryRaw(raw: unknown): TradeLedgerEntry[] | undefined {
       }
       if (typeof o.transferId === 'string' && o.transferId.length > 0) {
         e.transferId = o.transferId;
+      }
+      if (
+        typeof o.cashDestinationAssetId === 'string' &&
+        o.cashDestinationAssetId.length > 0
+      ) {
+        e.cashDestinationAssetId = o.cashDestinationAssetId;
+      }
+      if (
+        typeof o.cashDestinationAssetName === 'string' &&
+        o.cashDestinationAssetName.length > 0
+      ) {
+        e.cashDestinationAssetName = o.cashDestinationAssetName;
       }
       out.push(e);
     }

@@ -12,6 +12,8 @@ export type ListedAdjustInput = {
   unitPriceStr: string;
   fundingSourceAssetId?: string;
   fundingSourceAssetName?: string;
+  cashDestinationAssetId?: string;
+  cashDestinationAssetName?: string;
   transferId?: string;
 };
 
@@ -47,10 +49,10 @@ export function tryApplyListedAdjustTrade(
   }
   if (!wantBuy) {
     const oldS0 = editingAsset.shares ?? 0;
-    if (ts >= oldS0) {
+    if (ts > oldS0) {
       return {
         ok: false,
-        message: isGold ? '卖出克数须小于当前持有克数。' : '卖出份额须小于当前持仓。',
+        message: isGold ? '卖出克数须小于等于当前持有克数。' : '卖出份额须小于等于当前持仓。',
       };
     }
   }
@@ -92,7 +94,11 @@ export function tryApplyListedAdjustTrade(
             fundingSourceAssetName: input.fundingSourceAssetName,
             transferId: input.transferId,
           }
-        : undefined
+        : {
+            cashDestinationAssetId: input.cashDestinationAssetId,
+            cashDestinationAssetName: input.cashDestinationAssetName,
+            transferId: input.transferId,
+          }
     );
     assetToSave = {
       ...assetToSave,
