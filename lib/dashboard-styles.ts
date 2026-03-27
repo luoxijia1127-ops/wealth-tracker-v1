@@ -93,6 +93,12 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       fontSize: 28,
       lineHeight: 36,
     },
+    netWorthBreakdown: {
+      fontSize: 15,
+      fontWeight: '600',
+      marginTop: 12,
+      color: p65,
+    },
     netWorthFootnote: {
       fontSize: 11,
       color: p50,

@@ -5,7 +5,7 @@
 
 import { EASTMONEY_SUGGEST_TOKEN } from '@/lib/eastmoney-config';
 import { exchangeFromQuoteId } from '@/lib/eastmoney-secid';
-import type { ChinaExchange } from '@/types/asset';
+import type { ChinaExchange, ListingExchange } from '@/types/asset';
 
 const SUGGEST_URL = 'https://searchadapter.eastmoney.com/api/suggest/get';
 
@@ -98,8 +98,13 @@ export async function searchSecurities(
   return out;
 }
 
-/** 展示：交易所前缀 + 六位代码，如 SH600519；场外为 场外·012922 */
-export function formatExchangeSymbol(exchange: ChinaExchange, code: string): string {
+/** 展示：交易所前缀 + 代码；场外 / 美股 / 港股 */
+export function formatExchangeSymbol(
+  exchange: ListingExchange,
+  code: string
+): string {
   if (exchange === 'OTC') return `场外·${code}`;
+  if (exchange === 'US') return `US·${code}`;
+  if (exchange === 'HK') return `HK·${code}`;
   return `${exchange}${code}`;
 }

@@ -1,25 +1,34 @@
 /**
- * 行情刷新：场内标的并行 push2 + 日 K；场外开放式基金走 F10 单位净值（push2 常无有效 f43）。
+ * 行情刷新：A 股东财 push2 + 日 K；场外基金 F10；美股/港股 Stooq；黄金参考价。
  */
 
+import { isInternationalListedAsset } from '@/lib/asset-value';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { fetchDailySettlementClose } from '@/lib/eastmoney-kline';
 import { fetchOtcFundLatestNav } from '@/lib/eastmoney-fund-nav';
 import { fetchPush2LastPrice } from '@/lib/eastmoney-push';
 import { toEastMoneySecid } from '@/lib/eastmoney-secid';
 import { fetchGoldReferenceCnyPerGram } from '@/lib/gold-quote';
+import { fetchStooqQuote } from '@/lib/stooq-quote';
 import { getAssets, saveAssets } from '@/lib/asset-storage';
-import { getListedUnitPrice, type SimpleAsset } from '@/types/asset';
-import { isListedAssetCategory } from '@/types/asset';
+import {
+  getListedUnitPrice,
+  isListedAssetCategory,
+  type ChinaExchange,
+  type SimpleAsset,
+} from '@/types/asset';
 
 function listedEastMoneySecid(a: SimpleAsset): string {
   const raw = typeof a.emSecid === 'string' ? a.emSecid.trim() : '';
   if (raw.length > 0 && /^\d+\.\d+$/.test(raw)) return raw;
-  return toEastMoneySecid(a.exchange!, a.symbol!.trim());
+  return toEastMoneySecid(a.exchange as ChinaExchange, a.symbol!.trim());
 }
 
-function isQuoteEligibleListedAsset(a: SimpleAsset): boolean {
+function isEmQuoteEligibleListedAsset(a: SimpleAsset): boolean {
   if (!isListedAssetCategory(a.category)) return false;
+  if (typeof a.intlQuoteSymbol === 'string' && a.intlQuoteSymbol.trim().length > 0) {
+    return false;
+  }
   if (typeof a.shares !== 'number' || a.shares <= 0) return false;
   const em = typeof a.emSecid === 'string' ? a.emSecid.trim() : '';
   if (em.length > 0 && /^\d+\.\d+$/.test(em)) return true;
@@ -31,6 +40,23 @@ function isQuoteEligibleListedAsset(a: SimpleAsset): boolean {
       a.exchange === 'BJ' ||
       a.exchange === 'OTC')
   );
+}
+
+function isIntlQuoteEligibleListedAsset(a: SimpleAsset): boolean {
+  return (
+    isInternationalListedAsset(a) &&
+    typeof a.intlQuoteSymbol === 'string' &&
+    a.intlQuoteSymbol.trim().length > 0
+  );
+}
+
+function listingCurrencyForMerge(a: SimpleAsset): string {
+  if (a.exchange === 'US' || a.exchange === 'HK') {
+    const c = a.currency;
+    if (typeof c === 'string' && /^[A-Z]{3}$/.test(c)) return c;
+    return a.exchange === 'HK' ? 'HKD' : 'USD';
+  }
+  return 'CNY';
 }
 
 /**
@@ -66,7 +92,30 @@ function mergeListedQuotes(
     return {
       ...next,
       value: a.shares * unit,
-      currency: 'CNY',
+      currency: listingCurrencyForMerge(a),
+    };
+  }
+  return next;
+}
+
+/** Stooq 仅日级收盘，现价与昨收同用 close */
+function mergeStooqQuote(
+  a: SimpleAsset,
+  row: NonNullable<Awaited<ReturnType<typeof fetchStooqQuote>>>
+): SimpleAsset {
+  const next: SimpleAsset = {
+    ...a,
+    markPrice: row.close,
+    markPriceDate: getShanghaiDateString(),
+    lastClose: row.close,
+    lastCloseDate: row.tradeDate,
+  };
+  const unit = getListedUnitPrice(next);
+  if (unit !== null && typeof a.shares === 'number') {
+    return {
+      ...next,
+      value: a.shares * unit,
+      currency: listingCurrencyForMerge(a),
     };
   }
   return next;
@@ -98,14 +147,17 @@ async function withTimeout<T>(
 
 export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
   const assets = await getAssets();
-  const emListed = assets.filter(isQuoteEligibleListedAsset);
+  const emListed = assets.filter(isEmQuoteEligibleListedAsset);
+  const intlListed = assets.filter(isIntlQuoteEligibleListedAsset);
   const hasGoldHeld = assets.some(
     (a) =>
       a.category === 'Gold' &&
       typeof a.shares === 'number' &&
       a.shares > 0
   );
-  if (emListed.length === 0 && !hasGoldHeld) return assets;
+  if (emListed.length === 0 && intlListed.length === 0 && !hasGoldHeld) {
+    return assets;
+  }
 
   const uniqueSecids = [...new Set(emListed.map(listedEastMoneySecid))];
 
@@ -151,12 +203,35 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
     })
   );
 
+  const uniqueStooq = [
+    ...new Set(
+      intlListed.map((a) => a.intlQuoteSymbol!.trim().toLowerCase())
+    ),
+  ];
+  const stooqPack = new Map<string, Awaited<ReturnType<typeof fetchStooqQuote>>>();
+  await Promise.all(
+    uniqueStooq.map(async (sym) => {
+      const row = await withTimeout(8000, (signal) =>
+        fetchStooqQuote(sym, signal)
+      );
+      stooqPack.set(sym, row);
+    })
+  );
+
   let next = assets.map((a) => {
-    if (!isQuoteEligibleListedAsset(a)) return a;
-    const secid = listedEastMoneySecid(a);
-    const pack = secidPack.get(secid);
-    if (!pack) return a;
-    return mergeListedQuotes(a, pack.push, pack.kline);
+    if (isEmQuoteEligibleListedAsset(a)) {
+      const secid = listedEastMoneySecid(a);
+      const pack = secidPack.get(secid);
+      if (!pack) return a;
+      return mergeListedQuotes(a, pack.push, pack.kline);
+    }
+    if (isIntlQuoteEligibleListedAsset(a)) {
+      const sym = a.intlQuoteSymbol!.trim().toLowerCase();
+      const row = stooqPack.get(sym);
+      if (!row) return a;
+      return mergeStooqQuote(a, row);
+    }
+    return a;
   });
 
   const spot = await withTimeout(8000, (signal) =>

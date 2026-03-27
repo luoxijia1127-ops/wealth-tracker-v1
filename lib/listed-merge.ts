@@ -12,6 +12,13 @@ import {
 /** 同一 category 下区分合并组；无交易所时退化为按代码合并（修复历史脏数据） */
 export function listedDuplicateKey(a: SimpleAsset): string | null {
   if (!isHeldMergeCategory(a.category)) return null;
+  const intl =
+    typeof a.intlQuoteSymbol === 'string' && a.intlQuoteSymbol.trim().length > 0
+      ? a.intlQuoteSymbol.trim().toLowerCase()
+      : '';
+  if (intl) {
+    return `${a.category}|intl:${intl}`;
+  }
   const sym =
     typeof a.symbol === 'string' && /^\d{6}$/.test(a.symbol.trim())
       ? a.symbol.trim()
@@ -29,10 +36,13 @@ export function listedDuplicateKey(a: SimpleAsset): string | null {
 
 function listedQualityScore(a: SimpleAsset): number {
   let s = 0;
+  const iq = typeof a.intlQuoteSymbol === 'string' ? a.intlQuoteSymbol.trim() : '';
+  if (iq.length > 0) s += 8;
   const em = typeof a.emSecid === 'string' ? a.emSecid.trim() : '';
   if (em.length > 0 && /^\d+\.\d+$/.test(em)) s += 8;
   const ex = a.exchange;
   if (ex === 'SH' || ex === 'SZ' || ex === 'BJ' || ex === 'OTC') s += 4;
+  if (ex === 'US' || ex === 'HK') s += 4;
   if (getListedUnitPrice(a) !== null) s += 2;
   if (typeof a.shares === 'number' && a.shares > 0) s += 1;
   return s;
@@ -132,7 +142,15 @@ function mergeQuoteFields(base: SimpleAsset, group: SimpleAsset[]): SimpleAsset 
   const unit = getListedUnitPrice(next);
   const sh = next.shares ?? 0;
   if (unit !== null && sh > 0) {
-    return { ...next, value: sh * unit, currency: 'CNY' as const };
+    const cur =
+      base.exchange === 'US' || base.exchange === 'HK'
+        ? typeof base.currency === 'string' && /^[A-Z]{3}$/.test(base.currency)
+          ? base.currency
+          : base.exchange === 'HK'
+            ? 'HKD'
+            : 'USD'
+        : 'CNY';
+    return { ...next, value: sh * unit, currency: cur };
   }
   return next;
 }

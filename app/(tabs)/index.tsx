@@ -9,7 +9,7 @@
  * 2. Grouped assets: 类别（股票/基金/ETF/现金类/黄金）→ 资产列表
  *
  * 场内标的：份额 ×（markPrice 现价优先，否则 lastClose 日 K 结算）；同步后写快照供 Insights。
- * 其他资产：使用 value。净值按币种分行展示；快照曲线为数值直接相加（多币种未折算）。
+ * 其他资产：使用 value。顶部 Net Worth 以折合人民币为主（Frankfurter/ECB 口径中间价串联）；分行展示原币种市值。
  *
  * 浅色「文件夹」交互：大类默认只显示合计 + 资产名摘要；点击展开明细；展开时头部用类别色条填充。
  */
@@ -23,7 +23,11 @@ import {
   getAssetCurrency,
   getAssetDisplayValue,
   isHeldChineseAsset,
+  sumDisplayValuesInCny,
+  sumDisplayValuesNaive,
 } from '@/lib/asset-value';
+import { getCachedFxUsdRates } from '@/lib/fx-rates';
+import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
@@ -153,7 +157,12 @@ function listedHoldingsSubtitle(asset: SimpleAsset): string | null {
   if (unit === null || unit <= 0 || !Number.isFinite(unit)) {
     return `持仓 ${sharesText} ${qty}（单价待同步）`;
   }
-  return `持仓 ${sharesText} ${qty}，¥${formatListedUnitText(unit)}`;
+  const cur = getAssetCurrency(asset);
+  const priceText =
+    cur === 'CNY'
+      ? `¥${formatListedUnitText(unit)}`
+      : formatMoney(unit, cur);
+  return `持仓 ${sharesText} ${qty}，${priceText}`;
 }
 
 function listedQuoteDateLabel(asset: SimpleAsset): string | null {
@@ -345,6 +354,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   /** 后台拉行情时不挡整页，只作轻提示 */
   const [syncingQuotes, setSyncingQuotes] = useState(false);
+  /** 折合人民币净值；无汇率且含外币时为 null */
+  const [netWorthCny, setNetWorthCny] = useState<number | null>(null);
+  /** 汇率说明（基准日 / 离线沿用等） */
+  const [fxNote, setFxNote] = useState<string | null>(null);
   const focusLoadGen = useRef(0);
 
   /** 默认全部折叠，只显示各类合计与名称摘要 */
@@ -394,7 +407,23 @@ export default function Dashboard() {
         try {
           const updated = await syncNetWorthFromMarket();
           if (!cancelled && gen === focusLoadGen.current) {
-            setAssets(updated);
+            setAssets(updated.assets);
+            setNetWorthCny(updated.totalValueCny);
+            if (updated.fxSource === 'none') {
+              setFxNote(
+                updated.totalValueCny === null
+                  ? '当前无法获取汇率，外币持仓未折算为人民币。'
+                  : null
+              );
+            } else {
+              const stale =
+                updated.fxSource === 'stale' ? '（沿用缓存汇率）' : '';
+              setFxNote(
+                updated.fxApiDate
+                  ? `汇率基准日 ${updated.fxApiDate}，中间价经 USD 串联折算人民币${stale}`
+                  : stale || null
+              );
+            }
           }
         } catch {
           /* 保留本地列表 */
@@ -411,6 +440,23 @@ export default function Dashboard() {
           if (!cancelled && gen === focusLoadGen.current) {
             setAssets(local);
             setLoading(false);
+            const needsFx = local.some((a) => getAssetCurrency(a) !== 'CNY');
+            const cached = await getCachedFxUsdRates();
+            const today = getShanghaiDateString();
+            if (cached) {
+              setNetWorthCny(sumDisplayValuesInCny(local, cached.rates));
+              const stale =
+                cached.shanghaiDate !== today ? '（沿用缓存汇率）' : '';
+              setFxNote(
+                `汇率基准日 ${cached.apiDate}，中间价经 USD 串联折算人民币${stale}`
+              );
+            } else if (!needsFx) {
+              setNetWorthCny(sumDisplayValuesNaive(local));
+              setFxNote(null);
+            } else {
+              setNetWorthCny(null);
+              setFxNote('当前无汇率缓存，同步后将按当日中间价折算。');
+            }
           }
         } catch {
           if (!cancelled && gen === focusLoadGen.current) {
@@ -468,19 +514,39 @@ export default function Dashboard() {
       {/* 1. Net Worth — large, centered (below header) */}
       <View style={styles.netWorthSection}>
         <Text style={styles.netWorthLabel}>Net Worth</Text>
-        <Text
-          style={[
-            styles.netWorthValue,
-            netWorthSummary.lines.includes('\n') && styles.netWorthValueCompact,
-          ]}
-        >
-          {netWorthSummary.lines}
-        </Text>
-        {netWorthSummary.hasMultiple && (
-          <Text style={styles.netWorthFootnote}>
-            多币种资产未折算汇率；曲线为各币种数值直接相加。
+        {netWorthCny !== null && Number.isFinite(netWorthCny) ? (
+          <>
+            <AssetPrimaryValue
+              amount={netWorthCny}
+              currency="CNY"
+              accentColor={theme.primary}
+              styles={styles}
+            />
+            <Text
+              style={[
+                styles.netWorthValue,
+                styles.netWorthBreakdown,
+                netWorthSummary.lines.includes('\n') &&
+                  styles.netWorthValueCompact,
+              ]}
+            >
+              {netWorthSummary.lines}
+            </Text>
+            <Text style={styles.netWorthFootnote}>按持仓币种分列市值</Text>
+          </>
+        ) : (
+          <Text
+            style={[
+              styles.netWorthValue,
+              netWorthSummary.lines.includes('\n') && styles.netWorthValueCompact,
+            ]}
+          >
+            {netWorthSummary.lines}
           </Text>
         )}
+        {fxNote ? (
+          <Text style={styles.netWorthFootnote}>{fxNote}</Text>
+        ) : null}
         {syncingQuotes ? (
           <View style={styles.syncRow}>
             <ActivityIndicator size="small" color={theme.primary} />

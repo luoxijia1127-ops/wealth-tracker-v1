@@ -2,6 +2,7 @@
  * 新增资产（Modal）
  *
  * 编辑已有资产、加减仓、改流水请在 Dashboard 点进资产详情页完成，不再使用本弹窗。
+ * 股票/基金/ETF：同一套表单，支持 A 股（东财）与美股/港股（OpenFIGI 联想）；收盘价仅由 Dashboard 同步写入。
  */
 
 import {
@@ -16,11 +17,12 @@ import {
 import { getAssets, saveAssets } from '@/lib/asset-storage';
 import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
+import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
+import { formatExchangeSymbol } from '@/lib/eastmoney-suggest';
 import {
-  formatExchangeSymbol,
-  searchSecurities,
-  type SuggestInstrument,
-} from '@/lib/eastmoney-suggest';
+  searchUnifiedInstruments,
+  type UnifiedSuggestItem,
+} from '@/lib/instrument-search';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createAddModalStyles } from '@/lib/modal-styles';
@@ -49,7 +51,7 @@ import {
   ASSET_CATEGORY_ORDER,
   CATEGORY_LABEL_ZH,
   isListedAssetCategory,
-  type ChinaExchange,
+  type ListingExchange,
   type SimpleAsset,
   generateAssetId,
 } from '@/types/asset';
@@ -71,15 +73,14 @@ export default function AddModal() {
   const [purposeTarget, setPurposeTarget] = useState('');
   const [value, setValue] = useState('');
   const [shares, setShares] = useState('');
-  const [price, setPrice] = useState('');
   const [symbol, setSymbol] = useState('');
-  const [exchange, setExchange] = useState<ChinaExchange>('SH');
+  const [exchange, setExchange] = useState<ListingExchange>('SH');
   const [saving, setSaving] = useState(false);
 
   const [searchText, setSearchText] = useState('');
-  const [suggestions, setSuggestions] = useState<SuggestInstrument[]>([]);
+  const [suggestions, setSuggestions] = useState<UnifiedSuggestItem[]>([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
-  const [instrumentPick, setInstrumentPick] = useState<SuggestInstrument | null>(
+  const [instrumentPick, setInstrumentPick] = useState<UnifiedSuggestItem | null>(
     null
   );
 
@@ -109,10 +110,13 @@ export default function AddModal() {
   const isListedCategory = isListedAssetCategory(category);
   const showGoldForm = category === 'Gold';
   const showListedSecuritiesForm = isListedCategory;
-  /** 用途目标金额与人民币展示：场内或黄金 */
-  const purposeYuan = showGoldForm || showListedSecuritiesForm;
-  const showTotalValue = !showGoldForm && !showListedSecuritiesForm;
-  const canChooseFundingSource = showGoldForm || showListedSecuritiesForm;
+  /** 用途目标与 A 股/黄金同为人民币展示；美股/港股标的与报价币种一致 */
+  const purposeYuan =
+    showGoldForm ||
+    (showListedSecuritiesForm && !instrumentPick?.intlQuoteSymbol);
+  const showSimpleBalanceForm = !showGoldForm && !showListedSecuritiesForm;
+  const canChooseFundingSource =
+    showGoldForm || showListedSecuritiesForm;
 
   useEffect(() => {
     let cancelled = false;
@@ -153,7 +157,7 @@ export default function AddModal() {
     const ac = new AbortController();
     const t = setTimeout(() => {
       setSuggestLoading(true);
-      searchSecurities(q, ac.signal)
+      searchUnifiedInstruments(q, ac.signal)
         .then((list) => {
           if (!ac.signal.aborted) setSuggestions(list);
         })
@@ -195,11 +199,16 @@ export default function AddModal() {
     setSuggestions([]);
   }, []);
 
-  const onPickInstrument = useCallback((item: SuggestInstrument) => {
+  const onPickInstrument = useCallback((item: UnifiedSuggestItem) => {
     setInstrumentPick(item);
     setSymbol(item.code);
     setExchange(item.exchange);
     setName(item.name);
+    if (item.intlQuoteSymbol) {
+      setAssetCurrency(item.exchange === 'HK' ? 'HKD' : 'USD');
+    } else {
+      setAssetCurrency('CNY');
+    }
     setSearchText('');
     setSuggestions([]);
   }, []);
@@ -250,20 +259,19 @@ export default function AddModal() {
           symbol,
           exchange,
           shares,
-          price,
           costPrice,
           category,
           purpose,
           purposeTarget,
           isEditMode: false,
           hasInstrumentPick: !!instrumentPick,
+          intlQuoteSymbol: instrumentPick?.intlQuoteSymbol,
         });
         if (err) {
           Alert.alert('无法保存', err);
           return;
         }
 
-        const priceNum = parseFloat(price);
         const parsedCost = parseFloat(costPrice);
         const finalShares = parseFloat(shares);
         const finalAvg = parsedCost;
@@ -276,10 +284,13 @@ export default function AddModal() {
           symbol: symbol.trim(),
           exchange: exchange as NonNullable<SimpleAsset['exchange']>,
           shares: finalShares,
-          initialLastClose: priceNum,
           avgCost: finalAvg,
           purposeFields,
-          emSecid: instrumentPick?.quoteId,
+          listingCurrency: normalizeAssetCurrency(assetCurrency),
+          emSecid: instrumentPick?.intlQuoteSymbol
+            ? undefined
+            : instrumentPick?.quoteId,
+          intlQuoteSymbol: instrumentPick?.intlQuoteSymbol,
           account: accountTrim || undefined,
           fundingSourceAssetId: src?.id,
           fundingSourceAssetName: src?.name,
@@ -336,14 +347,21 @@ export default function AddModal() {
           Alert.alert('无法保存', '所选资金来源不是可扣减余额的现金类资产。');
           return;
         }
-        const amount =
+        const rawCost =
           showGoldForm || showListedSecuritiesForm
             ? parseFloat(shares) * parseFloat(costPrice)
             : 0;
-        if (!(amount > 0)) {
+        if (!(rawCost > 0)) {
           Alert.alert('无法保存', '买入金额计算失败，请检查克数/份额与购买单价。');
           return;
         }
+        const listingCur = normalizeAssetCurrency(assetCurrency);
+        const conv = await convertListingCostToCnyCashDebit(rawCost, listingCur);
+        if (!conv.ok) {
+          Alert.alert('无法保存', conv.message);
+          return;
+        }
+        const amount = conv.cny;
         let debited: SimpleAsset;
         try {
           debited = appendCashMovement(
@@ -354,7 +372,10 @@ export default function AddModal() {
             {
               relatedAssetId: assetToSave.id,
               relatedAssetName: assetToSave.name,
-              note: `买入${assetToSave.category === 'Gold' ? '黄金' : '资产'}资金划转`,
+              note:
+                listingCur === 'CNY'
+                  ? `买入${assetToSave.category === 'Gold' ? '黄金' : '资产'}资金划转`
+                  : `买入${assetToSave.category === 'Gold' ? '黄金' : '资产'}（${listingCur} ${rawCost.toFixed(2)} 折人民币扣款）`,
               transferId,
             }
           );
@@ -451,7 +472,7 @@ export default function AddModal() {
             />
             <Text style={styles.label}>购买单价（CNY/克）</Text>
             <Text style={styles.hintMuted}>
-              建仓或加仓时的每克成本。参考市价由 Dashboard 同步行情自动更新，不需要手填。
+              每克购入成本（非交易所收盘价）。市值参考价由 Dashboard 同步行情自动更新，无需手填收盘价。
             </Text>
             <View style={styles.amountRow}>
               <View style={styles.currencyChipStatic}>
@@ -468,7 +489,7 @@ export default function AddModal() {
             </View>
             <Text style={styles.label}>资金来源（选填）</Text>
             <Text style={styles.hintMuted}>
-              选择后会自动扣减该现金类资产余额，并写入两边交易记录。
+              仅列出人民币现金类；按克价（人民币）从所选账户扣减并记入流水。
             </Text>
             <View style={styles.optionsRow}>
               <Pressable
@@ -514,8 +535,11 @@ export default function AddModal() {
         {showListedSecuritiesForm && (
           <>
             <Text style={styles.label}>搜索证券（代码或简称）</Text>
+            <Text style={styles.hintMuted}>
+              A 股/场外基金走东方财富；美股/港股走 OpenFIGI。市价在 Dashboard 同步后自动写入。
+            </Text>
             <TextInput
-              placeholder="输入如 茅台、600519、ETF…"
+              placeholder="如 茅台、012922、AAPL、腾讯、700…"
               placeholderTextColor={placeholderColor}
               style={styles.input}
               value={searchText}
@@ -539,7 +563,9 @@ export default function AddModal() {
               <View style={styles.suggestBox}>
                 {suggestions.map((item) => (
                   <Pressable
-                    key={`${item.exchange}-${item.code}-${item.quoteId}`}
+                    key={`${item.exchange}-${item.code}-${
+                      item.quoteId ?? item.intlQuoteSymbol ?? ''
+                    }`}
                     style={({ pressed }) => [
                       styles.suggestRow,
                       pressed && styles.suggestRowPressed,
@@ -560,7 +586,7 @@ export default function AddModal() {
               searchText.trim().length > 0 &&
               suggestions.length === 0 && (
                 <Text style={styles.suggestEmpty}>
-                  无匹配标的（含场外基金代码如 012922），请换关键词
+                  无匹配结果，请换关键词（或检查网络）；港股可试五位代码如 00700。
                 </Text>
               )}
 
@@ -598,14 +624,24 @@ export default function AddModal() {
               onChangeText={setShares}
               keyboardType="decimal-pad"
             />
-            <Text style={styles.label}>成本价 / 买价（人民币/份）</Text>
+            <Text style={styles.label}>
+              成本价 / 买价（{assetCurrency}/份）
+            </Text>
             <Text style={styles.hintMuted}>
-              记录真实持仓成本，便于日后算收益率；可与下方参考收盘价不同。
+              与所选报价币种一致；建仓市值按此估算。收盘价/现价请在 Dashboard 同步行情后自动更新，无需手填。
             </Text>
             <View style={styles.amountRow}>
-              <View style={styles.currencyChipStatic}>
-                <Text style={styles.currencyChipText}>¥</Text>
-              </View>
+              <Pressable
+                style={styles.currencyChip}
+                onPress={() => setCurrencyModalVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel="选择报价币种"
+              >
+                <Text style={styles.currencyChipText}>
+                  {assetCurrencySymbol(assetCurrency)}
+                </Text>
+                <Text style={styles.currencyChevron}>▼</Text>
+              </Pressable>
               <TextInput
                 placeholder="如建仓均价"
                 placeholderTextColor={placeholderColor}
@@ -615,27 +651,9 @@ export default function AddModal() {
                 keyboardType="decimal-pad"
               />
             </View>
-            <Text style={styles.label}>收盘价 / 参考价（人民币）</Text>
-            <Text style={styles.hintMuted}>
-              会存为 lastClose（日 K 语义）；同步行情时另用 markPrice
-              记盘中现价，市值优先按现价算。
-            </Text>
-            <View style={styles.amountRow}>
-              <View style={styles.currencyChipStatic}>
-                <Text style={styles.currencyChipText}>¥</Text>
-              </View>
-              <TextInput
-                placeholder="例如上一交易日收盘价"
-                placeholderTextColor={placeholderColor}
-                style={[styles.input, styles.amountInputFlex]}
-                value={price}
-                onChangeText={setPrice}
-                keyboardType="decimal-pad"
-              />
-            </View>
             <Text style={styles.label}>资金来源（选填）</Text>
             <Text style={styles.hintMuted}>
-              选择后会自动扣减该现金类资产余额，并写入两边交易记录。
+              仅列出人民币现金类；若证券为美元/港币计价，将按当日中间价折合为人民币后扣减。
             </Text>
             <View style={styles.optionsRow}>
               <Pressable
@@ -678,7 +696,7 @@ export default function AddModal() {
           </>
         )}
 
-        {showTotalValue && (
+        {showSimpleBalanceForm && (
           <>
             <Text style={styles.label}>资产名称</Text>
             <TextInput

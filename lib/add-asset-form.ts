@@ -14,15 +14,15 @@ export type ListedFormInput = {
   symbol: string;
   exchange: SimpleAsset['exchange'];
   shares: string;
-  /** 日 K / 参考收盘价，写入 lastClose */
-  price: string;
-  /** 成本价/买价（CNY/份），写入 avgCost */
+  /** 成本价/买价（与所选币种一致/份），写入 avgCost；建仓市值 = 份额×成本，收盘价由同步写入 */
   costPrice: string;
   category: AssetCategory;
   purpose: string;
   purposeTarget: string;
   isEditMode: boolean;
   hasInstrumentPick: boolean;
+  /** 有值表示美股/港股（Stooq），与东财六位代码互斥 */
+  intlQuoteSymbol?: string;
 };
 
 export type CashLikeFormInput = {
@@ -36,30 +36,41 @@ export type CashLikeFormInput = {
 };
 
 /**
- * 校验「场内」表单：名称、必选证券、六位代码、份额与参考收盘价。
+ * 校验「场内」表单：东财 A 股/基金六位代码，或 OpenFIGI+Stooq 美股/港股。
  */
 export function validateListedForm(input: ListedFormInput): FormValidationError {
   if (!input.name.trim()) return '请填写或确认标的名称。';
+  const intlRaw =
+    typeof input.intlQuoteSymbol === 'string'
+      ? input.intlQuoteSymbol.trim()
+      : '';
+  const intl = intlRaw.length > 0;
+
   if (!input.isEditMode && !input.hasInstrumentPick) {
     return '请搜索并从列表中选择一只标的（含交易所与代码）。';
   }
-  if (!/^\d{6}$/.test(input.symbol.trim())) {
+
+  if (intl) {
+    if (input.exchange !== 'US' && input.exchange !== 'HK') {
+      return '请选择美股或港股联想结果。';
+    }
+    if (!/^[a-z0-9.\-]+\.(us|hk)$/i.test(intlRaw)) {
+      return '国际行情代码无效。';
+    }
+  } else if (!/^\d{6}$/.test(input.symbol.trim())) {
     return '请通过搜索选择有效的 6 位证券代码。';
   }
+
   const sharesNum = parseFloat(input.shares);
-  const priceNum = parseFloat(input.price);
-  if (
-    Number.isNaN(sharesNum) ||
-    sharesNum <= 0 ||
-    Number.isNaN(priceNum) ||
-    priceNum <= 0
-  ) {
-    return '请输入有效份额与收盘价 / 参考价（CNY）。';
+  if (Number.isNaN(sharesNum) || sharesNum <= 0) {
+    return '请输入有效的持有份额。';
   }
   const costNum = parseFloat(input.costPrice);
   if (!input.isEditMode) {
     if (Number.isNaN(costNum) || costNum <= 0) {
-      return '请填写有效的成本价/买价（CNY/份）。';
+      return intl
+        ? '请填写有效的成本价/买价（与所选币种一致/份）。'
+        : '请填写有效的成本价/买价（CNY/份）。';
     }
   } else if (input.costPrice.trim() !== '') {
     if (Number.isNaN(costNum) || costNum <= 0) {
@@ -105,24 +116,34 @@ export type BuildListedParams = {
   symbol: string;
   exchange: NonNullable<SimpleAsset['exchange']>;
   shares: number;
-  /** 用户手填的初始「日 K 参考价」，写入 lastClose；盘中现价由同步逻辑写入 markPrice */
-  initialLastClose: number;
-  /** 持仓成本单价（CNY/份） */
+  /** 持仓成本单价（与 listingCurrency 一致/份）；建仓市值=份额×成本，lastClose/markPrice 仅由行情同步写入 */
   avgCost: number;
   purposeFields: Pick<SimpleAsset, 'purpose' | 'purposeTarget'>;
   account?: string;
-  /** 来自联想的东财 secid，场外基金等必用以避免错用 0/1 市场前缀 */
+  /** 报价币种（A 股为 CNY，美股多为 USD，港股多为 HKD） */
+  listingCurrency: string;
+  /** 来自联想的东财 secid；与 intlQuoteSymbol 互斥 */
   emSecid?: string;
+  /** Stooq 符号如 aapl.us、700.hk */
+  intlQuoteSymbol?: string;
   fundingSourceAssetId?: string;
   fundingSourceAssetName?: string;
   fundingTransferId?: string;
 };
 
-/** 组装一条「场内」资产（含初始 lastClose，不含 markPrice） */
+/** 组装一条「场内」资产（不写 lastClose；同步净值后再写入 markPrice/lastClose） */
 export function buildListedAsset(p: BuildListedParams): SimpleAsset {
-  const value = p.shares * p.initialLastClose;
+  const value = p.shares * p.avgCost;
   const accountRaw =
     typeof p.account === 'string' ? p.account.trim() : '';
+  const cur =
+    typeof p.listingCurrency === 'string' && /^[A-Z]{3}$/.test(p.listingCurrency)
+      ? p.listingCurrency
+      : 'CNY';
+  const intl =
+    typeof p.intlQuoteSymbol === 'string' && p.intlQuoteSymbol.trim().length > 0
+      ? p.intlQuoteSymbol.trim().toLowerCase()
+      : '';
   const asset: SimpleAsset = {
     id: p.id,
     name: p.name.trim(),
@@ -131,9 +152,7 @@ export function buildListedAsset(p: BuildListedParams): SimpleAsset {
     symbol: p.symbol.trim(),
     exchange: p.exchange,
     shares: p.shares,
-    lastClose: p.initialLastClose,
-    lastCloseDate: getShanghaiDateString(),
-    currency: 'CNY',
+    currency: cur,
     avgCost: p.avgCost,
     tradeHistory: [
       {
@@ -154,7 +173,9 @@ export function buildListedAsset(p: BuildListedParams): SimpleAsset {
     ...p.purposeFields,
   };
   if (accountRaw.length > 0) asset.account = accountRaw;
-  if (p.emSecid && /^\d+\.\d+$/.test(p.emSecid.trim())) {
+  if (intl) {
+    asset.intlQuoteSymbol = intl;
+  } else if (p.emSecid && /^\d+\.\d+$/.test(p.emSecid.trim())) {
     asset.emSecid = p.emSecid.trim();
   }
   return asset;

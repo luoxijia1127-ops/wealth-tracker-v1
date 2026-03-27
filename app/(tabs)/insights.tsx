@@ -18,8 +18,11 @@ import {
 } from '@/lib/goal-aggregate';
 import { createInsightsStyles, type InsightsStyles } from '@/lib/insights-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
-import { getSnapshots } from '@/lib/snapshots';
-import type { Snapshot } from '@/lib/snapshots';
+import {
+  getSnapshots,
+  snapshotDisplayTotal,
+  type Snapshot,
+} from '@/lib/snapshots';
 import {
   ASSET_CATEGORY_ORDER,
   CATEGORY_LABEL_ZH,
@@ -62,13 +65,6 @@ type DonutSlice = {
   color: string;
 };
 
-function formatUnconvertedTotal(value: number): string {
-  return value.toLocaleString('zh-CN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-}
-
 function formatChange(diff: number, pct: number): string {
   const sign = diff >= 0 ? '+' : '';
   return `${sign}${Math.round(diff).toLocaleString()} (${sign}${pct.toFixed(1)}%)`;
@@ -76,7 +72,7 @@ function formatChange(diff: number, pct: number): string {
 
 function toTrendChartModel(snapshots: Snapshot[]): TrendChartModel {
   const labels = snapshots.map((s) => s.date.slice(5));
-  const raw = snapshots.map((s) => s.totalValue);
+  const raw = snapshots.map((s) => snapshotDisplayTotal(s));
   if (raw.length === 0) {
     return {
       data: { labels, datasets: [{ data: [] }] },
@@ -112,8 +108,10 @@ function getDailyChange(snapshots: Snapshot[]): { diff: number; pct: number } | 
   const sorted = [...snapshots].sort((a, b) => a.date.localeCompare(b.date));
   const prev = sorted[sorted.length - 2];
   const last = sorted[sorted.length - 1];
-  const diff = last.totalValue - prev.totalValue;
-  const pct = prev.totalValue !== 0 ? (diff / prev.totalValue) * 100 : 0;
+  const lastT = snapshotDisplayTotal(last);
+  const prevT = snapshotDisplayTotal(prev);
+  const diff = lastT - prevT;
+  const pct = prevT !== 0 ? (diff / prevT) * 100 : 0;
   return { diff, pct };
 }
 
@@ -716,7 +714,9 @@ export default function Insights() {
       >
         <View style={styles.card}>
           <Text style={[styles.cardKicker, { color: textSecondary }]}>
-            未汇率折算合计
+            {latest && typeof latest.totalValueCny === 'number'
+              ? '折合人民币（快照）'
+              : '净值快照'}
           </Text>
           {loading ? (
             <View style={styles.centered}>
@@ -734,10 +734,16 @@ export default function Insights() {
               {hasSnapshotTrend ? (
                 <>
                   <Text style={[styles.currentValue, { color: theme.primary }]}>
-                    {latest ? formatUnconvertedTotal(latest.totalValue) : ''}
+                    {latest
+                      ? formatMoney(snapshotDisplayTotal(latest), 'CNY')
+                      : ''}
                   </Text>
                   <Text style={[styles.unconvertedHint, { color: textMuted }]}>
-                    各币种数值直接相加，非单一货币
+                    {latest && typeof latest.totalValueCny === 'number'
+                      ? typeof latest.fxRateDate === 'string'
+                        ? `汇率基准日 ${latest.fxRateDate}（经 USD 串联）`
+                        : '已按中间价折算为人民币'
+                      : '历史或未同步汇率时为各币种数值直接相加'}
                   </Text>
                   {dailyChange && (
                     <Text
@@ -858,7 +864,9 @@ export default function Insights() {
                               </Text>
                               <Text style={styles.trendTooltipValue}>
                                 {formatMoney(
-                                  orderedSnapshots[trendTip.index]!.totalValue,
+                                  snapshotDisplayTotal(
+                                    orderedSnapshots[trendTip.index]!
+                                  ),
                                   'CNY'
                                 )}
                               </Text>

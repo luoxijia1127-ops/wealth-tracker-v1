@@ -6,6 +6,10 @@
 import { toEastMoneySecid } from '@/lib/eastmoney-secid';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
+  convertDisplayValueToCny,
+  type FxUsdMidRates,
+} from '@/lib/fx-rates';
+import {
   getListedUnitPrice,
   isListedAssetCategory,
   type ChinaExchange,
@@ -27,6 +31,15 @@ export function isListedChineseAsset(a: SimpleAsset): boolean {
   return heldLikeShape(a);
 }
 
+/** 美股 / 港股等：Stooq + OpenFIGI，与 A 股东财互斥 */
+export function isInternationalListedAsset(a: SimpleAsset): boolean {
+  if (!isListedAssetCategory(a.category)) return false;
+  if (typeof a.shares !== 'number' || a.shares <= 0) return false;
+  const iq =
+    typeof a.intlQuoteSymbol === 'string' && a.intlQuoteSymbol.trim().length > 0;
+  return iq && (a.exchange === 'US' || a.exchange === 'HK');
+}
+
 /**
  * 黄金（账户金/实物记账）：按克持仓 + CNY/克 参考价，不依赖证券代码。
  */
@@ -34,9 +47,13 @@ export function isGoldChineseAsset(a: SimpleAsset): boolean {
   return a.category === 'Gold' && typeof a.shares === 'number' && a.shares > 0;
 }
 
-/** 场内证券，或按克计价的黄金 */
+/** A 股/港股美股场内、或黄金（含流水与行情估值口径） */
 export function isHeldChineseAsset(a: SimpleAsset): boolean {
-  return isListedChineseAsset(a) || isGoldChineseAsset(a);
+  return (
+    isListedChineseAsset(a) ||
+    isInternationalListedAsset(a) ||
+    isGoldChineseAsset(a)
+  );
 }
 
 export { toEastMoneySecid };
@@ -56,7 +73,13 @@ export function getAssetDisplayValue(a: SimpleAsset): number {
 }
 
 export function getAssetCurrency(a: SimpleAsset): string {
-  if (isHeldChineseAsset(a)) return 'CNY';
+  if (isListedChineseAsset(a)) return 'CNY';
+  if (isInternationalListedAsset(a)) {
+    const c = a.currency;
+    if (typeof c === 'string' && /^[A-Z]{3}$/.test(c)) return c;
+    return a.exchange === 'HK' ? 'HKD' : 'USD';
+  }
+  if (isGoldChineseAsset(a)) return 'CNY';
   if (typeof a.currency === 'string' && /^[A-Z]{3}$/.test(a.currency)) {
     return a.currency;
   }
@@ -117,4 +140,24 @@ export function formatNetWorthLines(assets: SimpleAsset[]): string {
 /** 快照用：多币种时直接相加（未汇率折算） */
 export function sumDisplayValuesNaive(assets: SimpleAsset[]): number {
   return assets.reduce((s, a) => s + getAssetDisplayValue(a), 0);
+}
+
+/** 按 USD 基准中间价串联折人民币；rates 缺失时回退为未折算直接加总 */
+export function sumDisplayValuesInCny(
+  assets: SimpleAsset[],
+  usdRates: FxUsdMidRates['rates'] | null | undefined
+): number {
+  if (!usdRates || !(usdRates.CNY > 0)) {
+    return sumDisplayValuesNaive(assets);
+  }
+  return assets.reduce(
+    (s, a) =>
+      s +
+      convertDisplayValueToCny(
+        getAssetDisplayValue(a),
+        getAssetCurrency(a),
+        usdRates
+      ),
+    0
+  );
 }

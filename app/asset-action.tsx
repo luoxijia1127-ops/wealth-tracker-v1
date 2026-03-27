@@ -11,6 +11,7 @@ import {
   ensureCashBaselineLedger,
   usesCashAmountLedger,
 } from '@/lib/cash-ledger';
+import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { rgbaFromHex } from '@/lib/color-utils';
@@ -45,6 +46,7 @@ import {
   getAssetCurrency,
   getAssetDisplayValue,
   isHeldChineseAsset,
+  isInternationalListedAsset,
   isListedChineseAsset,
 } from '@/lib/asset-value';
 import {
@@ -74,10 +76,15 @@ const CASH_TABS: { id: CashPanel; label: string }[] = [
 /** 场内「编辑信息」里可切换的类别，仅三类 */
 const LISTED_EDIT_CATEGORIES: AssetCategory[] = ['Stock', 'Fund', 'ETF'];
 
-function formatTradeLine(t: TradeLedgerEntry, useGram: boolean): string {
+function formatTradeLine(
+  t: TradeLedgerEntry,
+  useGram: boolean,
+  quoteCurrency: string
+): string {
   const side = t.side === 'buy' ? '买入' : '卖出';
   const q = useGram ? '克' : '份';
-  const u = useGram ? 'CNY/克' : 'CNY/份';
+  const u = useGram ? 'CNY/克' : `${quoteCurrency}/份`;
+  const px = formatMoney(t.unitPriceCny, quoteCurrency);
   const src =
     t.side === 'buy' && t.fundingSourceAssetName
       ? ` · 资金来源：${t.fundingSourceAssetName}`
@@ -86,7 +93,7 @@ function formatTradeLine(t: TradeLedgerEntry, useGram: boolean): string {
     t.side === 'sell' && t.cashDestinationAssetName
       ? ` · 去向：${t.cashDestinationAssetName}`
       : '';
-  return `${t.tradeDate} · ${side} ${t.shares} ${q} @ ¥${t.unitPriceCny.toFixed(4)}（${u}）${src}${dst}`;
+  return `${t.tradeDate} · ${side} ${t.shares} ${q} @ ${px}（${u}）${src}${dst}`;
 }
 
 function formatCashLine(e: CashLedgerEntry, currency: string): string {
@@ -302,7 +309,7 @@ export default function AssetActionScreen() {
 
   const headerTitle = useMemo(() => {
     if (!asset) return '';
-    if (isListedChineseAsset(asset)) {
+    if (isListedChineseAsset(asset) || isInternationalListedAsset(asset)) {
       return `${formatExchangeSymbol(asset.exchange!, asset.symbol!)} · ${asset.name}`;
     }
     return asset.name;
@@ -352,19 +359,43 @@ export default function AssetActionScreen() {
           return;
         }
         const src = all[srcIdx]!;
-        const amount = parseFloat(tradeShares) * parseFloat(tradePrice);
-        const debited = appendCashMovement(
-          src,
-          'out',
-          amount,
-          getShanghaiDateString(),
-          {
-            relatedAssetId: asset.id,
-            relatedAssetName: asset.name,
-            note: '加仓资金划转',
-            transferId,
-          }
+        const rawAmount =
+          parseFloat(tradeShares) * parseFloat(tradePrice);
+        const listingCur = getAssetCurrency(asset);
+        const conv = await convertListingCostToCnyCashDebit(
+          rawAmount,
+          listingCur
         );
+        if (!conv.ok) {
+          Alert.alert('无法保存', conv.message);
+          return;
+        }
+        const amount = conv.cny;
+        const note =
+          listingCur === 'CNY'
+            ? '加仓资金划转'
+            : `加仓资金划转（${listingCur} ${rawAmount.toFixed(2)} 折人民币扣款）`;
+        let debited: SimpleAsset;
+        try {
+          debited = appendCashMovement(
+            src,
+            'out',
+            amount,
+            getShanghaiDateString(),
+            {
+              relatedAssetId: asset.id,
+              relatedAssetName: asset.name,
+              note,
+              transferId,
+            }
+          );
+        } catch (e) {
+          Alert.alert(
+            '无法保存',
+            e instanceof Error ? e.message : '资金来源余额不足。'
+          );
+          return;
+        }
         all[srcIdx] = debited;
         all[curIdx] = r.asset;
         await saveAssets(all);
@@ -377,7 +408,22 @@ export default function AssetActionScreen() {
           return;
         }
         const dst = all[dstIdx]!;
-        const amount = parseFloat(tradeShares) * parseFloat(tradePrice);
+        const rawAmount =
+          parseFloat(tradeShares) * parseFloat(tradePrice);
+        const listingCur = getAssetCurrency(asset);
+        const conv = await convertListingCostToCnyCashDebit(
+          rawAmount,
+          listingCur
+        );
+        if (!conv.ok) {
+          Alert.alert('无法保存', conv.message);
+          return;
+        }
+        const amount = conv.cny;
+        const note =
+          listingCur === 'CNY'
+            ? '减仓资金划转'
+            : `减仓资金划转（${listingCur} ${rawAmount.toFixed(2)} 折人民币入账）`;
         const credited = appendCashMovement(
           dst,
           'in',
@@ -386,7 +432,7 @@ export default function AssetActionScreen() {
           {
             relatedAssetId: asset.id,
             relatedAssetName: asset.name,
-            note: '减仓资金划转',
+            note,
             transferId,
           }
         );
@@ -823,7 +869,9 @@ export default function AssetActionScreen() {
                     </>
                   ) : null}
                   <Text style={styles.label}>
-                    {useGram ? '成交单价（CNY/克）' : '成交单价（CNY/份）'}
+                    {useGram
+                      ? '成交单价（CNY/克）'
+                      : `成交单价（${getAssetCurrency(asset)}/份）`}
                   </Text>
                   <Text style={styles.hintMuted}>
                     卖出价为实际成交价；账面成本仍按摊薄成本计算。
@@ -891,7 +939,7 @@ export default function AssetActionScreen() {
                               fontWeight: '600',
                             }}
                           >
-                            {formatTradeLine(t, useGram)}
+                            {formatTradeLine(t, useGram, getAssetCurrency(asset))}
                           </Text>
                           <Text
                             style={{ fontSize: 12, color: muted, marginTop: 6 }}

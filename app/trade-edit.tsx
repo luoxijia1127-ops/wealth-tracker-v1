@@ -26,6 +26,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getAssetCurrency } from '@/lib/asset-value';
 import type { SimpleAsset, TradeLedgerEntry } from '@/types/asset';
 import { getListedUnitPrice } from '@/types/asset';
 
@@ -345,7 +346,11 @@ export default function TradeEditScreen() {
         />
 
         <Text style={styles.label}>
-          {useGram ? '成交单价（CNY/克）' : '成交单价（CNY/份）'}
+          {useGram
+            ? '成交单价（CNY/克）'
+            : asset
+              ? `成交单价（${getAssetCurrency(asset)}/份）`
+              : '成交单价'}
         </Text>
         <TextInput
           style={styles.input}

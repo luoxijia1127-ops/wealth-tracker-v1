@@ -149,12 +149,22 @@ export function buildDailyTradeSummaries(params: {
   for (let i = 0; i < orderedSnaps.length; i++) {
     const s = orderedSnaps[i]!;
     const day = ensureDay(s.date);
-    day.snapshotTotal = s.totalValue;
+    const total =
+      typeof s.totalValueCny === 'number' && Number.isFinite(s.totalValueCny)
+        ? s.totalValueCny
+        : s.totalValue;
+    day.snapshotTotal = total;
     if (i > 0) {
       const prev = orderedSnaps[i - 1]!;
-      const diff = s.totalValue - prev.totalValue;
+      const prevTotal =
+        typeof prev.totalValueCny === 'number' &&
+        Number.isFinite(prev.totalValueCny)
+          ? prev.totalValueCny
+          : prev.totalValue;
+      const diff = total - prevTotal;
       day.snapshotDiff = diff;
-      day.snapshotPct = prev.totalValue !== 0 ? (diff / prev.totalValue) * 100 : 0;
+      day.snapshotPct =
+        prevTotal !== 0 ? (diff / prevTotal) * 100 : 0;
     }
   }
 

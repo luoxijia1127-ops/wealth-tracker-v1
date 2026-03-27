@@ -2,6 +2,7 @@
  * 场内单笔加减仓：校验并写入流水后回放，供资产页内联表单使用。
  */
 
+import { getAssetCurrency } from '@/lib/asset-value';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { appendListedTrade } from '@/lib/trade-ledger';
 import { getListedUnitPrice, type SimpleAsset } from '@/types/asset';
@@ -37,11 +38,12 @@ export function tryApplyListedAdjustTrade(
     };
   }
   if (Number.isNaN(tp) || tp < 0) {
+    const ccy = getAssetCurrency(editingAsset);
     return {
       ok: false,
       message: isGold
         ? '请填写本次成交单价（人民币/克）；卖出价为实际卖出价，与账面成本无关。'
-        : '请填写本次成交单价（人民币/份）；卖出价为实际卖出价，与账面成本无关。',
+        : `请填写本次成交单价（${ccy}/份）；卖出价为实际卖出价，与账面成本无关。`,
     };
   }
   if (wantBuy && !(tp > 0)) {
@@ -71,13 +73,19 @@ export function tryApplyListedAdjustTrade(
     editingAsset.avgCost > 0
   ) {
     priceNum = editingAsset.avgCost;
+  } else if (
+    !isGold &&
+    typeof editingAsset.avgCost === 'number' &&
+    editingAsset.avgCost > 0
+  ) {
+    priceNum = editingAsset.avgCost;
   }
   if (!(priceNum > 0)) {
     return {
       ok: false,
       message: isGold
         ? '暂无 CNY/克 参考价：请在详情中填写参考市价，或配置金价接口后从 Dashboard 同步。'
-        : '暂无有效市价参考，请先返回 Dashboard 同步行情后再试。',
+        : '暂无行情收盘价：请先在 Dashboard 同步，或确保持仓已有成本均价。',
     };
   }
 
