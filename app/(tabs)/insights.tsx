@@ -45,8 +45,9 @@ import {
 import { LineChart } from 'react-native-chart-kit';
 import { Circle, G, Path, Svg, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 
-type ChartTab = 'trend' | 'distribution';
+type ChartTab = 'trend' | 'distribution' | 'returns';
 
 type ChartData = {
   labels: string[];
@@ -295,6 +296,7 @@ function GoalProgressCard({
 const CHART_TABS: { id: ChartTab; label: string }[] = [
   { id: 'trend', label: '资产变动' },
   { id: 'distribution', label: '资产分布' },
+  { id: 'returns', label: '投资回报' },
 ];
 
 const DONUT_EXPLODE = 12;
@@ -801,7 +803,10 @@ export default function Insights() {
                     style={[
                       styles.chartSurface,
                       {
-                        minHeight: chartBlockMinHeight,
+                        minHeight:
+                          chartTab === 'returns'
+                            ? undefined
+                            : chartBlockMinHeight,
                         overflow: 'hidden',
                       },
                     ]}
@@ -1006,6 +1011,26 @@ export default function Insights() {
                       <View style={[styles.chartPlaceholder, { minHeight: chartHeight }]}>
                         <Text style={[styles.placeholderText, { color: textMuted }]}>
                           暂无持仓或市值均为 0
+                        </Text>
+                      </View>
+                    )}
+
+                    {chartTab === 'returns' && hasAssets && (
+                      <View style={{ paddingTop: 4, paddingBottom: 6 }}>
+                        <ReturnScatterPanel
+                          assets={assets}
+                          theme={theme}
+                          styles={styles}
+                          textSecondary={textSecondary}
+                          textMuted={textMuted}
+                        />
+                      </View>
+                    )}
+
+                    {chartTab === 'returns' && !hasAssets && (
+                      <View style={[styles.chartPlaceholder, { minHeight: chartHeight }]}>
+                        <Text style={[styles.placeholderText, { color: textMuted }]}>
+                          暂无资产数据
                         </Text>
                       </View>
                     )}
