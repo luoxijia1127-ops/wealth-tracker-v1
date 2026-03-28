@@ -4,6 +4,8 @@
  * - 也支持 EXPO_PUBLIC_GOLD_QUOTE_URL（GET, JSON）覆盖默认来源
  */
 
+import { ENDPOINTS } from '@/lib/config/endpoints';
+
 function parseFlexiblePrice(data: unknown, depth = 0): number | null {
   if (depth > 4) return null;
   if (typeof data === 'number' && data > 0 && data < 5000) return data;
@@ -52,7 +54,7 @@ async function fetchCmbGoldQuote(
   signal?: AbortSignal
 ): Promise<{ price: number; source: string } | null> {
   try {
-    const r = await fetch('https://cmb-mobile-web.paas.cmbchina.com/goldrate.html', {
+    const r = await fetch(ENDPOINTS.cmbGoldRateHtml, {
       signal,
     });
     if (!r.ok) return null;

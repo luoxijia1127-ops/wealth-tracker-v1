@@ -19,6 +19,26 @@ Dashboard 与 Tab 场景底色采用 **sea** 色板：`#B1D4F8` 雾蓝底、`#98
 - **场外开放式基金**：联想里 `Classify=OTCFUND`，存 `exchange: 'OTC'`；`emSecid` 多为 `150.xxxxxx`。刷新估值时走 `lib/eastmoney-fund-nav.ts`（F10 `lsjz` 单位净值），因 push2 对基金常无有效现价。
 - 旧的 `lib/asset-types.ts` 已删除，请勿再引用另一套 `Asset` 类型。
 
+## 工程结构（简要）
+
+| 路径 | 说明 |
+|------|------|
+| `app/` | Expo Router 页面与路由 |
+| `components/` | 可复用 UI（含 `insights/*`、`add-asset/*`） |
+| `lib/` | 业务逻辑；`lib/config/endpoints.ts` 集中外部 API 地址（可用 `EXPO_PUBLIC_*` 覆盖） |
+| `lib/repositories/asset-repository.ts` | 资产读写薄封装，默认委托 `asset-storage` |
+| `lib/errors/app-error.ts` | 统一错误与用户文案（可逐步接入） |
+| `types/asset.ts` | 资产数据模型 |
+
+## 脚本
+
+```bash
+npm install
+npm run lint      # ESLint（Expo）
+npm run test      # Vitest（纯函数单测）
+npx expo start    # 开发服务
+```
+
 ## Get started
 
 1. Install dependencies

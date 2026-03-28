@@ -6,12 +6,10 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ENDPOINTS } from '@/lib/config/endpoints';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 
 const STORAGE_KEY = 'fx_usd_mid_rates_v1';
-
-const DEFAULT_FRANKFURTER =
-  'https://api.frankfurter.app/latest?from=USD&to=CNY,EUR,HKD';
 
 export type FxUsdMidRates = {
   /** 写入缓存时的上海日历日 */
@@ -23,8 +21,7 @@ export type FxUsdMidRates = {
 };
 
 function fxUrl(): string {
-  const u = process.env.EXPO_PUBLIC_FX_URL;
-  return typeof u === 'string' && u.length > 0 ? u.trim() : DEFAULT_FRANKFURTER;
+  return ENDPOINTS.frankfurterFx;
 }
 
 /**

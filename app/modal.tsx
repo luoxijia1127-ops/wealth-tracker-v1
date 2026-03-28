@@ -14,7 +14,8 @@ import {
   validateGoldForm,
   validateListedForm,
 } from '@/lib/add-asset-form';
-import { getAssets, saveAssets } from '@/lib/asset-storage';
+import { saveAssets } from '@/lib/asset-storage';
+import { assetRepository } from '@/lib/repositories/asset-repository';
 import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
@@ -55,6 +56,7 @@ import {
   type SimpleAsset,
   generateAssetId,
 } from '@/types/asset';
+import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 
 export default function AddModal() {
   const router = useRouter();
@@ -122,7 +124,7 @@ export default function AddModal() {
     let cancelled = false;
     (async () => {
       try {
-        const list = await getAssets();
+        const list = await assetRepository.getAll();
         if (cancelled) return;
         setFundingOptions(
           list.filter(
@@ -336,7 +338,7 @@ export default function AddModal() {
       }
 
       if (canChooseFundingSource && fundingSourceId.trim().length > 0) {
-        const all = await getAssets();
+        const all = await assetRepository.getAll();
         const srcIdx = all.findIndex((a) => a.id === fundingSourceId);
         if (srcIdx < 0) {
           Alert.alert('无法保存', '资金来源资产不存在，请重新选择。');
@@ -387,7 +389,7 @@ export default function AddModal() {
         all.push(assetToSave);
         await saveAssets(all);
       } else {
-        const all = await getAssets();
+        const all = await assetRepository.getAll();
         all.push(assetToSave);
         await saveAssets(all);
       }
@@ -487,48 +489,13 @@ export default function AddModal() {
                 keyboardType="decimal-pad"
               />
             </View>
-            <Text style={styles.label}>资金来源（选填）</Text>
-            <Text style={styles.hintMuted}>
-              仅列出人民币现金类；按克价（人民币）从所选账户扣减并记入流水。
-            </Text>
-            <View style={styles.optionsRow}>
-              <Pressable
-                style={[
-                  styles.option,
-                  fundingSourceId === '' && styles.optionSelected,
-                ]}
-                onPress={() => setFundingSourceId('')}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    fundingSourceId === '' && styles.optionTextSelected,
-                  ]}
-                >
-                  不扣减
-                </Text>
-              </Pressable>
-              {fundingOptions.slice(0, 6).map((fo) => (
-                <Pressable
-                  key={fo.id}
-                  style={[
-                    styles.option,
-                    fundingSourceId === fo.id && styles.optionSelected,
-                  ]}
-                  onPress={() => setFundingSourceId(fo.id)}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      fundingSourceId === fo.id && styles.optionTextSelected,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {fo.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            <FundingSourcePicker
+              hint="仅列出人民币现金类；按克价（人民币）从所选账户扣减并记入流水。"
+              fundingSourceId={fundingSourceId}
+              onSelectId={setFundingSourceId}
+              fundingOptions={fundingOptions}
+              styles={styles}
+            />
           </>
         )}
 
@@ -651,48 +618,13 @@ export default function AddModal() {
                 keyboardType="decimal-pad"
               />
             </View>
-            <Text style={styles.label}>资金来源（选填）</Text>
-            <Text style={styles.hintMuted}>
-              仅列出人民币现金类；若证券为美元/港币计价，将按当日中间价折合为人民币后扣减。
-            </Text>
-            <View style={styles.optionsRow}>
-              <Pressable
-                style={[
-                  styles.option,
-                  fundingSourceId === '' && styles.optionSelected,
-                ]}
-                onPress={() => setFundingSourceId('')}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    fundingSourceId === '' && styles.optionTextSelected,
-                  ]}
-                >
-                  不扣减
-                </Text>
-              </Pressable>
-              {fundingOptions.slice(0, 6).map((fo) => (
-                <Pressable
-                  key={fo.id}
-                  style={[
-                    styles.option,
-                    fundingSourceId === fo.id && styles.optionSelected,
-                  ]}
-                  onPress={() => setFundingSourceId(fo.id)}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      fundingSourceId === fo.id && styles.optionTextSelected,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {fo.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            <FundingSourcePicker
+              hint="仅列出人民币现金类；若证券为美元/港币计价，将按当日中间价折合为人民币后扣减。"
+              fundingSourceId={fundingSourceId}
+              onSelectId={setFundingSourceId}
+              fundingOptions={fundingOptions}
+              styles={styles}
+            />
           </>
         )}
 

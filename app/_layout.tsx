@@ -54,6 +54,20 @@ export default function RootLayout() {
               headerShadowVisible: false,
             }}
           />
+          <Stack.Screen
+            name="settings-palette"
+            options={{
+              title: '应用配色',
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="settings-attribution"
+            options={{
+              title: '净值变动归因',
+              headerShadowVisible: false,
+            }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

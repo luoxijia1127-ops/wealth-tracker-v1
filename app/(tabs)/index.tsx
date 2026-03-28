@@ -17,6 +17,7 @@
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { deleteAsset, getAssets } from '@/lib/asset-storage';
 import {
+  filterAssetsForDashboard,
   formatMoney,
   formatNetWorthLines,
   formatNetWorthSummary,
@@ -408,10 +409,23 @@ export default function Dashboard() {
           const updated = await syncNetWorthFromMarket();
           if (!cancelled && gen === focusLoadGen.current) {
             setAssets(updated.assets);
-            setNetWorthCny(updated.totalValueCny);
+            const dash = filterAssetsForDashboard(updated.assets);
+            const needsFxDash = dash.some(
+              (a) => getAssetCurrency(a) !== 'CNY'
+            );
+            const cachedAfterSync = await getCachedFxUsdRates();
+            if (cachedAfterSync) {
+              setNetWorthCny(
+                sumDisplayValuesInCny(dash, cachedAfterSync.rates)
+              );
+            } else if (!needsFxDash) {
+              setNetWorthCny(sumDisplayValuesNaive(dash));
+            } else {
+              setNetWorthCny(null);
+            }
             if (updated.fxSource === 'none') {
               setFxNote(
-                updated.totalValueCny === null
+                needsFxDash && !cachedAfterSync
                   ? '当前无法获取汇率，外币持仓未折算为人民币。'
                   : null
               );
@@ -440,18 +454,19 @@ export default function Dashboard() {
           if (!cancelled && gen === focusLoadGen.current) {
             setAssets(local);
             setLoading(false);
-            const needsFx = local.some((a) => getAssetCurrency(a) !== 'CNY');
+            const dash = filterAssetsForDashboard(local);
+            const needsFx = dash.some((a) => getAssetCurrency(a) !== 'CNY');
             const cached = await getCachedFxUsdRates();
             const today = getShanghaiDateString();
             if (cached) {
-              setNetWorthCny(sumDisplayValuesInCny(local, cached.rates));
+              setNetWorthCny(sumDisplayValuesInCny(dash, cached.rates));
               const stale =
                 cached.shanghaiDate !== today ? '（沿用缓存汇率）' : '';
               setFxNote(
                 `汇率基准日 ${cached.apiDate}，中间价经 USD 串联折算人民币${stale}`
               );
             } else if (!needsFx) {
-              setNetWorthCny(sumDisplayValuesNaive(local));
+              setNetWorthCny(sumDisplayValuesNaive(dash));
               setFxNote(null);
             } else {
               setNetWorthCny(null);
@@ -477,12 +492,20 @@ export default function Dashboard() {
     }, [])
   );
 
-  const grouped = useMemo(() => groupByCategory(assets), [assets]);
+  const dashboardAssets = useMemo(
+    () => filterAssetsForDashboard(assets),
+    [assets]
+  );
+
+  const grouped = useMemo(
+    () => groupByCategory(dashboardAssets),
+    [dashboardAssets]
+  );
 
   /** 顶部净值：一次聚合得到多行文案 + 是否多币种 */
   const netWorthSummary = useMemo(
-    () => formatNetWorthSummary(assets),
-    [assets]
+    () => formatNetWorthSummary(dashboardAssets),
+    [dashboardAssets]
   );
 
   if (loading) {
@@ -563,7 +586,7 @@ export default function Dashboard() {
 
       {/* 3. Grouped asset structure: Category → Assets (collapsible) */}
       <View style={styles.assetStructureSection}>
-        {assets.length === 0 ? (
+        {dashboardAssets.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>Add assets from the Add tab</Text>
           </View>

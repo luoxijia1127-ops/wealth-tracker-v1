@@ -14,6 +14,8 @@ export type DailyTradeLine =
       amountCny: number;
       fundingSourceName?: string;
       transferId?: string;
+      /** 与现金账户成对划转（买入扣款/卖出回款），主列表可隐藏 */
+      internalTransfer?: boolean;
     }
   | {
       kind: 'cash';
@@ -102,6 +104,15 @@ export function buildDailyTradeSummaries(params: {
       const day = ensureDay(date);
       if (t.side === 'buy') day.buyAmountCny += amt;
       else day.sellAmountCny += amt;
+      const internalTransfer = !!(
+        (typeof t.transferId === 'string' && t.transferId.trim().length > 0) ||
+        t.fundingSourceAssetId ||
+        (typeof t.fundingSourceAssetName === 'string' &&
+          t.fundingSourceAssetName.trim().length > 0) ||
+        t.cashDestinationAssetId ||
+        (typeof t.cashDestinationAssetName === 'string' &&
+          t.cashDestinationAssetName.trim().length > 0)
+      );
       day.lines.push({
         kind: 'trade',
         date,
@@ -113,6 +124,7 @@ export function buildDailyTradeSummaries(params: {
         amountCny: amt,
         fundingSourceName: t.fundingSourceAssetName,
         transferId: t.transferId,
+        internalTransfer,
       });
     }
 
@@ -230,6 +242,34 @@ export function buildDailyTradeSummaries(params: {
     }
   }
 
-  return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date));
+  const all = [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date));
+  return all.filter(isSignificantTradeSummaryDay);
+}
+
+/** 当日净值变动、外部现金流、或残差任一有显著变化才展示（过滤「几乎为 0」的日期） */
+export function isSignificantTradeSummaryDay(d: DailyTradeSummary): boolean {
+  const eps = 0.5;
+  if (typeof d.snapshotDiff === 'number' && Math.abs(d.snapshotDiff) >= eps) {
+    return true;
+  }
+  if (Math.abs(d.externalNetFlow) >= eps) return true;
+  if (d.residual !== null && Math.abs(d.residual) >= eps) return true;
+  return false;
+}
+
+/** 主列表展示的流水：排除内部划转；现金仅保留外部入金/出金 */
+export function filterTradeLinesForDisplay(lines: DailyTradeLine[]): DailyTradeLine[] {
+  return lines.filter((x) => {
+    if (x.kind === 'cash') return !x.internal;
+    return !x.internalTransfer;
+  });
+}
+
+/** 内部划转流水（可折叠） */
+export function filterInternalTradeLines(lines: DailyTradeLine[]): DailyTradeLine[] {
+  return lines.filter((x) => {
+    if (x.kind === 'cash') return x.internal;
+    return !!x.internalTransfer;
+  });
 }
 

@@ -7,7 +7,9 @@ import { EASTMONEY_SUGGEST_TOKEN } from '@/lib/eastmoney-config';
 import { exchangeFromQuoteId } from '@/lib/eastmoney-secid';
 import type { ChinaExchange, ListingExchange } from '@/types/asset';
 
-const SUGGEST_URL = 'https://searchadapter.eastmoney.com/api/suggest/get';
+import { ENDPOINTS } from '@/lib/config/endpoints';
+
+const SUGGEST_URL = ENDPOINTS.eastmoneySuggest;
 
 export type SuggestInstrument = {
   code: string;

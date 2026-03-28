@@ -2,7 +2,9 @@
  * 场外开放式基金单位净值：东财 F10 历史净值页数据源（push2 的 f43 对 150.xxx 基金常无效）。
  */
 
-const LSJZ_URL = 'https://fundf10.eastmoney.com/F10DataApi.aspx';
+import { ENDPOINTS } from '@/lib/config/endpoints';
+
+const LSJZ_URL = ENDPOINTS.eastmoneyFundF10;
 
 export type OtcFundNavQuote = {
   close: number;

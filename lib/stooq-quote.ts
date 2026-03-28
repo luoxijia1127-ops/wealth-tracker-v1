@@ -3,6 +3,8 @@
  * 大陆网络通常可访问；与 OpenFIGI 联想配合使用。
  */
 
+import { buildStooqCsvUrl } from '@/lib/config/endpoints';
+
 export type StooqQuoteRow = {
   close: number;
   /** YYYY-MM-DD */
@@ -25,7 +27,8 @@ export async function fetchStooqQuote(
 ): Promise<StooqQuoteRow | null> {
   const sym = intlQuoteSymbol.trim().toLowerCase();
   if (!/^[a-z0-9.\-]+\.(us|hk)$/.test(sym)) return null;
-  const url = `https://stooq.com/q/l/?s=${encodeURIComponent(sym)}&f=sd2t2ohlcv&h&e=csv`;
+
+  const url = buildStooqCsvUrl(sym);
   try {
     const res = await fetch(url, { signal });
     if (!res.ok) return null;

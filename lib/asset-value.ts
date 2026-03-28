@@ -56,6 +56,24 @@ export function isHeldChineseAsset(a: SimpleAsset): boolean {
   );
 }
 
+/**
+ * Dashboard 首屏：已清仓的场内/黄金（份额≤0）与余额为 0 的现金类不展示。
+ */
+export function filterAssetsForDashboard(assets: SimpleAsset[]): SimpleAsset[] {
+  return assets.filter((a) => {
+    if (a.category === 'Cash') {
+      const v =
+        typeof a.value === 'number' && !Number.isNaN(a.value) ? a.value : 0;
+      return v > 0;
+    }
+    if (isListedAssetCategory(a.category) || a.category === 'Gold') {
+      const sh = typeof a.shares === 'number' ? a.shares : 0;
+      return sh > 0;
+    }
+    return true;
+  });
+}
+
 export { toEastMoneySecid };
 export type { ChinaExchange };
 

@@ -3,11 +3,11 @@
  * 注意：不是简单取数组最后一根（盘中最后一根可能是未收盘当日），见 resolveSettlementDailyClose。
  */
 
+import { ENDPOINTS } from '@/lib/config/endpoints';
 import { EASTMONEY_UT } from '@/lib/eastmoney-config';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 
-const KLINE_URL =
-  'https://push2his.eastmoney.com/api/qt/stock/kline/get';
+const KLINE_URL = ENDPOINTS.eastmoneyKline;
 
 /** A 股常规收盘后再等几分钟，避免日 K 未落库 */
 const SHANGHAI_CLOSE_MINUTES = 15 * 60 + 5;

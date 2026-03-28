@@ -4,7 +4,9 @@
 
 import { EASTMONEY_UT } from '@/lib/eastmoney-config';
 
-const PUSH_URL = 'https://push2.eastmoney.com/api/qt/stock/get';
+import { ENDPOINTS } from '@/lib/config/endpoints';
+
+const PUSH_URL = ENDPOINTS.eastmoneyPush;
 
 export type Push2Quote = {
   price: number;

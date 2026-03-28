@@ -2,6 +2,7 @@
  * OpenFIGI v3 搜索（无密钥，有频控）：联想美股 / 港股代码，映射为 Stooq 符号。
  */
 
+import { ENDPOINTS } from '@/lib/config/endpoints';
 import type { ChinaExchange } from '@/types/asset';
 
 export type IntlSuggestRow = {
@@ -121,7 +122,7 @@ async function fetchOpenFigiSearchRows(
   searchQuery: string,
   signal?: AbortSignal
 ): Promise<FigiRow[]> {
-  const res = await fetch('https://api.openfigi.com/v3/search', {
+  const res = await fetch(ENDPOINTS.openfigiSearch, {
     method: 'POST',
     signal,
     headers: {
