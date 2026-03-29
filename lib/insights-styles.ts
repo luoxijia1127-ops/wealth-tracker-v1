@@ -181,6 +181,34 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       overflow: 'hidden',
       backgroundColor: '#FFFFFF',
     },
+    timeframeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 6,
+      marginBottom: 10,
+    },
+    timeframeChip: {
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: p14,
+      backgroundColor: '#FFFFFF',
+    },
+    timeframeChipActive: {
+      borderColor: t.primary,
+      backgroundColor: p08,
+    },
+    timeframeChipText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: rgbaFromHex(p, 0.55),
+    },
+    timeframeChipTextActive: {
+      color: t.primary,
+    },
     inlineLegendRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -371,11 +399,6 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       fontSize: 17,
       fontWeight: '800',
       letterSpacing: -0.3,
-      marginBottom: 6,
-    },
-    returnSubtitle: {
-      fontSize: 12,
-      lineHeight: 18,
       marginBottom: 14,
     },
     returnFilterRow: {
@@ -401,9 +424,6 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       borderRadius: 999,
       backgroundColor: p08,
     },
-    returnChipOn: {
-      backgroundColor: t.primary,
-    },
     returnChipText: {
       fontSize: 12,
       fontWeight: '700',
@@ -417,13 +437,6 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     returnChartWrap: {
       position: 'relative',
       marginBottom: 8,
-    },
-    returnQuadHint: {
-      fontSize: 11,
-      lineHeight: 16,
-      marginTop: 4,
-      marginBottom: 12,
-      paddingHorizontal: 4,
     },
     returnTooltip: {
       position: 'absolute',
@@ -455,27 +468,15 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       fontSize: 10,
       fontWeight: '600',
     },
-    returnMetaBar: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginBottom: 12,
-    },
-    returnMetaPill: {
-      paddingVertical: 6,
-      paddingHorizontal: 10,
-      borderRadius: 10,
-      backgroundColor: p07,
-    },
-    returnMetaPillText: {
-      fontSize: 11,
-      fontWeight: '600',
-    },
     returnTableScroll: {
-      maxHeight: 320,
       borderRadius: 14,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: p14,
+      overflow: 'hidden',
+    },
+    /** 表体约 5 行高度，其余纵向拖动查看 */
+    returnTableBodyScroll: {
+      maxHeight: 268,
     },
     returnTableHeader: {
       flexDirection: 'row',

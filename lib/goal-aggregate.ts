@@ -2,7 +2,11 @@
  * Insights 目标进度：相同用途文案（规范化后）+ 同币种的资产合并为一行，进度按合计市值 / 目标。
  */
 
-import { getAssetCurrency, getAssetDisplayValue } from '@/lib/asset-value';
+import {
+  filterAssetsForDashboard,
+  getAssetCurrency,
+  getAssetDisplayValue,
+} from '@/lib/asset-value';
 import type { AssetCategory, SimpleAsset } from '@/types/asset';
 
 export function normalizePurposeKey(purpose: string | undefined): string | null {
@@ -32,7 +36,9 @@ export function buildAggregatedGoalRows(
   type Bucket = { assets: SimpleAsset[] };
   const map = new Map<string, Bucket>();
 
-  for (const a of assets) {
+  /** 与 Dashboard 一致：清仓证券、零份额黄金、零余额现金不参与目标进度 */
+  const visible = filterAssetsForDashboard(assets);
+  for (const a of visible) {
     if (typeof a.purposeTarget !== 'number' || a.purposeTarget <= 0) continue;
     const cur = getAssetCurrency(a);
     const pk = normalizePurposeKey(a.purpose);

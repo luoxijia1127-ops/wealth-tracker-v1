@@ -55,6 +55,10 @@ function reasonLabel(m: InvestmentReturnMetric): string {
   }
 }
 
+/** 与散点图内平均参考线一致 */
+const RETURN_AVG_HOLDING_LINE = '#F59E0B';
+const RETURN_AVG_RETURN_LINE = '#22A06B';
+
 type ScatterPoint = {
   id: string;
   m: InvestmentReturnMetric;
@@ -312,13 +316,6 @@ export function ReturnScatterPanel({
       <Text style={[styles.returnTitle, { color: theme.primary }]}>
         投资回报
       </Text>
-      <Text style={[styles.returnSubtitle, { color: textSecondary }]}>
-        横轴为持有时间（天），纵轴为累计收益率；气泡大小表示买入投入。累计收益率 = (期末市值
-        + 卖出回款 + 现金流 − 买入成本) / 买入成本。不同持有期下累计收益不宜直接横向对比，请结合横轴理解。
-      </Text>
-      <Text style={[styles.returnSubtitle, { color: textMuted, marginBottom: 12 }]}>
-        表中仍可选算年化供参考；波动剧烈时年化易失真，本图已改为累计口径作主要比较。
-      </Text>
 
       <View style={styles.returnFilterRow}>
         <TextInput
@@ -329,23 +326,43 @@ export function ReturnScatterPanel({
           onChangeText={setSearch}
         />
       </View>
-      <ScrollView
-        horizontal
-        nestedScrollEnabled
-        showsHorizontalScrollIndicator={false}
-        style={{ marginBottom: 10 }}
+      <View
+        style={{
+          width: '100%',
+          alignItems: 'center',
+          marginBottom: 10,
+        }}
       >
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 8,
+            maxWidth: '100%',
+          }}
+        >
           {ASSET_CATEGORY_ORDER.map((c) => {
             const active = !catFilter || catFilter.has(c);
+            const accent = theme.categoryAccents[c];
             return (
               <Pressable
                 key={c}
                 onPress={() => toggleCategory(c)}
                 style={[
                   styles.returnChip,
-                  active && styles.returnChipOn,
-                  !active && { opacity: 0.45 },
+                  active
+                    ? {
+                        backgroundColor: accent,
+                        borderWidth: 0,
+                      }
+                    : {
+                        backgroundColor: rgbaFromHex(accent, 0.14),
+                        borderWidth: 1.5,
+                        borderColor: rgbaFromHex(accent, 0.42),
+                        opacity: 0.92,
+                      },
                 ]}
               >
                 <Text
@@ -360,7 +377,7 @@ export function ReturnScatterPanel({
             );
           })}
         </View>
-      </ScrollView>
+      </View>
 
       <View style={styles.returnToggleRow}>
         <Text style={{ color: textSecondary, fontSize: 13, fontWeight: '600' }}>
@@ -469,7 +486,7 @@ export function ReturnScatterPanel({
                   y1={padT}
                   x2={avgLineX}
                   y2={padT + plotH}
-                  stroke="#F59E0B"
+                  stroke={RETURN_AVG_HOLDING_LINE}
                   strokeWidth={1.5}
                   strokeDasharray="6 4"
                 />
@@ -482,10 +499,47 @@ export function ReturnScatterPanel({
                   y1={avgLineY}
                   x2={padL + plotW}
                   y2={avgLineY}
-                  stroke="#22A06B"
+                  stroke={RETURN_AVG_RETURN_LINE}
                   strokeWidth={1.5}
                   strokeDasharray="6 4"
                 />
+              )}
+
+            {avgLineX !== null &&
+              avgLineX >= padL &&
+              avgLineX <= padL + plotW &&
+              model.avgDays !== null && (
+                <SvgText
+                  x={
+                    avgLineX < padL + plotW * 0.58
+                      ? avgLineX + 5
+                      : avgLineX - 5
+                  }
+                  y={padT + 13}
+                  textAnchor={
+                    avgLineX < padL + plotW * 0.58 ? 'start' : 'end'
+                  }
+                  fill={RETURN_AVG_HOLDING_LINE}
+                  fontSize={10}
+                  fontWeight="700"
+                >
+                  {`平均 ${model.avgDays.toFixed(0)} 天`}
+                </SvgText>
+              )}
+            {avgLineY !== null &&
+              avgLineY >= padT &&
+              avgLineY <= padT + plotH &&
+              model.avgCumRaw !== null && (
+                <SvgText
+                  x={padL + plotW - 5}
+                  y={avgLineY > padT + 22 ? avgLineY - 5 : avgLineY + 14}
+                  textAnchor="end"
+                  fill={RETURN_AVG_RETURN_LINE}
+                  fontSize={10}
+                  fontWeight="700"
+                >
+                  {`平均 ${pctFmt(model.avgCumRaw)}`}
+                </SvgText>
               )}
 
             {model.points.map((p) => (
@@ -590,107 +644,68 @@ export function ReturnScatterPanel({
           })()}
       </View>
 
-      <View style={styles.returnMetaBar}>
-        <View style={styles.returnMetaPill}>
-          <Text style={[styles.returnMetaPillText, { color: textSecondary }]}>
-            平均持有{' '}
-            <Text style={{ color: theme.primary, fontWeight: '800' }}>
-              {model.avgDays !== null ? `${model.avgDays.toFixed(0)} 天` : '—'}
-            </Text>
-          </Text>
-        </View>
-        <View style={styles.returnMetaPill}>
-          <Text style={[styles.returnMetaPillText, { color: textSecondary }]}>
-            平均累计{' '}
-            <Text style={{ color: theme.primary, fontWeight: '800' }}>
-              {model.avgCumRaw !== null ? pctFmt(model.avgCumRaw) : '—'}
-            </Text>
-          </Text>
-        </View>
-      </View>
-
-      <Text style={[styles.returnQuadHint, { color: textMuted }]}>
-        橙色竖线：平均持有天数；绿色横线：平均累计收益率。四象限可粗判：右上长期高累计、左上短期高累计、右下长期低累计、左下短期低累计（持有期差异大时勿单独凭纵轴排序）。
-      </Text>
-
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 10 }}>
-        {ASSET_CATEGORY_ORDER.map((c) => (
-          <View key={`lg-${c}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 5,
-                backgroundColor: theme.categoryAccents[c],
-              }}
-            />
-            <Text style={{ fontSize: 11, color: textSecondary, fontWeight: '600' }}>
-              {CATEGORY_LABEL_ZH[c]}
-            </Text>
-          </View>
-        ))}
-      </View>
-
-      <ScrollView
-        horizontal
-        nestedScrollEnabled
-        showsHorizontalScrollIndicator
-        style={styles.returnTableScroll}
-      >
-        <View>
-          <View style={styles.returnTableHeader}>
-            <Text style={[styles.returnTh, { width: 120, color: theme.primary }]}>资产</Text>
-            {( ['holdingDays', 'cumulativeReturn', 'annualizedReturn', 'buyAmount'] as SortKey[]).map((k) => (
-              <Pressable key={k} onPress={() => cycleSort(k)} style={{ width: 96 }}>
-                <Text style={[styles.returnTh, { color: theme.primary }]}>
-                  {k === 'holdingDays'
-                    ? '持有天'
-                    : k === 'cumulativeReturn'
-                      ? '累计'
-                      : k === 'annualizedReturn'
-                        ? '年化'
-                        : '买入'}
-                  {sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-                </Text>
-              </Pressable>
-            ))}
-            <Text style={[styles.returnTh, { width: 88, color: theme.primary }]}>状态</Text>
-          </View>
-          {sortedTable.map((m) => (
-            <View key={m.assetId} style={styles.returnTableRow}>
-              <Text style={[styles.returnTd, { width: 120, color: theme.primary }]} numberOfLines={2}>
-                {m.name}
-              </Text>
-              <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
-                {m.holdingDays}
-              </Text>
-              <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
-                {pctFmt(m.cumulativeReturn)}
-              </Text>
-              <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
-                {m.annualizedReturn !== null ? pctFmt(m.annualizedReturn) : '—'}
-              </Text>
-              <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
-                {formatMoney(m.buyAmount, m.currency)}
-              </Text>
-              <Text style={[styles.returnTd, { width: 88, color: textMuted, fontSize: 11 }]}>
-                {m.reason === 'ok' ? '有效' : reasonLabel(m)}
-              </Text>
+      <View style={styles.returnTableScroll}>
+        <ScrollView
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator
+        >
+          <View>
+            <View style={styles.returnTableHeader}>
+              <Text style={[styles.returnTh, { width: 120, color: theme.primary }]}>资产</Text>
+              {( ['holdingDays', 'cumulativeReturn', 'annualizedReturn', 'buyAmount'] as SortKey[]).map((k) => (
+                <Pressable key={k} onPress={() => cycleSort(k)} style={{ width: 96 }}>
+                  <Text style={[styles.returnTh, { color: theme.primary }]}>
+                    {k === 'holdingDays'
+                      ? '持有天'
+                      : k === 'cumulativeReturn'
+                        ? '累计'
+                        : k === 'annualizedReturn'
+                          ? '年化'
+                          : '买入'}
+                    {sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                  </Text>
+                </Pressable>
+              ))}
+              <Text style={[styles.returnTh, { width: 88, color: theme.primary }]}>状态</Text>
             </View>
-          ))}
-        </View>
-      </ScrollView>
+            <ScrollView
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              style={styles.returnTableBodyScroll}
+            >
+              {sortedTable.map((m) => (
+                <View key={m.assetId} style={styles.returnTableRow}>
+                  <Text style={[styles.returnTd, { width: 120, color: theme.primary }]} numberOfLines={2}>
+                    {m.name}
+                  </Text>
+                  <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
+                    {m.holdingDays}
+                  </Text>
+                  <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
+                    {pctFmt(m.cumulativeReturn)}
+                  </Text>
+                  <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
+                    {m.annualizedReturn !== null ? pctFmt(m.annualizedReturn) : '—'}
+                  </Text>
+                  <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
+                    {formatMoney(m.buyAmount, m.currency)}
+                  </Text>
+                  <Text style={[styles.returnTd, { width: 88, color: textMuted, fontSize: 11 }]}>
+                    {m.reason === 'ok' ? '有效' : reasonLabel(m)}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </ScrollView>
+      </View>
 
       {excludedCount > 0 ? (
         <Text style={[styles.returnFooterHint, { color: textMuted }]}>
           当前筛选下，有 {excludedCount} 条资产因数据无效或未满足作图条件而未显示在图中（仍可在表中查看，关闭「隐藏无效」）。
         </Text>
       ) : null}
-
-      <Text style={[styles.returnFooterHint, { color: textMuted }]}>
-        纵轴为便于排布，累计收益率会裁剪到约 {pctFmt(CUMULATIVE_CHART_FLOOR, 0)}～
-        {pctFmt(CUMULATIVE_CHART_CAP, 0)} 刻度内；tooltip 仍为真实累计收益率。
-      </Text>
     </View>
   );
 }

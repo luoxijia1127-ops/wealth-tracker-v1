@@ -28,7 +28,6 @@ import {
   sumDisplayValuesNaive,
 } from '@/lib/asset-value';
 import { getCachedFxUsdRates } from '@/lib/fx-rates';
-import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
@@ -110,21 +109,34 @@ function AssetPrimaryValue({
   currency,
   accentColor,
   styles,
+  hero,
 }: {
   amount: number;
   currency: string;
   accentColor: string;
   styles: DashboardStyles;
+  /** 仅 Dashboard 顶部人民币合计：更大字号 */
+  hero?: boolean;
 }) {
   if (currency === 'CNY' && Number.isFinite(amount)) {
     const [intRaw, dec = '00'] = amount.toFixed(2).split('.');
     const intFmt = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     return (
       <View style={styles.assetValueSplit}>
-        <Text style={[styles.assetValueInt, { color: accentColor }]}>
+        <Text
+          style={[
+            hero ? styles.netWorthHeroInt : styles.assetValueInt,
+            { color: accentColor },
+          ]}
+        >
           ¥{intFmt}
         </Text>
-        <Text style={[styles.assetValueDec, { color: accentColor }]}>
+        <Text
+          style={[
+            hero ? styles.netWorthHeroDec : styles.assetValueDec,
+            { color: accentColor },
+          ]}
+        >
           .{dec}
         </Text>
       </View>
@@ -357,8 +369,6 @@ export default function Dashboard() {
   const [syncingQuotes, setSyncingQuotes] = useState(false);
   /** 折合人民币净值；无汇率且含外币时为 null */
   const [netWorthCny, setNetWorthCny] = useState<number | null>(null);
-  /** 汇率说明（基准日 / 离线沿用等） */
-  const [fxNote, setFxNote] = useState<string | null>(null);
   const focusLoadGen = useRef(0);
 
   /** 默认全部折叠，只显示各类合计与名称摘要 */
@@ -423,21 +433,6 @@ export default function Dashboard() {
             } else {
               setNetWorthCny(null);
             }
-            if (updated.fxSource === 'none') {
-              setFxNote(
-                needsFxDash && !cachedAfterSync
-                  ? '当前无法获取汇率，外币持仓未折算为人民币。'
-                  : null
-              );
-            } else {
-              const stale =
-                updated.fxSource === 'stale' ? '（沿用缓存汇率）' : '';
-              setFxNote(
-                updated.fxApiDate
-                  ? `汇率基准日 ${updated.fxApiDate}，中间价经 USD 串联折算人民币${stale}`
-                  : stale || null
-              );
-            }
           }
         } catch {
           /* 保留本地列表 */
@@ -457,20 +452,12 @@ export default function Dashboard() {
             const dash = filterAssetsForDashboard(local);
             const needsFx = dash.some((a) => getAssetCurrency(a) !== 'CNY');
             const cached = await getCachedFxUsdRates();
-            const today = getShanghaiDateString();
             if (cached) {
               setNetWorthCny(sumDisplayValuesInCny(dash, cached.rates));
-              const stale =
-                cached.shanghaiDate !== today ? '（沿用缓存汇率）' : '';
-              setFxNote(
-                `汇率基准日 ${cached.apiDate}，中间价经 USD 串联折算人民币${stale}`
-              );
             } else if (!needsFx) {
               setNetWorthCny(sumDisplayValuesNaive(dash));
-              setFxNote(null);
             } else {
               setNetWorthCny(null);
-              setFxNote('当前无汇率缓存，同步后将按当日中间价折算。');
             }
           }
         } catch {
@@ -544,6 +531,7 @@ export default function Dashboard() {
               currency="CNY"
               accentColor={theme.primary}
               styles={styles}
+              hero
             />
             <Text
               style={[
@@ -555,7 +543,6 @@ export default function Dashboard() {
             >
               {netWorthSummary.lines}
             </Text>
-            <Text style={styles.netWorthFootnote}>按持仓币种分列市值</Text>
           </>
         ) : (
           <Text
@@ -567,18 +554,12 @@ export default function Dashboard() {
             {netWorthSummary.lines}
           </Text>
         )}
-        {fxNote ? (
-          <Text style={styles.netWorthFootnote}>{fxNote}</Text>
-        ) : null}
         {syncingQuotes ? (
           <View style={styles.syncRow}>
             <ActivityIndicator size="small" color={theme.primary} />
             <Text style={styles.syncRowText}>正在同步行情…</Text>
           </View>
         ) : null}
-        <Text style={styles.netWorthFootnote}>
-          行情仅作参考；返回本页会先显示本地数据，再在后台更新（场内为现价与日K收盘；场外基金为最新披露净值）。
-        </Text>
       </View>
 
       {/* 2. Spacing between Net Worth and asset structure */}

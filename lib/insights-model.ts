@@ -8,6 +8,10 @@ import {
   getAssetDisplayValue,
 } from '@/lib/asset-value';
 import {
+  convertDisplayValueToCny,
+  type FxUsdMidRates,
+} from '@/lib/fx-rates';
+import {
   ASSET_CATEGORY_ORDER,
   CATEGORY_LABEL_ZH,
   type AssetCategory,
@@ -29,6 +33,95 @@ export const INSIGHTS_CHART_TABS: {
   { id: 'distribution', label: '资产分布' },
   { id: 'returns', label: '投资回报' },
 ];
+
+/** 净值曲线时间范围（相对「锚定日」向前回溯） */
+export type TrendTimeframe = '1M' | '3M' | '6M' | '1Y' | 'ALL';
+
+export const TREND_TIMEFRAME_OPTIONS: {
+  id: TrendTimeframe;
+  label: string;
+}[] = [
+  { id: '1M', label: '1M' },
+  { id: '3M', label: '3M' },
+  { id: '6M', label: '6M' },
+  { id: '1Y', label: '1Y' },
+  { id: 'ALL', label: 'ALL' },
+];
+
+const TREND_LOOKBACK_DAYS: Record<Exclude<TrendTimeframe, 'ALL'>, number> = {
+  '1M': 31,
+  '3M': 92,
+  '6M': 183,
+  '1Y': 366,
+};
+
+function parseYmd(s: string): { y: number; m: number; d: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
+  if (!m) return null;
+  return { y: +m[1]!, m: +m[2]!, d: +m[3]! };
+}
+
+/** 日历日加减（YYYY-MM-DD，按 UTC 日期分量计算，与快照日期格式一致） */
+export function addCalendarDaysYmd(ymd: string, deltaDays: number): string {
+  const p = parseYmd(ymd);
+  if (!p) return ymd;
+  const dt = new Date(Date.UTC(p.y, p.m - 1, p.d + deltaDays));
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+/**
+ * 按时间范围截取已按日期升序排列的快照；ALL 为全部。
+ * anchorDate 一般为上海当日，窗口为 [anchorDate - 回溯天数, anchorDate] 内的快照。
+ */
+export function filterSnapshotsByTimeframe(
+  orderedAsc: Snapshot[],
+  tf: TrendTimeframe,
+  anchorDate: string
+): Snapshot[] {
+  const upToToday = orderedAsc.filter((s) => s.date <= anchorDate);
+  if (tf === 'ALL') return upToToday;
+  const days = TREND_LOOKBACK_DAYS[tf];
+  const minDate = addCalendarDaysYmd(anchorDate, -days);
+  return upToToday.filter((s) => s.date >= minDate);
+}
+
+/** Y 轴刻度：紧凑人民币读数（万 / 亿），占宽尽量小 */
+export function formatTrendAxisCny(value: number): string {
+  if (!Number.isFinite(value)) return '';
+  const sign = value < 0 ? '-' : '';
+  const v = Math.abs(value);
+  if (v >= 1e8) {
+    const x = value / 1e8;
+    const d = Math.abs(x) >= 10 ? 1 : 2;
+    return `${sign}${x.toFixed(d)}亿`;
+  }
+  if (v >= 1e4) {
+    const x = value / 1e4;
+    const d = Math.abs(x) >= 100 ? 0 : Math.abs(x) >= 10 ? 1 : 2;
+    return `${sign}${x.toFixed(d)}万`;
+  }
+  if (v >= 1000) {
+    return `${sign}${(value / 1000).toFixed(1)}k`;
+  }
+  return `${sign}${Math.round(value)}`;
+}
+
+function buildSparseMonthDayLabels(dates: string[], maxTicks: number): string[] {
+  if (dates.length === 0) return [];
+  if (dates.length <= maxTicks) {
+    return dates.map((d) => d.slice(5));
+  }
+  const out = dates.map(() => '');
+  const n = dates.length;
+  for (let t = 0; t < maxTicks; t++) {
+    const idx = Math.round((t / Math.max(1, maxTicks - 1)) * (n - 1));
+    out[idx] = dates[idx]!.slice(5);
+  }
+  return out;
+}
 
 export type ChartData = {
   labels: string[];
@@ -53,7 +146,8 @@ export function formatChange(diff: number, pct: number): string {
 }
 
 export function toTrendChartModel(snapshots: Snapshot[]): TrendChartModel {
-  const labels = snapshots.map((s) => s.date.slice(5));
+  const dates = snapshots.map((s) => s.date);
+  const labels = buildSparseMonthDayLabels(dates, 7);
   const raw = snapshots.map((s) => snapshotDisplayTotal(s));
   if (raw.length === 0) {
     return {
@@ -77,10 +171,7 @@ export function toTrendChartModel(snapshots: Snapshot[]): TrendChartModel {
       const n = parseFloat(v);
       if (Number.isNaN(n)) return '';
       const actual = min + (n / 100) * span;
-      const k = actual / 1000;
-      const absK = Math.abs(k);
-      const digits = absK >= 100 ? 0 : absK >= 10 ? 1 : 2;
-      return `${k.toFixed(digits)}k`;
+      return formatTrendAxisCny(actual);
     },
   };
 }
@@ -99,8 +190,12 @@ export function getDailyChange(
   return { diff, pct };
 }
 
+/**
+ * 各大类市值合计。传入有效 `usdRates`（含 CNY>0）时按 Frankfurter/USD 串联折人民币，否则为各币种展示值直接相加（不推荐）。
+ */
 export function aggregateByCategory(
-  assets: SimpleAsset[]
+  assets: SimpleAsset[],
+  usdRates?: FxUsdMidRates['rates'] | null
 ): Record<AssetCategory, number> {
   const m: Record<AssetCategory, number> = {
     Stock: 0,
@@ -109,18 +204,25 @@ export function aggregateByCategory(
     Cash: 0,
     Gold: 0,
   };
+  const useFx = usdRates != null && usdRates.CNY > 0;
   for (const a of assets) {
     const c = a.category;
-    if (c in m) m[c] += getAssetDisplayValue(a);
+    if (!(c in m)) continue;
+    const raw = getAssetDisplayValue(a);
+    const add = useFx
+      ? convertDisplayValueToCny(raw, getAssetCurrency(a), usdRates!)
+      : raw;
+    m[c] += add;
   }
   return m;
 }
 
 export function buildDonutSlices(
   assets: SimpleAsset[],
-  categoryAccents: Record<AssetCategory, string>
+  categoryAccents: Record<AssetCategory, string>,
+  usdRates?: FxUsdMidRates['rates'] | null
 ): DonutSlice[] {
-  const sums = aggregateByCategory(assets);
+  const sums = aggregateByCategory(assets, usdRates);
   const out: DonutSlice[] = [];
   for (const cat of ASSET_CATEGORY_ORDER) {
     const v = sums[cat];

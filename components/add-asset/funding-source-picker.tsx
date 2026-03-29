@@ -1,66 +1,100 @@
 /**
- * 新增资产：资金来源（人民币现金类）选项行，黄金与场内证券共用。
+ * 资金来源 / 资金去向：下拉选择，与编辑资产加减仓、新增资产共用。
  */
 
 import type { AddModalStyles } from '@/lib/modal-styles';
 import type { SimpleAsset } from '@/types/asset';
-import { Pressable, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, Text, View } from 'react-native';
 
 export function FundingSourcePicker({
-  hint,
-  fundingSourceId,
+  label,
+  emptyOptionLabel,
+  valueId,
   onSelectId,
   fundingOptions,
   styles,
 }: {
-  hint: string;
-  fundingSourceId: string;
+  label: string;
+  /** 未选具体账户时的选项文案，如「其他外部资金」或「不入账」 */
+  emptyOptionLabel: string;
+  valueId: string;
   onSelectId: (id: string) => void;
   fundingOptions: SimpleAsset[];
   styles: AddModalStyles;
 }) {
+  const [open, setOpen] = useState(false);
+  const selectedLabel =
+    valueId === ''
+      ? emptyOptionLabel
+      : (fundingOptions.find((x) => x.id === valueId)?.name ?? emptyOptionLabel);
+
   return (
     <>
-      <Text style={styles.label}>资金来源（选填）</Text>
-      <Text style={styles.hintMuted}>{hint}</Text>
-      <View style={styles.optionsRow}>
-        <Pressable
-          style={[
-            styles.option,
-            fundingSourceId === '' && styles.optionSelected,
-          ]}
-          onPress={() => onSelectId('')}
-        >
-          <Text
-            style={[
-              styles.optionText,
-              fundingSourceId === '' && styles.optionTextSelected,
-            ]}
-          >
-            不扣减
-          </Text>
-        </Pressable>
-        {fundingOptions.slice(0, 6).map((fo) => (
+      <Text style={styles.label}>{label}</Text>
+      <Pressable
+        style={styles.selectFieldButton}
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <Text style={styles.selectFieldButtonText} numberOfLines={1}>
+          {selectedLabel}
+        </Text>
+        <Text style={styles.currencyChevron}>▼</Text>
+      </Pressable>
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <View style={styles.currencyModalBackdrop}>
           <Pressable
-            key={fo.id}
-            style={[
-              styles.option,
-              fundingSourceId === fo.id && styles.optionSelected,
-            ]}
-            onPress={() => onSelectId(fo.id)}
-          >
-            <Text
+            style={styles.currencyModalDismiss}
+            onPress={() => setOpen(false)}
+            accessibilityLabel="关闭"
+          />
+          <View style={styles.currencyModalCard}>
+            <Text style={styles.currencyModalTitle}>{label}</Text>
+            <Pressable
               style={[
-                styles.optionText,
-                fundingSourceId === fo.id && styles.optionTextSelected,
+                styles.currencyModalRow,
+                valueId === '' && styles.currencyModalRowSelected,
               ]}
-              numberOfLines={1}
+              onPress={() => {
+                onSelectId('');
+                setOpen(false);
+              }}
             >
-              {fo.name}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+              <Text style={styles.currencyModalRowLabel}>{emptyOptionLabel}</Text>
+            </Pressable>
+            {fundingOptions.map((fo) => (
+              <Pressable
+                key={fo.id}
+                style={[
+                  styles.currencyModalRow,
+                  valueId === fo.id && styles.currencyModalRowSelected,
+                ]}
+                onPress={() => {
+                  onSelectId(fo.id);
+                  setOpen(false);
+                }}
+              >
+                <Text style={styles.currencyModalRowLabel} numberOfLines={2}>
+                  {fo.name}
+                </Text>
+              </Pressable>
+            ))}
+            <Pressable
+              style={styles.currencyModalCancel}
+              onPress={() => setOpen(false)}
+            >
+              <Text style={styles.currencyModalCancelText}>取消</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }

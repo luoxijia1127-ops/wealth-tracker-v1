@@ -43,7 +43,7 @@ export type DailyTradeSummary = {
   sellAmountCny: number;
   externalCashIn: number;
   externalCashOut: number;
-  /** 外部净流入（入金 - 出金） */
+  /** 外部净流入（增加 - 减少） */
   externalNetFlow: number;
   /** 净值变动 - 外部净流入（可理解为市场涨跌/估值变化/其它） */
   residual: number | null;
@@ -257,7 +257,7 @@ export function isSignificantTradeSummaryDay(d: DailyTradeSummary): boolean {
   return false;
 }
 
-/** 主列表展示的流水：排除内部划转；现金仅保留外部入金/出金 */
+/** 主列表展示的流水：排除内部划转；现金仅保留外部增加/减少 */
 export function filterTradeLinesForDisplay(lines: DailyTradeLine[]): DailyTradeLine[] {
   return lines.filter((x) => {
     if (x.kind === 'cash') return !x.internal;

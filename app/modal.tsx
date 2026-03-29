@@ -472,10 +472,7 @@ export default function AddModal() {
               onChangeText={setShares}
               keyboardType="decimal-pad"
             />
-            <Text style={styles.label}>购买单价（CNY/克）</Text>
-            <Text style={styles.hintMuted}>
-              每克购入成本（非交易所收盘价）。市值参考价由 Dashboard 同步行情自动更新，无需手填收盘价。
-            </Text>
+            <Text style={styles.label}>购买单价</Text>
             <View style={styles.amountRow}>
               <View style={styles.currencyChipStatic}>
                 <Text style={styles.currencyChipText}>¥</Text>
@@ -490,8 +487,9 @@ export default function AddModal() {
               />
             </View>
             <FundingSourcePicker
-              hint="仅列出人民币现金类；按克价（人民币）从所选账户扣减并记入流水。"
-              fundingSourceId={fundingSourceId}
+              label="资金来源（选填）"
+              emptyOptionLabel="其他外部资金"
+              valueId={fundingSourceId}
               onSelectId={setFundingSourceId}
               fundingOptions={fundingOptions}
               styles={styles}
@@ -502,9 +500,6 @@ export default function AddModal() {
         {showListedSecuritiesForm && (
           <>
             <Text style={styles.label}>搜索证券（代码或简称）</Text>
-            <Text style={styles.hintMuted}>
-              A 股/场外基金走东方财富；美股/港股走 OpenFIGI。市价在 Dashboard 同步后自动写入。
-            </Text>
             <TextInput
               placeholder="如 茅台、012922、AAPL、腾讯、700…"
               placeholderTextColor={placeholderColor}
@@ -552,9 +547,7 @@ export default function AddModal() {
             {!suggestLoading &&
               searchText.trim().length > 0 &&
               suggestions.length === 0 && (
-                <Text style={styles.suggestEmpty}>
-                  无匹配结果，请换关键词（或检查网络）；港股可试五位代码如 00700。
-                </Text>
+                <Text style={styles.suggestEmpty}>无匹配结果</Text>
               )}
 
             {instrumentPick && (
@@ -591,12 +584,7 @@ export default function AddModal() {
               onChangeText={setShares}
               keyboardType="decimal-pad"
             />
-            <Text style={styles.label}>
-              成本价 / 买价（{assetCurrency}/份）
-            </Text>
-            <Text style={styles.hintMuted}>
-              与所选报价币种一致；建仓市值按此估算。收盘价/现价请在 Dashboard 同步行情后自动更新，无需手填。
-            </Text>
+            <Text style={styles.label}>成本价 / 买价</Text>
             <View style={styles.amountRow}>
               <Pressable
                 style={styles.currencyChip}
@@ -619,8 +607,9 @@ export default function AddModal() {
               />
             </View>
             <FundingSourcePicker
-              hint="仅列出人民币现金类；若证券为美元/港币计价，将按当日中间价折合为人民币后扣减。"
-              fundingSourceId={fundingSourceId}
+              label="资金来源（选填）"
+              emptyOptionLabel="其他外部资金"
+              valueId={fundingSourceId}
               onSelectId={setFundingSourceId}
               fundingOptions={fundingOptions}
               styles={styles}
@@ -661,9 +650,6 @@ export default function AddModal() {
               />
             </View>
             <Text style={styles.label}>本金（选填）</Text>
-            <Text style={styles.hintMuted}>
-              记录投入本金后可与当前市值对比（收益功能将陆续完善）。
-            </Text>
             <TextInput
               placeholder="不填则仅记录当前金额"
               placeholderTextColor={placeholderColor}
@@ -688,9 +674,6 @@ export default function AddModal() {
         </Pressable>
         {purposeExpanded ? (
           <View style={styles.purposeSectionBody}>
-            <Text style={styles.hintMuted}>
-              例如专门用于旅游；填写目标后，列表中会显示完成度。
-            </Text>
             <Text style={styles.label}>用途说明</Text>
             <TextInput
               placeholder="如：旅游基金、应急金"
@@ -700,14 +683,10 @@ export default function AddModal() {
               onChangeText={setPurpose}
             />
             <Text style={styles.label}>
-              目标金额（
-              {purposeYuan
-                ? '¥'
-                : assetCurrencySymbol(assetCurrency)}{' '}
-              与上方面额同币种）
+              目标金额（{purposeYuan ? '¥' : assetCurrencySymbol(assetCurrency)}）
             </Text>
             <TextInput
-              placeholder="如 30000，不填则不显示进度"
+              placeholder="不填则不显示进度"
               placeholderTextColor={placeholderColor}
               style={styles.input}
               value={purposeTarget}

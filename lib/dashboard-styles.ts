@@ -74,14 +74,14 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     },
     netWorthSection: {
       alignItems: 'center',
-      paddingVertical: 16,
+      paddingVertical: 20,
     },
     netWorthLabel: {
-      fontSize: 13,
+      fontSize: 12,
       color: p65,
       textTransform: 'uppercase',
       letterSpacing: 1,
-      marginBottom: 6,
+      marginBottom: 8,
     },
     netWorthValue: {
       fontSize: 40,
@@ -90,14 +90,14 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       textAlign: 'center',
     },
     netWorthValueCompact: {
-      fontSize: 28,
-      lineHeight: 36,
+      fontSize: 22,
+      lineHeight: 28,
     },
     netWorthBreakdown: {
-      fontSize: 15,
+      fontSize: 12,
       fontWeight: '600',
-      marginTop: 12,
-      color: p65,
+      marginTop: 10,
+      color: p55,
     },
     netWorthFootnote: {
       fontSize: 11,
@@ -106,6 +106,16 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       marginTop: 10,
       paddingHorizontal: 12,
       lineHeight: 16,
+    },
+    netWorthHeroInt: {
+      fontSize: 44,
+      fontWeight: '700',
+      letterSpacing: -0.5,
+    },
+    netWorthHeroDec: {
+      fontSize: 22,
+      fontWeight: '700',
+      paddingTop: 4,
     },
     syncRow: {
       flexDirection: 'row',

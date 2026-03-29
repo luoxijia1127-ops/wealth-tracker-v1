@@ -2,27 +2,35 @@
  * Insights：净值曲线、资产分布、投资回报（Tab）+ 目标进度
  */
 
-import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import {
   DistributionBreakdown,
   DistributionDonut,
 } from '@/components/insights/insights-distribution';
 import { GoalProgressCard } from '@/components/insights/insights-goal-cards';
 import { InsightsTrendChart } from '@/components/insights/insights-trend-tab';
+import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { formatMoney } from '@/lib/asset-value';
+import { rgbaFromHex } from '@/lib/color-utils';
+import { getShanghaiDateString } from '@/lib/date-shanghai';
+import {
+  getCachedFxUsdRates,
+  type FxUsdMidRates,
+} from '@/lib/fx-rates';
 import {
   buildAggregatedGoalRows,
   type GoalProgressDisplayRow,
 } from '@/lib/goal-aggregate';
 import {
   buildDonutSlices,
+  filterSnapshotsByTimeframe,
   formatChange,
   getCentroidForCategory,
   getDailyChange,
   INSIGHTS_CHART_TABS,
   toTrendChartModel,
   type InsightsChartTab,
+  type TrendTimeframe,
 } from '@/lib/insights-model';
 import { createInsightsStyles } from '@/lib/insights-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
@@ -32,7 +40,6 @@ import {
   snapshotDisplayTotal,
   type Snapshot,
 } from '@/lib/snapshots';
-import { rgbaFromHex } from '@/lib/color-utils';
 import type { AssetCategory, SimpleAsset } from '@/types/asset';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -67,6 +74,7 @@ export default function Insights() {
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [assets, setAssets] = useState<SimpleAsset[]>([]);
+  const [fxRates, setFxRates] = useState<FxUsdMidRates | null>(null);
   const [loading, setLoading] = useState(true);
   const [chartTab, setChartTab] = useState<InsightsChartTab>('trend');
   const [chartTabSeeded, setChartTabSeeded] = useState(false);
@@ -77,6 +85,7 @@ export default function Insights() {
     x: number;
     y: number;
   } | null>(null);
+  const [trendTimeframe, setTrendTimeframe] = useState<TrendTimeframe>('3M');
 
   const chartHeight = useMemo(() => {
     const h = Math.round(windowHeight * 0.33);
@@ -118,9 +127,17 @@ export default function Insights() {
     () => [...snapshots].sort((a, b) => a.date.localeCompare(b.date)),
     [snapshots]
   );
+  const trendRangeSnapshots = useMemo(() => {
+    const anchor = getShanghaiDateString();
+    return filterSnapshotsByTimeframe(
+      orderedSnapshots,
+      trendTimeframe,
+      anchor
+    );
+  }, [orderedSnapshots, trendTimeframe]);
   const trendModel = useMemo(
-    () => toTrendChartModel(orderedSnapshots),
-    [orderedSnapshots]
+    () => toTrendChartModel(trendRangeSnapshots),
+    [trendRangeSnapshots]
   );
   const chartData = trendModel.data;
 
@@ -150,7 +167,7 @@ export default function Insights() {
         fontSize: 11,
       },
       propsForVerticalLabels: {
-        fontSize: 11,
+        fontSize: 10,
       },
       formatYLabel: trendModel.formatYLabel,
     }),
@@ -162,32 +179,37 @@ export default function Insights() {
       let cancelled = false;
       (async () => {
         try {
-          const [localSnaps, localAssets] = await Promise.all([
+          const [localSnaps, localAssets, cachedFx] = await Promise.all([
             getSnapshots(),
             assetRepository.getAll(),
+            getCachedFxUsdRates(),
           ]);
           if (!cancelled) {
             setSnapshots(localSnaps);
             setAssets(localAssets);
+            setFxRates(cachedFx);
             setLoading(false);
           }
         } catch {
           if (!cancelled) {
             setSnapshots([]);
             setAssets([]);
+            setFxRates(null);
             setLoading(false);
           }
         }
         if (cancelled) return;
         try {
           await syncNetWorthFromMarket();
-          const [snaps, ass] = await Promise.all([
+          const [snaps, ass, cachedFx] = await Promise.all([
             getSnapshots(),
             assetRepository.getAll(),
+            getCachedFxUsdRates(),
           ]);
           if (!cancelled) {
             setSnapshots(snaps);
             setAssets(ass);
+            setFxRates(cachedFx);
           }
         } catch {
           /* 保留已显示 */
@@ -201,11 +223,19 @@ export default function Insights() {
 
   const hasSnapshotTrend =
     chartData.labels.length > 0 && chartData.datasets[0].data.length > 0;
+  const hasAnySnapshots = orderedSnapshots.length > 0;
   const hasAssets = assets.length > 0;
   const donutSlices = useMemo(
-    () => buildDonutSlices(assets, theme.categoryAccents),
-    [assets, theme.categoryAccents]
+    () =>
+      buildDonutSlices(
+        assets,
+        theme.categoryAccents,
+        fxRates?.rates ?? null
+      ),
+    [assets, theme.categoryAccents, fxRates]
   );
+  const distributionUsesFx =
+    fxRates != null && fxRates.rates.CNY > 0;
   const donutTotal = donutSlices.reduce((s, x) => s + x.value, 0);
   const goalRows = useMemo(
     () =>
@@ -245,16 +275,16 @@ export default function Insights() {
       : null;
   const dailyChange = getDailyChange(orderedSnapshots);
 
-  const showChartChrome = hasSnapshotTrend || hasAssets;
+  const showChartChrome = hasAnySnapshots || hasAssets;
   const chartBlockMinHeight = chartHeight + 24;
 
   const distributionPanelOpen = !!selectedDistributionCategory;
 
   useEffect(() => {
     if (loading || chartTabSeeded) return;
-    if (!hasSnapshotTrend && hasAssets) setChartTab('distribution');
+    if (!hasAnySnapshots && hasAssets) setChartTab('distribution');
     setChartTabSeeded(true);
-  }, [loading, hasSnapshotTrend, hasAssets, chartTabSeeded]);
+  }, [loading, hasAnySnapshots, hasAssets, chartTabSeeded]);
 
   useEffect(() => {
     if (chartTab !== 'distribution') setSelectedDistributionCategory(null);
@@ -263,6 +293,10 @@ export default function Insights() {
   useEffect(() => {
     if (chartTab !== 'trend') setTrendTip(null);
   }, [chartTab]);
+
+  useEffect(() => {
+    setTrendTip(null);
+  }, [trendTimeframe]);
 
   useEffect(() => {
     if (
@@ -315,7 +349,7 @@ export default function Insights() {
                   <Text style={[styles.unconvertedHint, { color: textMuted }]}>
                     {latest && typeof latest.totalValueCny === 'number'
                       ? typeof latest.fxRateDate === 'string'
-                        ? `汇率基准日 ${latest.fxRateDate}（经 USD 串联）`
+                        ? `汇率基准日 ${latest.fxRateDate}`
                         : '已按中间价折算为人民币'
                       : '历史或未同步汇率时为各币种数值直接相加'}
                   </Text>
@@ -383,7 +417,7 @@ export default function Insights() {
                       },
                     ]}
                   >
-                    {chartTab === 'trend' && hasSnapshotTrend && (
+                    {chartTab === 'trend' && (
                       <InsightsTrendChart
                         chartData={chartData}
                         chartWidth={chartWidth}
@@ -392,23 +426,22 @@ export default function Insights() {
                         trendModel={trendModel}
                         styles={styles}
                         textSecondary={textSecondary}
-                        orderedSnapshots={orderedSnapshots}
+                        orderedSnapshots={trendRangeSnapshots}
                         trendTip={trendTip}
                         theme={theme}
+                        timeframe={trendTimeframe}
+                        onTimeframeChange={setTrendTimeframe}
+                        hasChartData={hasSnapshotTrend}
+                        emptyHint={
+                          hasAnySnapshots
+                            ? '该时间范围内暂无净值快照，可切换到 ALL 或更长区间'
+                            : '暂无走势数据'
+                        }
+                        emptyHintColor={textMuted}
                         onDataPointClick={({ index, x, y }) => {
                           setTrendTip({ index, x, y });
                         }}
                       />
-                    )}
-
-                    {chartTab === 'trend' && !hasSnapshotTrend && (
-                      <View
-                        style={[styles.chartPlaceholder, { minHeight: chartHeight }]}
-                      >
-                        <Text style={[styles.placeholderText, { color: textMuted }]}>
-                          暂无走势数据
-                        </Text>
-                      </View>
                     )}
 
                     {chartTab === 'distribution' && donutSlices.length > 0 && (
@@ -435,6 +468,7 @@ export default function Insights() {
                                 styles={styles}
                                 primary={theme.primary}
                                 textSecondary={textSecondary}
+                                usdRates={fxRates?.rates ?? null}
                               />
                             ) : null}
                           </View>
@@ -473,12 +507,15 @@ export default function Insights() {
                                 styles={styles}
                                 primary={theme.primary}
                                 textSecondary={textSecondary}
+                                usdRates={fxRates?.rates ?? null}
                               />
                             ) : null}
                           </View>
                         </View>
                         <Text style={[styles.donutHint, { color: textMuted }]}>
-                          点击环上色块查看大类明细 · 按展示市值汇总，多币种未折算
+                          {distributionUsesFx
+                            ? '点击环上色块查看大类明细（折合人民币）'
+                            : '点击环上色块查看大类明细（各币种直接相加）'}
                         </Text>
                         <View style={styles.donutLegend}>
                           {donutSlices.map((s) => {

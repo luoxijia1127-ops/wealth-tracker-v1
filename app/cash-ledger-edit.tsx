@@ -1,5 +1,5 @@
 /**
- * 编辑或删除单条现金/余额流水（入金、出金，无单价）。
+ * 编辑或删除单条现金/余额流水（增加、减少，无单价）。
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
@@ -117,7 +117,7 @@ export default function CashLedgerEditScreen() {
       // （买入对应 out；卖出对应 in）
       // 这里不做强推断，仅禁止改变原 side
       if (side !== entry.side) {
-        Alert.alert('无法保存', '该流水为联动转账记录，类型不可修改（入金/出金）。');
+        Alert.alert('无法保存', '该流水为联动转账记录，类型不可修改（增加/减少）。');
         return;
       }
     }
@@ -273,7 +273,7 @@ export default function CashLedgerEditScreen() {
                 side === 'in' && styles.optionTextSelected,
               ]}
             >
-              入金
+              增加
             </Text>
           </Pressable>
           <Pressable
@@ -286,7 +286,7 @@ export default function CashLedgerEditScreen() {
                 side === 'out' && styles.optionTextSelected,
               ]}
             >
-              出金
+              减少
             </Text>
           </Pressable>
         </View>

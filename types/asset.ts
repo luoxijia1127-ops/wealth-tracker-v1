@@ -172,7 +172,7 @@ export type SimpleAsset = {
   purposeTarget?: number;
   /** 场内：加减仓流水；编辑/删除流水后会重算 shares / avgCost */
   tradeHistory?: TradeLedgerEntry[];
-  /** 现金类：入金/出金流水，重算 value */
+  /** 现金类：增加/减少流水，重算 value */
   cashLedger?: CashLedgerEntry[];
 };
 

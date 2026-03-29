@@ -5,6 +5,7 @@
  * - 现金类：加减余额 + 编辑信息（流水仅金额）
  */
 
+import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { buildPurposeFields } from '@/lib/add-asset-form';
 import {
   appendCashMovement,
@@ -97,7 +98,7 @@ function formatTradeLine(
 }
 
 function formatCashLine(e: CashLedgerEntry, currency: string): string {
-  const lab = e.side === 'in' ? '入金' : '出金';
+  const lab = e.side === 'in' ? '增加' : '减少';
   const rel = e.relatedAssetName ? ` · 关联：${e.relatedAssetName}` : '';
   return `${e.entryDate} · ${lab} ${formatMoney(e.amount, currency)}${rel}`;
 }
@@ -708,9 +709,6 @@ export default function AssetActionScreen() {
             {listedPanel === 'adjust' ? (
               <View style={tabStyles.chartSurface}>
                 <View style={{ padding: 16 }}>
-                  <Text style={[styles.hintMuted, { marginBottom: 12 }]}>
-                    填写本次成交；保存后写入流水并重算持仓。修改历史成交请在下方点选流水。
-                  </Text>
                   <Text style={styles.label}>调整方式</Text>
                   <View style={styles.optionsRow}>
                     <Pressable
@@ -771,111 +769,7 @@ export default function AssetActionScreen() {
                     onChangeText={setTradeShares}
                     keyboardType="decimal-pad"
                   />
-                  {tradeMode === 'buy' ? (
-                    <>
-                      <Text style={styles.label}>资金来源（选填）</Text>
-                      <Text style={styles.hintMuted}>
-                        选择后会同步扣减对应现金类资产余额。
-                      </Text>
-                      <View style={styles.optionsRow}>
-                        <Pressable
-                          style={[
-                            styles.option,
-                            tradeFundingSourceId === '' && styles.optionSelected,
-                          ]}
-                          onPress={() => setTradeFundingSourceId('')}
-                        >
-                          <Text
-                            style={[
-                              styles.optionText,
-                              tradeFundingSourceId === '' &&
-                                styles.optionTextSelected,
-                            ]}
-                          >
-                            不扣减
-                          </Text>
-                        </Pressable>
-                        {tradeFundingOptions.slice(0, 6).map((fo) => (
-                          <Pressable
-                            key={fo.id}
-                            style={[
-                              styles.option,
-                              tradeFundingSourceId === fo.id &&
-                                styles.optionSelected,
-                            ]}
-                            onPress={() => setTradeFundingSourceId(fo.id)}
-                          >
-                            <Text
-                              numberOfLines={1}
-                              style={[
-                                styles.optionText,
-                                tradeFundingSourceId === fo.id &&
-                                  styles.optionTextSelected,
-                              ]}
-                            >
-                              {fo.name}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </>
-                  ) : tradeMode === 'sell' ? (
-                    <>
-                      <Text style={styles.label}>资金去向（选填）</Text>
-                      <Text style={styles.hintMuted}>
-                        选择后会把卖出金额流入对应现金类资产余额（内部划转，净值不变）。
-                      </Text>
-                      <View style={styles.optionsRow}>
-                        <Pressable
-                          style={[
-                            styles.option,
-                            tradeCashDestId === '' && styles.optionSelected,
-                          ]}
-                          onPress={() => setTradeCashDestId('')}
-                        >
-                          <Text
-                            style={[
-                              styles.optionText,
-                              tradeCashDestId === '' &&
-                                styles.optionTextSelected,
-                            ]}
-                          >
-                            不入账
-                          </Text>
-                        </Pressable>
-                        {tradeFundingOptions.slice(0, 6).map((fo) => (
-                          <Pressable
-                            key={fo.id}
-                            style={[
-                              styles.option,
-                              tradeCashDestId === fo.id &&
-                                styles.optionSelected,
-                            ]}
-                            onPress={() => setTradeCashDestId(fo.id)}
-                          >
-                            <Text
-                              numberOfLines={1}
-                              style={[
-                                styles.optionText,
-                                tradeCashDestId === fo.id &&
-                                  styles.optionTextSelected,
-                              ]}
-                            >
-                              {fo.name}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </>
-                  ) : null}
-                  <Text style={styles.label}>
-                    {useGram
-                      ? '成交单价（CNY/克）'
-                      : `成交单价（${getAssetCurrency(asset)}/份）`}
-                  </Text>
-                  <Text style={styles.hintMuted}>
-                    卖出价为实际成交价；账面成本仍按摊薄成本计算。
-                  </Text>
+                  <Text style={styles.label}>成交单价</Text>
                   <TextInput
                     placeholder={
                       useGram
@@ -892,6 +786,25 @@ export default function AssetActionScreen() {
                     onChangeText={setTradePrice}
                     keyboardType="decimal-pad"
                   />
+                  {tradeMode === 'buy' ? (
+                    <FundingSourcePicker
+                      label="资金来源（选填）"
+                      emptyOptionLabel="其他外部资金"
+                      valueId={tradeFundingSourceId}
+                      onSelectId={setTradeFundingSourceId}
+                      fundingOptions={tradeFundingOptions}
+                      styles={styles}
+                    />
+                  ) : (
+                    <FundingSourcePicker
+                      label="资金去向（选填）"
+                      emptyOptionLabel="不入账"
+                      valueId={tradeCashDestId}
+                      onSelectId={setTradeCashDestId}
+                      fundingOptions={tradeFundingOptions}
+                      styles={styles}
+                    />
+                  )}
                   <Pressable
                     style={[
                       styles.saveButton,
@@ -908,14 +821,9 @@ export default function AssetActionScreen() {
                   <Text style={[styles.label, { marginTop: 22 }]}>
                     历史交易记录
                   </Text>
-                  <Text style={[styles.hintMuted, { marginTop: 4 }]}>
-                    {tradesAreSynthetic
-                      ? '以下为根据当前持仓推算的期初记录。点流水可改为多笔真实成交。'
-                      : `点按一条可改日期、方向、${useGram ? '克数' : '份额'}与单价，或删除。`}
-                  </Text>
                   {trades.length === 0 ? (
                     <Text style={[styles.hintMuted, { marginTop: 10 }]}>
-                      尚无记录；保存加减仓后会出现在此。
+                      暂无记录
                     </Text>
                   ) : (
                     <View style={{ marginTop: 12, gap: 10 }}>
@@ -941,13 +849,13 @@ export default function AssetActionScreen() {
                           >
                             {formatTradeLine(t, useGram, getAssetCurrency(asset))}
                           </Text>
-                          <Text
-                            style={{ fontSize: 12, color: muted, marginTop: 6 }}
-                          >
-                            {tradesAreSynthetic
-                              ? '推算记录，请先用加减仓产生流水后再编辑'
-                              : '点按编辑'}
-                          </Text>
+                          {!tradesAreSynthetic ? (
+                            <Text
+                              style={{ fontSize: 12, color: muted, marginTop: 6 }}
+                            >
+                              点按编辑
+                            </Text>
+                          ) : null}
                         </Pressable>
                       ))}
                     </View>
@@ -957,10 +865,6 @@ export default function AssetActionScreen() {
             ) : (
               <View style={tabStyles.chartSurface}>
                 <View style={{ padding: 16 }}>
-                  <Text style={[styles.hintMuted, { marginBottom: 12 }]}>
-                    {useGram ? '克数、成本' : '份额、成本价'}
-                    、参考价请通过「加减仓」或下方流水修改；此处仅改分类与账户用途。
-                  </Text>
                   <View style={[styles.headerCard, { marginBottom: 16 }]}>
                     <Text style={styles.headerName}>{asset.name}</Text>
                     <Text style={[styles.headerMeta, { marginTop: 6 }]}>
@@ -1087,9 +991,6 @@ export default function AssetActionScreen() {
             {cashPanel === 'balance' ? (
               <View style={tabStyles.chartSurface}>
                 <View style={{ padding: 16 }}>
-                  <Text style={[styles.hintMuted, { marginBottom: 12 }]}>
-                    入金增加余额，出金减少余额；当前币种与下方编辑信息里一致。
-                  </Text>
                   <Text style={styles.label}>变动类型</Text>
                   <View style={styles.optionsRow}>
                     <Pressable
@@ -1105,7 +1006,7 @@ export default function AssetActionScreen() {
                           cashAdjustSide === 'in' && styles.optionTextSelected,
                         ]}
                       >
-                        入金
+                        增加
                       </Text>
                     </Pressable>
                     <Pressable
@@ -1121,7 +1022,7 @@ export default function AssetActionScreen() {
                           cashAdjustSide === 'out' && styles.optionTextSelected,
                         ]}
                       >
-                        出金
+                        减少
                       </Text>
                     </Pressable>
                   </View>
@@ -1150,14 +1051,9 @@ export default function AssetActionScreen() {
                   </Pressable>
 
                   <Text style={[styles.label, { marginTop: 22 }]}>余额流水</Text>
-                  <Text style={[styles.hintMuted, { marginTop: 4 }]}>
-                    {cashRowsSynthetic
-                      ? '以下为根据当前余额推算的记录；保存新流水后可逐笔编辑。'
-                      : '点按一条可改日期、类型与金额，或删除。'}
-                  </Text>
                   {cashRows.length === 0 ? (
                     <Text style={[styles.hintMuted, { marginTop: 10 }]}>
-                      尚无记录；保存入金/出金后会出现在此。
+                      暂无记录
                     </Text>
                   ) : (
                     <View style={{ marginTop: 12, gap: 10 }}>
@@ -1183,13 +1079,13 @@ export default function AssetActionScreen() {
                           >
                             {formatCashLine(row, getAssetCurrency(asset))}
                           </Text>
-                          <Text
-                            style={{ fontSize: 12, color: muted, marginTop: 6 }}
-                          >
-                            {cashRowsSynthetic
-                              ? '推算记录，保存流水后可编辑'
-                              : '点按编辑'}
-                          </Text>
+                          {!cashRowsSynthetic ? (
+                            <Text
+                              style={{ fontSize: 12, color: muted, marginTop: 6 }}
+                            >
+                              点按编辑
+                            </Text>
+                          ) : null}
                         </Pressable>
                       ))}
                     </View>
@@ -1199,9 +1095,6 @@ export default function AssetActionScreen() {
             ) : (
               <View style={tabStyles.chartSurface}>
                 <View style={{ padding: 16 }}>
-                  <Text style={[styles.hintMuted, { marginBottom: 14 }]}>
-                    余额请在「加减余额」中调整；此处改名称、币种、类别、账户与用途。
-                  </Text>
                   <Text style={styles.label}>资产名称</Text>
                   <TextInput
                     style={styles.input}
@@ -1308,9 +1201,6 @@ export default function AssetActionScreen() {
         ) : (
           <View style={tabStyles.chartSurface}>
             <View style={{ padding: 16 }}>
-              <Text style={[styles.hintMuted, { marginBottom: 14 }]}>
-                该条缺少完整证券信息。黄金与股票/基金相同，需在「+」中添加时选择标的并填写克数与单价。也可在此临时改名称与金额。
-              </Text>
               <Text style={styles.label}>资产名称</Text>
               <TextInput
                 style={styles.input}

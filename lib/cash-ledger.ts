@@ -1,5 +1,5 @@
 /**
- * 现金类的入金、出金流水（无单价），按时间回放得到当前余额 value。
+ * 现金类的增加、减少流水（无单价），按时间回放得到当前余额 value。
  */
 
 import { getShanghaiDateString } from '@/lib/date-shanghai';

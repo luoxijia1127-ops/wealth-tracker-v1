@@ -54,7 +54,7 @@ function renderTradeLine(
       </Text>
     );
   }
-  const side = x.side === 'in' ? '入' : '出';
+  const side = x.side === 'in' ? '增' : '减';
   const sColor = x.side === 'in' ? '#22A06B' : '#DC2626';
   return (
     <Text

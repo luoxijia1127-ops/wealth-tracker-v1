@@ -8,6 +8,10 @@ import {
   getAssetDisplayValue,
 } from '@/lib/asset-value';
 import {
+  convertDisplayValueToCny,
+  type FxUsdMidRates,
+} from '@/lib/fx-rates';
+import {
   DONUT_EXPLODE,
   DONUT_SELECTED_SCALE,
   getDonutPieCurves,
@@ -102,22 +106,40 @@ export function DistributionBreakdown({
   styles,
   primary,
   textSecondary,
+  usdRates,
 }: {
   category: AssetCategory;
   assets: SimpleAsset[];
   styles: InsightsStyles;
   primary: string;
   textSecondary: string;
+  /** 有缓存汇率时明细行显示折合人民币，与环形图口径一致 */
+  usdRates?: FxUsdMidRates['rates'] | null;
 }) {
+  const useFx = usdRates != null && usdRates.CNY > 0;
+
   const items = useMemo(() => {
     return assets
       .filter(
         (a) => a.category === category && getAssetDisplayValue(a) > 0
       )
-      .sort(
-        (a, b) => getAssetDisplayValue(b) - getAssetDisplayValue(a)
-      );
-  }, [assets, category]);
+      .sort((a, b) => {
+        if (!useFx || !usdRates) {
+          return getAssetDisplayValue(b) - getAssetDisplayValue(a);
+        }
+        const ca = convertDisplayValueToCny(
+          getAssetDisplayValue(a),
+          getAssetCurrency(a),
+          usdRates
+        );
+        const cb = convertDisplayValueToCny(
+          getAssetDisplayValue(b),
+          getAssetCurrency(b),
+          usdRates
+        );
+        return cb - ca;
+      });
+  }, [assets, category, useFx, usdRates]);
 
   return (
     <View style={styles.breakdownCard}>
@@ -127,6 +149,7 @@ export function DistributionBreakdown({
         ellipsizeMode="tail"
       >
         {CATEGORY_LABEL_ZH[category]} · 明细
+        {useFx ? '（折合 CNY）' : ''}
       </Text>
       <ScrollView
         nestedScrollEnabled
@@ -137,6 +160,13 @@ export function DistributionBreakdown({
         {items.map((a) => {
           const v = getAssetDisplayValue(a);
           const cur = getAssetCurrency(a);
+          const display =
+            useFx && usdRates
+              ? formatMoney(
+                  convertDisplayValueToCny(v, cur, usdRates),
+                  'CNY'
+                )
+              : formatMoney(v, cur);
           return (
             <View key={a.id} style={styles.breakdownRow}>
               <Text
@@ -150,7 +180,7 @@ export function DistributionBreakdown({
                 style={[styles.breakdownValue, { color: textSecondary }]}
                 numberOfLines={1}
               >
-                {formatMoney(v, cur)}
+                {display}
               </Text>
             </View>
           );
