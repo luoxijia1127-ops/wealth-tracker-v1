@@ -14,6 +14,8 @@ export function createDashboardStyles(t: AppPaletteTheme) {
   const p48 = rgbaFromHex(p, 0.48);
   const p58 = rgbaFromHex(p, 0.58);
   const p40 = rgbaFromHex(p, 0.4);
+  const p08 = rgbaFromHex(p, 0.08);
+  const p10 = rgbaFromHex(p, 0.1);
 
   return StyleSheet.create({
     screenWrapper: {
@@ -33,28 +35,29 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       backgroundColor: t.pageBg,
     },
     headerTitle: {
-      fontSize: 28,
-      fontWeight: '700',
+      fontSize: 30,
+      fontWeight: '800',
+      letterSpacing: -0.5,
       color: t.primary,
     },
     headerAddFab: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
+      width: 54,
+      height: 54,
+      borderRadius: 27,
       backgroundColor: t.primary,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.35)',
+      borderColor: 'rgba(255, 255, 255, 0.6)',
       ...Platform.select({
         ios: {
-          shadowColor: t.primary,
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.35,
-          shadowRadius: 14,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.12,
+          shadowRadius: 20,
         },
         android: {
-          elevation: 6,
+          elevation: 7,
         },
         default: {},
       }),
@@ -74,7 +77,22 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     },
     netWorthSection: {
       alignItems: 'center',
-      paddingVertical: 20,
+      paddingVertical: 26,
+      paddingHorizontal: 20,
+      borderRadius: 32,
+      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255, 255, 255, 0.95)',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.07,
+          shadowRadius: 24,
+        },
+        android: { elevation: 4 },
+        default: {},
+      }),
     },
     netWorthLabel: {
       fontSize: 12,
@@ -84,10 +102,11 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       marginBottom: 8,
     },
     netWorthValue: {
-      fontSize: 40,
-      fontWeight: '700',
+      fontSize: 42,
+      fontWeight: '800',
       color: t.primary,
       textAlign: 'center',
+      letterSpacing: -0.6,
     },
     netWorthValueCompact: {
       fontSize: 22,
@@ -108,14 +127,14 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       lineHeight: 16,
     },
     netWorthHeroInt: {
-      fontSize: 44,
-      fontWeight: '700',
-      letterSpacing: -0.5,
+      fontSize: 48,
+      fontWeight: '800',
+      letterSpacing: -0.9,
     },
     netWorthHeroDec: {
-      fontSize: 22,
-      fontWeight: '700',
-      paddingTop: 4,
+      fontSize: 24,
+      fontWeight: '800',
+      paddingTop: 5,
     },
     syncRow: {
       flexDirection: 'row',
@@ -128,51 +147,48 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       fontSize: 12,
       color: rgbaFromHex(p, 0.55),
     },
-    spacer: {
-      height: 24,
-    },
     assetStructureSection: {
       flex: 1,
     },
     groupsContainer: {
-      gap: 18,
+      gap: 20,
     },
     categoryCardShadow: {
-      borderRadius: 22,
+      borderRadius: 28,
       backgroundColor: 'transparent',
     },
     categoryCardShadowIOS: {
       shadowColor: '#000000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.08,
-      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.07,
+      shadowRadius: 22,
     },
     categoryCardShadowAndroid: {
-      elevation: 6,
+      elevation: 5,
     },
     folderCard: {
       flexDirection: 'row',
       alignItems: 'stretch',
-      borderRadius: 22,
-      backgroundColor: '#FFFFFF',
+      borderRadius: 28,
+      backgroundColor: 'rgba(255, 255, 255, 0.94)',
       overflow: 'hidden',
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(0, 0, 0, 0.04)',
+      borderColor: 'rgba(255, 255, 255, 0.95)',
     },
     folderAccentStrip: {
-      width: 7,
-      minHeight: 72,
+      width: 8,
+      minHeight: 84,
     },
     folderBody: {
       flex: 1,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: 'rgba(255, 255, 255, 0.96)',
     },
     folderHeader: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
-      paddingVertical: 16,
-      paddingHorizontal: 14,
+      paddingVertical: 18,
+      paddingHorizontal: 16,
       gap: 10,
     },
     folderHeaderTextCol: {
@@ -181,10 +197,10 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       paddingRight: 6,
     },
     folderTitle: {
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: 19,
+      fontWeight: '800',
       color: t.primary,
-      letterSpacing: -0.2,
+      letterSpacing: -0.3,
     },
     folderTitleOnAccent: {
       color: '#FFFFFF',
@@ -203,8 +219,8 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       maxWidth: '46%',
     },
     folderTotal: {
-      fontSize: 17,
-      fontWeight: '700',
+      fontSize: 18,
+      fontWeight: '800',
       color: t.primary,
       textAlign: 'right',
     },
@@ -227,17 +243,17 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       color: 'rgba(255, 255, 255, 0.75)',
     },
     folderAssetList: {
-      paddingHorizontal: 10,
-      paddingBottom: 12,
-      paddingTop: 4,
+      paddingHorizontal: 12,
+      paddingBottom: 14,
+      paddingTop: 6,
       backgroundColor: t.folderListBg,
-      borderBottomLeftRadius: 18,
-      borderBottomRightRadius: 18,
+      borderBottomLeftRadius: 24,
+      borderBottomRightRadius: 24,
     },
     assetIconWrap: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
+      width: 50,
+      height: 50,
+      borderRadius: 25,
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: 12,
@@ -247,19 +263,19 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 10,
-      paddingVertical: 14,
-      paddingHorizontal: 14,
-      backgroundColor: '#FFFFFF',
-      borderRadius: 16,
+      marginBottom: 12,
+      paddingVertical: 15,
+      paddingHorizontal: 15,
+      backgroundColor: 'rgba(255, 255, 255, 0.98)',
+      borderRadius: 20,
       borderWidth: 1,
-      borderColor: 'rgba(0, 0, 0, 0.05)',
+      borderColor: p08,
       ...Platform.select({
         ios: {
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
+          shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.05,
-          shadowRadius: 8,
+          shadowRadius: 10,
         },
         android: { elevation: 2 },
         default: {},
@@ -267,7 +283,7 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     },
     assetRowPressed: {
       opacity: 0.94,
-      backgroundColor: '#FAFAFC',
+      backgroundColor: '#FFFEFC',
     },
     assetRowLeft: {
       flex: 1,
@@ -340,8 +356,8 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       marginTop: 4,
     },
     emptyCard: {
-      backgroundColor: 'rgba(255, 255, 255, 0.65)',
-      borderRadius: 20,
+      backgroundColor: 'rgba(255, 255, 255, 0.82)',
+      borderRadius: 28,
       padding: 32,
       alignItems: 'center',
       borderWidth: StyleSheet.hairlineWidth,

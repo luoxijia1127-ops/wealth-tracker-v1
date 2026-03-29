@@ -13,6 +13,7 @@ export function createInsightsStyles(t: AppPaletteTheme) {
   const p08 = rgbaFromHex(p, 0.08);
   const p10 = rgbaFromHex(p, 0.1);
   const p14 = rgbaFromHex(p, 0.14);
+  const p18 = rgbaFromHex(p, 0.18);
 
   return StyleSheet.create({
     screen: {
@@ -23,15 +24,32 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     },
     scrollContent: {
       paddingHorizontal: 24,
+      paddingBottom: 20,
+      gap: 20,
+    },
+    heroCard: {
+      borderRadius: 34,
+      paddingVertical: 28,
+      paddingHorizontal: 24,
+      backgroundColor: 'rgba(255,255,255,0.94)',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255,255,255,0.95)',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.07,
+      shadowRadius: 22,
+      elevation: 4,
     },
     card: {
-      borderRadius: 22,
-      padding: 20,
-      backgroundColor: '#FFFFFF',
+      borderRadius: 28,
+      padding: 22,
+      backgroundColor: 'rgba(255,255,255,0.94)',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255,255,255,0.95)',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.06,
-      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.07,
+      shadowRadius: 22,
       elevation: 4,
     },
     cardKicker: {
@@ -59,9 +77,9 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       marginBottom: 16,
     },
     currentValue: {
-      fontSize: 34,
-      fontWeight: '700',
-      letterSpacing: -0.5,
+      fontSize: 36,
+      fontWeight: '800',
+      letterSpacing: -0.7,
       marginBottom: 4,
     },
     unconvertedHint: {
@@ -75,13 +93,20 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       marginBottom: 20,
     },
     chartSection: {
-      marginTop: 4,
+      marginTop: 0,
     },
     goalsSection: {
-      marginTop: 22,
-      paddingTop: 20,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: p14,
+      borderRadius: 24,
+      paddingVertical: 20,
+      paddingHorizontal: 20,
+      backgroundColor: 'rgba(255,255,255,0.94)',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255,255,255,0.95)',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.06,
+      shadowRadius: 18,
+      elevation: 3,
     },
     goalsSectionTitle: {
       fontSize: 16,
@@ -96,12 +121,14 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     goalCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: p06,
-      borderRadius: 18,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      borderRadius: 20,
       paddingVertical: 14,
       paddingHorizontal: 14,
-      marginBottom: 10,
+      marginBottom: 12,
       gap: 12,
+      borderWidth: 1,
+      borderColor: p10,
     },
     goalCardPressed: {
       opacity: 0.92,
@@ -145,19 +172,22 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     tabRow: {
       flexDirection: 'row',
       gap: 10,
-      marginBottom: 14,
+      marginBottom: 16,
     },
     tabChip: {
       flex: 1,
-      paddingVertical: 11,
+      paddingVertical: 12,
       paddingHorizontal: 12,
-      borderRadius: 14,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: p08,
+      backgroundColor: 'rgba(255,255,255,0.78)',
+      borderWidth: 1,
+      borderColor: p10,
     },
     tabChipActive: {
       backgroundColor: t.primary,
+      borderColor: t.primary,
     },
     tabChipPressed: {
       opacity: 0.88,
@@ -177,9 +207,11 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       color: rgbaFromHex(p, 0.5),
     },
     chartSurface: {
-      borderRadius: 18,
+      borderRadius: 24,
       overflow: 'hidden',
-      backgroundColor: '#FFFFFF',
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255,255,255,0.95)',
     },
     timeframeRow: {
       flexDirection: 'row',
@@ -190,12 +222,12 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       marginBottom: 10,
     },
     timeframeChip: {
-      paddingVertical: 6,
-      paddingHorizontal: 12,
-      borderRadius: 10,
+      paddingVertical: 7,
+      paddingHorizontal: 13,
+      borderRadius: 12,
       borderWidth: 1.5,
       borderColor: p14,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: 'rgba(255,255,255,0.82)',
     },
     timeframeChipActive: {
       borderColor: t.primary,
@@ -241,9 +273,9 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     },
     trendTooltip: {
       position: 'absolute',
-      borderRadius: 10,
-      paddingVertical: 6,
-      paddingHorizontal: 8,
+      borderRadius: 14,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
       backgroundColor: 'rgba(17,24,39,0.92)',
       maxWidth: 180,
     },
@@ -303,14 +335,16 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       alignItems: 'center',
     },
     breakdownCard: {
-      borderRadius: 14,
-      backgroundColor: p07,
-      paddingHorizontal: 10,
-      paddingTop: 10,
-      paddingBottom: 8,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255,255,255,0.76)',
+      paddingHorizontal: 12,
+      paddingTop: 12,
+      paddingBottom: 10,
       maxHeight: 248,
       width: '100%',
       alignSelf: 'stretch',
+      borderWidth: 1,
+      borderColor: p10,
     },
     breakdownTitle: {
       fontSize: 13,
@@ -358,9 +392,9 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      paddingVertical: 8,
-      paddingHorizontal: 8,
-      borderRadius: 12,
+      paddingVertical: 9,
+      paddingHorizontal: 10,
+      borderRadius: 14,
     },
     donutLegendRowActive: {
       backgroundColor: p10,
@@ -381,12 +415,17 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     },
     /** 投资回报面板 */
     returnPanelCard: {
-      borderRadius: 18,
-      paddingVertical: 14,
-      paddingHorizontal: 12,
-      backgroundColor: p06,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 24,
+      paddingVertical: 18,
+      paddingHorizontal: 16,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      borderWidth: 1,
       borderColor: p14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.06,
+      shadowRadius: 18,
+      elevation: 3,
     },
     returnKicker: {
       fontSize: 11,
@@ -411,16 +450,18 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     returnSearchInput: {
       flex: 1,
       minWidth: 140,
-      borderRadius: 12,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
+      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
       fontSize: 14,
       fontWeight: '500',
-      backgroundColor: p07,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      borderWidth: 1,
+      borderColor: p10,
     },
     returnChip: {
-      paddingVertical: 7,
-      paddingHorizontal: 11,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
       borderRadius: 999,
       backgroundColor: p08,
     },
@@ -469,10 +510,11 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       fontWeight: '600',
     },
     returnTableScroll: {
-      borderRadius: 14,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 16,
+      borderWidth: 1,
       borderColor: p14,
       overflow: 'hidden',
+      backgroundColor: 'rgba(255,255,255,0.88)',
     },
     /** 表体约 5 行高度，其余纵向拖动查看 */
     returnTableBodyScroll: {
@@ -485,7 +527,7 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       paddingHorizontal: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: p14,
-      backgroundColor: p06,
+      backgroundColor: rgbaFromHex(p, 0.05),
       minWidth: 720,
     },
     returnTableRow: {
@@ -509,6 +551,7 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       fontSize: 11,
       lineHeight: 17,
       marginTop: 10,
+      color: rgbaFromHex(p, 0.48),
     },
   });
 }

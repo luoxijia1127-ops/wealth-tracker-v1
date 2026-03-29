@@ -320,7 +320,7 @@ export default function Insights() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.card}>
+        <View style={styles.heroCard}>
           <Text style={[styles.cardKicker, { color: textSecondary }]}>
             {latest && typeof latest.totalValueCny === 'number'
               ? '折合人民币（快照）'
@@ -337,43 +337,42 @@ export default function Insights() {
             <Text style={[styles.emptyText, { color: textSecondary }]}>
               暂无快照与持仓。在 Dashboard 添加资产并同步行情后会显示走势与分布。
             </Text>
-          ) : (
+          ) : hasSnapshotTrend ? (
             <>
-              {hasSnapshotTrend ? (
-                <>
-                  <Text style={[styles.currentValue, { color: theme.primary }]}>
-                    {latest
-                      ? formatMoney(snapshotDisplayTotal(latest), 'CNY')
-                      : ''}
-                  </Text>
-                  <Text style={[styles.unconvertedHint, { color: textMuted }]}>
-                    {latest && typeof latest.totalValueCny === 'number'
-                      ? typeof latest.fxRateDate === 'string'
-                        ? `汇率基准日 ${latest.fxRateDate}`
-                        : '已按中间价折算为人民币'
-                      : '历史或未同步汇率时为各币种数值直接相加'}
-                  </Text>
-                  {dailyChange && (
-                    <Text
-                      style={[
-                        styles.changeText,
-                        dailyChange.diff > 0 && { color: '#22A06B' },
-                        dailyChange.diff < 0 && { color: '#DC2626' },
-                        dailyChange.diff === 0 && { color: textSecondary },
-                      ]}
-                    >
-                      较上一快照 {formatChange(dailyChange.diff, dailyChange.pct)}
-                    </Text>
-                  )}
-                </>
-              ) : (
-                <Text style={[styles.snapshotFallback, { color: textSecondary }]}>
-                  暂无净值快照。在 Dashboard 同步行情后可查看资产变动曲线；下方可查看当前持仓分布。
+              <Text style={[styles.currentValue, { color: theme.primary }]}>
+                {latest
+                  ? formatMoney(snapshotDisplayTotal(latest), 'CNY')
+                  : ''}
+              </Text>
+              <Text style={[styles.unconvertedHint, { color: textMuted }]}>
+                {latest && typeof latest.totalValueCny === 'number'
+                  ? typeof latest.fxRateDate === 'string'
+                    ? `汇率基准日 ${latest.fxRateDate}`
+                    : '已按中间价折算为人民币'
+                  : '历史或未同步汇率时为各币种数值直接相加'}
+              </Text>
+              {dailyChange && (
+                <Text
+                  style={[
+                    styles.changeText,
+                    dailyChange.diff > 0 && { color: '#22A06B' },
+                    dailyChange.diff < 0 && { color: '#DC2626' },
+                    dailyChange.diff === 0 && { color: textSecondary },
+                  ]}
+                >
+                  较上一快照 {formatChange(dailyChange.diff, dailyChange.pct)}
                 </Text>
               )}
+            </>
+          ) : (
+            <Text style={[styles.snapshotFallback, { color: textSecondary }]}>
+              暂无净值快照。在 Dashboard 同步行情后可查看资产变动曲线；下方可查看当前持仓分布。
+            </Text>
+          )}
+        </View>
 
-              {showChartChrome && (
-                <View style={styles.chartSection}>
+        {!loading && showChartChrome && (
+          <View style={styles.card}>
                   <View style={styles.tabRow}>
                     {INSIGHTS_CHART_TABS.map((tab) => {
                       const disabled =
@@ -602,38 +601,35 @@ export default function Insights() {
                       </View>
                     )}
                   </View>
-                </View>
-              )}
+          </View>
+        )}
 
-              {!loading && hasAssets ? (
-                <View style={styles.goalsSection}>
-                  <Text
-                    style={[styles.goalsSectionTitle, { color: theme.primary }]}
-                  >
-                    目标进度
-                  </Text>
-                  {goalRows.length === 0 ? (
-                    <Text style={[styles.goalsEmpty, { color: textMuted }]}>
-                      在资产编辑中展开「用途与目标」并填写目标金额后，将在此显示完成度。
-                    </Text>
-                  ) : (
-                    goalRows.map((row: GoalProgressDisplayRow) => (
-                      <GoalProgressCard
-                        key={row.id}
-                        row={row}
-                        styles={styles}
-                        textSecondary={textSecondary}
-                        textMuted={textMuted}
-                        primary={theme.primary}
-                        ringTrackColor={ringTrackColor}
-                      />
-                    ))
-                  )}
-                </View>
-              ) : null}
-            </>
-          )}
-        </View>
+        {!loading && hasAssets ? (
+          <View style={styles.goalsSection}>
+            <Text
+              style={[styles.goalsSectionTitle, { color: theme.primary }]}
+            >
+              目标进度
+            </Text>
+            {goalRows.length === 0 ? (
+              <Text style={[styles.goalsEmpty, { color: textMuted }]}>
+                在资产编辑中展开「用途与目标」并填写目标金额后，将在此显示完成度。
+              </Text>
+            ) : (
+              goalRows.map((row: GoalProgressDisplayRow) => (
+                <GoalProgressCard
+                  key={row.id}
+                  row={row}
+                  styles={styles}
+                  textSecondary={textSecondary}
+                  textMuted={textMuted}
+                  primary={theme.primary}
+                  ringTrackColor={ringTrackColor}
+                />
+              ))
+            )}
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );

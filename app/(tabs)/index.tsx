@@ -562,10 +562,7 @@ export default function Dashboard() {
         ) : null}
       </View>
 
-      {/* 2. Spacing between Net Worth and asset structure */}
-      <View style={styles.spacer} />
-
-      {/* 3. Grouped asset structure: Category → Assets (collapsible) */}
+      {/* 2. Grouped asset structure: Category → Assets (collapsible) */}
       <View style={styles.assetStructureSection}>
         {dashboardAssets.length === 0 ? (
           <View style={styles.emptyCard}>
