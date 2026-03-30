@@ -74,6 +74,26 @@ export default function RootLayout() {
               headerShadowVisible: false,
             }}
           />
+          <Stack.Screen
+            name="settings-fx"
+            options={{ title: '汇率信息', headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="settings-export"
+            options={{ title: '数据与导出', headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="settings-help"
+            options={{ title: '帮助与反馈', headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="settings-about"
+            options={{ title: '关于应用', headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="settings-privacy"
+            options={{ title: '隐私说明', headerShadowVisible: false }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

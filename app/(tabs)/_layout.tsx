@@ -51,9 +51,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: '设置',
+          title: '我的',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="palette" size={24} color={color} />
+            <MaterialIcons name="person-outline" size={24} color={color} />
           ),
         }}
       />
