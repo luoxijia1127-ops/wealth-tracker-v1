@@ -8,7 +8,7 @@ import { appendListedTrade } from '@/lib/trade-ledger';
 import { getListedUnitPrice, type SimpleAsset } from '@/types/asset';
 
 export type ListedAdjustInput = {
-  side: 'buy' | 'sell';
+  /** 带符号份额/克数：正=买入，负=卖出；无符号视为买入 */
   sharesStr: string;
   unitPriceStr: string;
   fundingSourceAssetId?: string;
@@ -17,6 +17,14 @@ export type ListedAdjustInput = {
   cashDestinationAssetName?: string;
   transferId?: string;
 };
+
+function parseSignedListedShares(s: string): number | null {
+  const t = s.trim().replace(/,/g, '');
+  if (t === '' || t === '+' || t === '-') return null;
+  const n = Number(t);
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
 
 export type ListedAdjustResult =
   | { ok: true; asset: SimpleAsset }
@@ -27,16 +35,19 @@ export function tryApplyListedAdjustTrade(
   input: ListedAdjustInput
 ): ListedAdjustResult {
   const isGold = editingAsset.category === 'Gold';
-  const wantBuy = input.side === 'buy';
-  const ts = parseFloat(input.sharesStr);
-  const tp = parseFloat(input.unitPriceStr);
-
-  if (Number.isNaN(ts) || ts <= 0) {
+  const signed = parseSignedListedShares(input.sharesStr);
+  if (signed === null || signed === 0) {
     return {
       ok: false,
-      message: isGold ? '请填写本次成交克数。' : '请填写本次成交份额。',
+      message: isGold
+        ? '请填写本次克数变动（正为买入，负为卖出）。'
+        : '请填写本次份额变动（正为买入，负为卖出）。',
     };
   }
+  const wantBuy = signed > 0;
+  const ts = Math.abs(signed);
+  const tp = parseFloat(input.unitPriceStr);
+
   if (Number.isNaN(tp) || tp < 0) {
     const ccy = getAssetCurrency(editingAsset);
     return {

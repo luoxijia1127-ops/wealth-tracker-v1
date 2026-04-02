@@ -1,4 +1,6 @@
 import type { AssetDailySnapshot } from '@/lib/asset-daily-snapshots';
+import type { FxUsdMidRates } from '@/lib/fx-rates';
+import { convertDisplayValueToCny } from '@/lib/fx-rates';
 import type { Snapshot } from '@/lib/snapshots';
 import type { AssetCategory, SimpleAsset } from '@/types/asset';
 
@@ -47,9 +49,13 @@ export type DailyTradeSummary = {
   externalNetFlow: number;
   /** 净值变动 - 外部净流入（可理解为市场涨跌/估值变化/其它） */
   residual: number | null;
-  /** 残差拆解：按资产市值快照可解释的“市场/估值变化” */
+  /** 残差拆解：逐资产快照可解释合计（折人民币，含新进/清仓） */
   residualMarketExplained: number | null;
-  /** 残差拆解：无法解释部分（缺少资产快照等） */
+  /** 两日均有该资产时的市值变动合计（折人民币） */
+  attributionHeld?: number | null;
+  /** 仅新进或仅清仓资产的市值变动合计（折人民币） */
+  attributionOpenClose?: number | null;
+  /** 残差拆解：仍无法对齐部分（舍入、汇率时点、现金外币流水等） */
   residualUnexplained: number | null;
   /** 残差拆解：按类别汇总的市场贡献 */
   marketByCategory?: Record<AssetCategory, number>;
@@ -63,12 +69,28 @@ function safeNum(x: unknown): number {
   return typeof x === 'number' && Number.isFinite(x) ? x : 0;
 }
 
+/** 快照项折人民币；无汇率时非人民币资产仍用原数值（与旧行为兼容，偏差进口径差） */
+function snapshotItemCny(
+  value: number,
+  currency: string,
+  usdRates: FxUsdMidRates['rates'] | null | undefined
+): number {
+  if (!Number.isFinite(value)) return 0;
+  const code = /^[A-Z]{3}$/.test(currency) ? currency : 'CNY';
+  if (usdRates && usdRates.CNY > 0) {
+    return convertDisplayValueToCny(value, code, usdRates);
+  }
+  return value;
+}
+
 export function buildDailyTradeSummaries(params: {
   assets: SimpleAsset[];
   snapshots: Snapshot[];
   assetDailySnapshots?: AssetDailySnapshot[];
+  /** 有则逐资产与总净值快照同为「折人民币」口径，并包含跨币种持仓变动与新进/清仓 */
+  usdRates?: FxUsdMidRates['rates'] | null;
 }): DailyTradeSummary[] {
-  const { assets, snapshots, assetDailySnapshots } = params;
+  const { assets, snapshots, assetDailySnapshots, usdRates } = params;
 
   const byDate = new Map<string, DailyTradeSummary>();
   const ensureDay = (date: string): DailyTradeSummary => {
@@ -217,24 +239,65 @@ export function buildDailyTradeSummaries(params: {
       };
       const movers: { assetName: string; delta: number; category: AssetCategory }[] = [];
 
+      let heldSum = 0;
+      let openCloseSum = 0;
+
       const allIds = new Set<string>([...curMap.keys(), ...prevMap.keys()]);
       for (const id of allIds) {
         const c = curMap.get(id);
         const p = prevMap.get(id);
-        if (!c || !p) continue;
-        // 只在同币种时解释（目前快照口径是未折算直接相加；跨币种不强行解释）
-        if (c.currency !== p.currency) continue;
-        const delta = (c.value ?? 0) - (p.value ?? 0);
-        m[c.category] = (m[c.category] ?? 0) + delta;
-        movers.push({ assetName: c.name, delta, category: c.category });
+
+        if (c && p) {
+          let delta: number;
+          if (usdRates && usdRates.CNY > 0) {
+            delta =
+              snapshotItemCny(c.value ?? 0, c.currency, usdRates) -
+              snapshotItemCny(p.value ?? 0, p.currency, usdRates);
+          } else if (c.currency === p.currency) {
+            delta = (c.value ?? 0) - (p.value ?? 0);
+          } else {
+            continue;
+          }
+          m[c.category] = (m[c.category] ?? 0) + delta;
+          heldSum += delta;
+          movers.push({ assetName: c.name, delta, category: c.category });
+          continue;
+        }
+
+        if (c && !p) {
+          const v = snapshotItemCny(c.value ?? 0, c.currency, usdRates);
+          const delta = v;
+          m[c.category] = (m[c.category] ?? 0) + delta;
+          openCloseSum += delta;
+          movers.push({
+            assetName: `${c.name}（新进）`,
+            delta,
+            category: c.category,
+          });
+          continue;
+        }
+
+        if (!c && p) {
+          const v = snapshotItemCny(p.value ?? 0, p.currency, usdRates);
+          const delta = -v;
+          m[p.category] = (m[p.category] ?? 0) + delta;
+          openCloseSum += delta;
+          movers.push({
+            assetName: `${p.name}（清仓）`,
+            delta,
+            category: p.category,
+          });
+        }
       }
 
       movers.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
-      const explained = Object.values(m).reduce((s, x) => s + x, 0);
+      const explained = heldSum + openCloseSum;
       const row = byDate.get(day);
       if (!row) continue;
       row.marketByCategory = m;
       row.topMarketMovers = movers.slice(0, 5);
+      row.attributionHeld = row.residual !== null ? heldSum : null;
+      row.attributionOpenClose = row.residual !== null ? openCloseSum : null;
       row.residualMarketExplained =
         row.residual !== null ? explained : null;
       row.residualUnexplained =

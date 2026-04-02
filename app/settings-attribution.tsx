@@ -7,6 +7,7 @@ import { getAssets } from '@/lib/asset-storage';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getSnapshots } from '@/lib/snapshots';
 import { getAssetDailySnapshots } from '@/lib/asset-daily-snapshots';
+import { getCachedFxUsdRates } from '@/lib/fx-rates';
 import {
   buildDailyTradeSummaries,
   filterInternalTradeLines,
@@ -86,15 +87,17 @@ export default function SettingsAttributionScreen() {
       setTradeLoading(true);
       (async () => {
         try {
-          const [assets, snaps, assetSnaps] = await Promise.all([
+          const [assets, snaps, assetSnaps, fx] = await Promise.all([
             getAssets(),
             getSnapshots(),
             getAssetDailySnapshots(),
+            getCachedFxUsdRates(),
           ]);
           const rows = buildDailyTradeSummaries({
             assets,
             snapshots: snaps,
             assetDailySnapshots: assetSnaps,
+            usdRates: fx?.rates ?? null,
           });
           if (!cancelled) setTradeSummaries(rows);
         } catch {
@@ -138,8 +141,8 @@ export default function SettingsAttributionScreen() {
           lineHeight: 18,
         }}
       >
-        按日对照「总净值快照」变化。市价变动来自各资产市值快照差；外部净流入为现金类非内部划转；
-        与现金账户成对的股票买卖默认折叠为「内部划转」。
+        按日对照「总净值快照」变化（折人民币时与 Dashboard 一致）。持仓市值变动含两日均有持仓的涨跌，以及新进/清仓资产；
+        有缓存汇率时逐资产折人民币以对齐跨币种。外部净流入为现金类非内部划转；与现金账户成对的股票买卖默认折叠为「内部划转」。
       </Text>
 
       <View style={{ gap: 10 }}>
@@ -178,6 +181,8 @@ export default function SettingsAttributionScreen() {
 
             const market =
               d.residualMarketExplained !== null ? d.residualMarketExplained : null;
+            const heldAtt = d.attributionHeld;
+            const openCloseAtt = d.attributionOpenClose;
             const ext = d.externalNetFlow;
             const unexplained = d.residualUnexplained;
             const showUnexplained =
@@ -233,7 +238,7 @@ export default function SettingsAttributionScreen() {
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
                         {market !== null ? (
                           <Text style={{ fontSize: 13, fontWeight: '700', color: theme.primary }}>
-                            市价{' '}
+                            逐资产合计{' '}
                             <Text style={{ color: deltaColor(market, muted) }}>
                               {fmtMoney(market)}
                             </Text>
@@ -246,6 +251,26 @@ export default function SettingsAttributionScreen() {
                           </Text>
                         </Text>
                       </View>
+                      {typeof heldAtt === 'number' || typeof openCloseAtt === 'number' ? (
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '600',
+                            color: rgbaFromHex(theme.primary, 0.55),
+                            lineHeight: 16,
+                          }}
+                        >
+                          {typeof heldAtt === 'number' ? (
+                            <>持仓涨跌 {fmtMoney(heldAtt)}</>
+                          ) : null}
+                          {typeof heldAtt === 'number' && typeof openCloseAtt === 'number'
+                            ? ' · '
+                            : null}
+                          {typeof openCloseAtt === 'number' ? (
+                            <>新进/清仓 {fmtMoney(openCloseAtt)}</>
+                          ) : null}
+                        </Text>
+                      ) : null}
                       {showUnexplained ? (
                         <Text
                           style={{
@@ -255,7 +280,7 @@ export default function SettingsAttributionScreen() {
                             lineHeight: 16,
                           }}
                         >
-                          口径差 {fmtMoney(unexplained!)}（新删持仓、跨币种、四舍五入等与逐资产快照不完全一致时会出现）
+                          口径差 {fmtMoney(unexplained!)}（现金外币未折人民币、汇率更新时点与快照不完全同步、舍入等）
                         </Text>
                       ) : null}
                     </View>

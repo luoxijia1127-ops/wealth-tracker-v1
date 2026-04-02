@@ -103,6 +103,53 @@ function formatCashLine(e: CashLedgerEntry, currency: string): string {
   return `${e.entryDate} · ${lab} ${formatMoney(e.amount, currency)}${rel}`;
 }
 
+/** 加减余额：解析变动金额（可带 +/-；无符号视为增加） */
+function parseSignedCashDelta(s: string): number | null {
+  const t = s.trim().replace(/,/g, '');
+  if (t === '' || t === '+' || t === '-') return null;
+  const n = Number(t);
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+
+function roundMoney2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function formatBalanceInputValue(n: number): string {
+  if (!Number.isFinite(n)) return '';
+  return String(roundMoney2(n));
+}
+
+function formatSignedDeltaInput(delta: number): string {
+  if (!Number.isFinite(delta)) return '';
+  const r = roundMoney2(delta);
+  if (r === 0) return '0';
+  if (r > 0) return `+${r}`;
+  return String(r);
+}
+
+/** 优先使用「变动金额」；为空则用「更新后余额」反推 */
+function resolveCashBalanceDelta(
+  current: number,
+  amountStr: string,
+  newBalStr: string
+): { delta: number; error?: string } {
+  const a = amountStr.trim();
+  const nb = newBalStr.trim().replace(/,/g, '');
+  if (a !== '') {
+    const d = parseSignedCashDelta(a);
+    if (d === null) return { delta: 0, error: '变动金额格式无效' };
+    return { delta: roundMoney2(d) };
+  }
+  if (nb !== '') {
+    const v = Number(nb);
+    if (!Number.isFinite(v)) return { delta: 0, error: '更新后余额格式无效' };
+    return { delta: roundMoney2(v - current) };
+  }
+  return { delta: 0, error: '请填写变动金额或更新后余额' };
+}
+
 export default function AssetActionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -120,13 +167,13 @@ export default function AssetActionScreen() {
   const [loading, setLoading] = useState(true);
   const [listedPanel, setListedPanel] = useState<ListedPanel>('adjust');
 
-  const [tradeMode, setTradeMode] = useState<'buy' | 'sell'>('buy');
   const [tradeShares, setTradeShares] = useState('');
   const [tradePrice, setTradePrice] = useState('');
+  const [tradeAmount, setTradeAmount] = useState('');
   const [adjustSaving, setAdjustSaving] = useState(false);
-  const [tradeFundingSourceId, setTradeFundingSourceId] = useState('');
+  /** 加仓=扣款来源，减仓=入账去向，合并为一项 */
+  const [tradeLinkedCashId, setTradeLinkedCashId] = useState('');
   const [tradeFundingOptions, setTradeFundingOptions] = useState<SimpleAsset[]>([]);
-  const [tradeCashDestId, setTradeCashDestId] = useState('');
 
   const [listedMetaCategory, setListedMetaCategory] =
     useState<AssetCategory>('Stock');
@@ -148,8 +195,8 @@ export default function AssetActionScreen() {
   const [cashCurrencyModalVisible, setCashCurrencyModalVisible] = useState(false);
   const [cashSaving, setCashSaving] = useState(false);
   const [cashPanel, setCashPanel] = useState<CashPanel>('balance');
-  const [cashAdjustSide, setCashAdjustSide] = useState<'in' | 'out'>('in');
   const [cashAdjustAmount, setCashAdjustAmount] = useState('');
+  const [cashAdjustNewBalance, setCashAdjustNewBalance] = useState('');
   const [cashAdjustSaving, setCashAdjustSaving] = useState(false);
 
   const [fbName, setFbName] = useState('');
@@ -308,6 +355,107 @@ export default function AssetActionScreen() {
     return { cashRows: [], cashRowsSynthetic: false };
   }, [asset]);
 
+  const cashCurrentBalance = useMemo(() => {
+    if (!asset || !usesCashAmountLedger(asset)) return 0;
+    return getAssetDisplayValue(asset);
+  }, [asset]);
+
+  const onCashDeltaChange = useCallback(
+    (text: string) => {
+      setCashAdjustAmount(text);
+      const t = text.trim();
+      if (t === '') {
+        setCashAdjustNewBalance('');
+        return;
+      }
+      if (t === '+' || t === '-') {
+        return;
+      }
+      const d = parseSignedCashDelta(text);
+      if (d !== null) {
+        const next = roundMoney2(cashCurrentBalance + d);
+        setCashAdjustNewBalance(formatBalanceInputValue(next));
+      }
+    },
+    [cashCurrentBalance]
+  );
+
+  const onCashNewBalanceChange = useCallback(
+    (text: string) => {
+      setCashAdjustNewBalance(text);
+      const raw = text.trim().replace(/,/g, '');
+      if (raw === '') {
+        setCashAdjustAmount('');
+        return;
+      }
+      const v = Number(raw);
+      if (!Number.isFinite(v)) return;
+      const delta = roundMoney2(v - cashCurrentBalance);
+      setCashAdjustAmount(formatSignedDeltaInput(delta));
+    },
+    [cashCurrentBalance]
+  );
+
+  /** 加减仓：份额/克数、单价、成交金额联动 */
+  const onTradeSharesChange = useCallback(
+    (text: string) => {
+      setTradeShares(text);
+      const t = text.trim();
+      if (t === '') {
+        setTradeAmount('');
+        return;
+      }
+      if (t === '+' || t === '-') return;
+      const signed = parseSignedCashDelta(text);
+      if (signed === null || signed === 0) return;
+      const absS = Math.abs(signed);
+      const p = parseFloat(tradePrice.trim().replace(/,/g, ''));
+      if (Number.isFinite(p) && p >= 0 && absS > 0) {
+        setTradeAmount(formatBalanceInputValue(roundMoney2(absS * p)));
+      }
+    },
+    [tradePrice]
+  );
+
+  const onTradePriceChange = useCallback(
+    (text: string) => {
+      setTradePrice(text);
+      if (text.trim() === '') {
+        setTradeAmount('');
+        return;
+      }
+      const p = parseFloat(text.trim().replace(/,/g, ''));
+      if (!Number.isFinite(p) || p < 0) return;
+      const signed = parseSignedCashDelta(tradeShares);
+      if (signed === null || signed === 0) return;
+      const absS = Math.abs(signed);
+      setTradeAmount(formatBalanceInputValue(roundMoney2(absS * p)));
+    },
+    [tradeShares]
+  );
+
+  const onTradeAmountChange = useCallback(
+    (text: string) => {
+      setTradeAmount(text);
+      const raw = text.trim().replace(/,/g, '');
+      if (raw === '') return;
+      const amt = parseFloat(raw);
+      if (!Number.isFinite(amt) || amt < 0) return;
+      const signed = parseSignedCashDelta(tradeShares);
+      const absS =
+        signed !== null && signed !== 0 ? Math.abs(signed) : null;
+      const p = parseFloat(tradePrice.trim().replace(/,/g, ''));
+      if (absS !== null && absS > 0) {
+        setTradePrice(formatBalanceInputValue(roundMoney2(amt / absS)));
+        return;
+      }
+      if (Number.isFinite(p) && p > 0) {
+        setTradeShares(formatSignedDeltaInput(roundMoney2(amt / p)));
+      }
+    },
+    [tradeShares, tradePrice]
+  );
+
   const headerTitle = useMemo(() => {
     if (!asset) return '';
     if (isListedChineseAsset(asset) || isInternationalListedAsset(asset)) {
@@ -318,50 +466,46 @@ export default function AssetActionScreen() {
 
   const onSaveListedAdjust = async () => {
     if (!asset || !isHeldChineseAsset(asset)) return;
+    const signed = parseSignedCashDelta(tradeShares);
+    const wantBuy = signed !== null && signed > 0;
+    const absShares =
+      signed !== null && signed !== 0 ? Math.abs(signed) : null;
     setAdjustSaving(true);
     try {
+      const linkId = tradeLinkedCashId.trim();
       const transferId =
-        (tradeMode === 'buy' && tradeFundingSourceId.trim().length > 0) ||
-        (tradeMode === 'sell' && tradeCashDestId.trim().length > 0)
+        linkId.length > 0
           ? `xf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
           : undefined;
+      const linkedName = tradeFundingOptions.find((x) => x.id === linkId)?.name;
       const r = tryApplyListedAdjustTrade(asset, {
-        side: tradeMode,
         sharesStr: tradeShares,
         unitPriceStr: tradePrice,
-        fundingSourceAssetId:
-          tradeMode === 'buy' && tradeFundingSourceId
-            ? tradeFundingSourceId
-            : undefined,
+        fundingSourceAssetId: wantBuy && linkId ? linkId : undefined,
         fundingSourceAssetName:
-          tradeMode === 'buy'
-            ? tradeFundingOptions.find((x) => x.id === tradeFundingSourceId)?.name
-            : undefined,
-        cashDestinationAssetId:
-          tradeMode === 'sell' && tradeCashDestId
-            ? tradeCashDestId
-            : undefined,
+          wantBuy && linkId ? linkedName : undefined,
+        cashDestinationAssetId: !wantBuy && linkId ? linkId : undefined,
         cashDestinationAssetName:
-          tradeMode === 'sell'
-            ? tradeFundingOptions.find((x) => x.id === tradeCashDestId)?.name
-            : undefined,
+          !wantBuy && linkId ? linkedName : undefined,
         transferId,
       });
       if (!r.ok) {
         Alert.alert('无法保存', r.message);
         return;
       }
-      if (tradeMode === 'buy' && tradeFundingSourceId.trim().length > 0) {
+      const rawAmount =
+        absShares !== null && Number.isFinite(parseFloat(tradePrice))
+          ? absShares * parseFloat(tradePrice)
+          : NaN;
+      if (wantBuy && linkId.length > 0) {
         const all = await getAssets();
-        const srcIdx = all.findIndex((a) => a.id === tradeFundingSourceId);
+        const srcIdx = all.findIndex((a) => a.id === linkId);
         const curIdx = all.findIndex((a) => a.id === asset.id);
         if (srcIdx < 0 || curIdx < 0) {
           Alert.alert('无法保存', '资产数据已变化，请返回重试。');
           return;
         }
         const src = all[srcIdx]!;
-        const rawAmount =
-          parseFloat(tradeShares) * parseFloat(tradePrice);
         const listingCur = getAssetCurrency(asset);
         const conv = await convertListingCostToCnyCashDebit(
           rawAmount,
@@ -393,24 +537,22 @@ export default function AssetActionScreen() {
         } catch (e) {
           Alert.alert(
             '无法保存',
-            e instanceof Error ? e.message : '资金来源余额不足。'
+            e instanceof Error ? e.message : '资金账户余额不足。'
           );
           return;
         }
         all[srcIdx] = debited;
         all[curIdx] = r.asset;
         await saveAssets(all);
-      } else if (tradeMode === 'sell' && tradeCashDestId.trim().length > 0) {
+      } else if (!wantBuy && linkId.length > 0) {
         const all = await getAssets();
-        const dstIdx = all.findIndex((a) => a.id === tradeCashDestId);
+        const dstIdx = all.findIndex((a) => a.id === linkId);
         const curIdx = all.findIndex((a) => a.id === asset.id);
         if (dstIdx < 0 || curIdx < 0) {
           Alert.alert('无法保存', '资产数据已变化，请返回重试。');
           return;
         }
         const dst = all[dstIdx]!;
-        const rawAmount =
-          parseFloat(tradeShares) * parseFloat(tradePrice);
         const listingCur = getAssetCurrency(asset);
         const conv = await convertListingCostToCnyCashDebit(
           rawAmount,
@@ -445,9 +587,8 @@ export default function AssetActionScreen() {
       }
       setTradeShares('');
       setTradePrice('');
-      setTradeMode('buy');
-      setTradeFundingSourceId('');
-      setTradeCashDestId('');
+      setTradeAmount('');
+      setTradeLinkedCashId('');
       await load();
     } finally {
       setAdjustSaving(false);
@@ -488,22 +629,33 @@ export default function AssetActionScreen() {
 
   const onSaveCashBalance = async () => {
     if (!asset || !usesCashAmountLedger(asset)) return;
-    const amt = parseFloat(cashAdjustAmount);
-    if (Number.isNaN(amt) || amt <= 0) {
-      Alert.alert('无法保存', '请输入有效的正数金额。');
+    const cur = getAssetDisplayValue(asset);
+    const { delta, error } = resolveCashBalanceDelta(
+      cur,
+      cashAdjustAmount,
+      cashAdjustNewBalance
+    );
+    if (error) {
+      Alert.alert('无法保存', error);
+      return;
+    }
+    if (delta === 0) {
+      Alert.alert('无法保存', '变动金额为 0，无需保存。');
       return;
     }
     setCashAdjustSaving(true);
     try {
+      const side = delta > 0 ? 'in' : 'out';
+      const amt = Math.abs(delta);
       const next = appendCashMovement(
         asset,
-        cashAdjustSide,
+        side,
         amt,
         getShanghaiDateString()
       );
       await updateAsset(next);
       setCashAdjustAmount('');
-      setCashAdjustSide('in');
+      setCashAdjustNewBalance('');
       await load();
     } catch (e) {
       Alert.alert(
@@ -709,102 +861,59 @@ export default function AssetActionScreen() {
             {listedPanel === 'adjust' ? (
               <View style={tabStyles.chartSurface}>
                 <View style={{ padding: 16 }}>
-                  <Text style={styles.label}>调整方式</Text>
-                  <View style={styles.optionsRow}>
-                    <Pressable
-                      style={[
-                        styles.option,
-                        tradeMode === 'buy' && styles.optionSelected,
-                      ]}
-                      onPress={() => setTradeMode('buy')}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          tradeMode === 'buy' && styles.optionTextSelected,
-                        ]}
-                      >
-                        加仓
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[
-                        styles.option,
-                        tradeMode === 'sell' && styles.optionSelected,
-                      ]}
-                      onPress={() => setTradeMode('sell')}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          tradeMode === 'sell' && styles.optionTextSelected,
-                        ]}
-                      >
-                        减仓
-                      </Text>
-                    </Pressable>
-                  </View>
-                  <Text style={styles.label}>
+                  <Text style={[styles.hintMuted, { marginBottom: 14 }]}>
                     {useGram
-                      ? tradeMode === 'buy'
-                        ? '买入克数'
-                        : '卖出克数'
-                      : tradeMode === 'buy'
-                        ? '买入份额'
-                        : '卖出份额'}
+                      ? '克数变动：正为买入，负为卖出。成交金额 ≈ |克数|×单价，可任填两项推算第三项。'
+                      : '份额变动：正为买入，负为卖出。成交金额 ≈ |份额|×单价，可任填两项推算第三项。'}
+                  </Text>
+                  <Text style={styles.label}>
+                    {useGram ? '克数变动' : '份额变动'}
                   </Text>
                   <TextInput
-                    placeholder={
-                      useGram
-                        ? tradeMode === 'buy'
-                          ? '本次买入克数'
-                          : '本次卖出克数'
-                        : tradeMode === 'buy'
-                          ? '本次买入数量'
-                          : '本次卖出数量'
-                    }
+                    placeholder={useGram ? '如 +10 或 -5 克' : '如 +100 或 -50 份'}
                     placeholderTextColor={placeholderColor}
                     style={styles.input}
                     value={tradeShares}
-                    onChangeText={setTradeShares}
-                    keyboardType="decimal-pad"
+                    onChangeText={onTradeSharesChange}
+                    keyboardType={
+                      Platform.OS === 'ios'
+                        ? 'numbers-and-punctuation'
+                        : 'default'
+                    }
                   />
-                  <Text style={styles.label}>成交单价</Text>
+                  <Text style={styles.label}>
+                    成交单价（{getAssetCurrency(asset)}
+                    {useGram ? '/克' : '/份'}）
+                  </Text>
                   <TextInput
                     placeholder={
-                      useGram
-                        ? tradeMode === 'buy'
-                          ? '本笔买入单价/克'
-                          : '本笔卖出单价/克'
-                        : tradeMode === 'buy'
-                          ? '本笔买入价格'
-                          : '本笔卖出价格'
+                      useGram ? '本笔成交单价/克' : '本笔成交单价/份'
                     }
                     placeholderTextColor={placeholderColor}
                     style={styles.input}
                     value={tradePrice}
-                    onChangeText={setTradePrice}
+                    onChangeText={onTradePriceChange}
                     keyboardType="decimal-pad"
                   />
-                  {tradeMode === 'buy' ? (
-                    <FundingSourcePicker
-                      label="资金来源（选填）"
-                      emptyOptionLabel="其他外部资金"
-                      valueId={tradeFundingSourceId}
-                      onSelectId={setTradeFundingSourceId}
-                      fundingOptions={tradeFundingOptions}
-                      styles={styles}
-                    />
-                  ) : (
-                    <FundingSourcePicker
-                      label="资金去向（选填）"
-                      emptyOptionLabel="不入账"
-                      valueId={tradeCashDestId}
-                      onSelectId={setTradeCashDestId}
-                      fundingOptions={tradeFundingOptions}
-                      styles={styles}
-                    />
-                  )}
+                  <Text style={styles.label}>
+                    成交金额（{getAssetCurrency(asset)}，≈|变动|×单价）
+                  </Text>
+                  <TextInput
+                    placeholder="可与份额、单价交叉推算"
+                    placeholderTextColor={placeholderColor}
+                    style={styles.input}
+                    value={tradeAmount}
+                    onChangeText={onTradeAmountChange}
+                    keyboardType="decimal-pad"
+                  />
+                  <FundingSourcePicker
+                    label="资金账户（选填，加仓为扣款来源，减仓为入账去向）"
+                    emptyOptionLabel="不关联现金账户"
+                    valueId={tradeLinkedCashId}
+                    onSelectId={setTradeLinkedCashId}
+                    fundingOptions={tradeFundingOptions}
+                    styles={styles}
+                  />
                   <Pressable
                     style={[
                       styles.saveButton,
@@ -991,51 +1100,43 @@ export default function AssetActionScreen() {
             {cashPanel === 'balance' ? (
               <View style={tabStyles.chartSurface}>
                 <View style={{ padding: 16 }}>
-                  <Text style={styles.label}>变动类型</Text>
-                  <View style={styles.optionsRow}>
-                    <Pressable
-                      style={[
-                        styles.option,
-                        cashAdjustSide === 'in' && styles.optionSelected,
-                      ]}
-                      onPress={() => setCashAdjustSide('in')}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          cashAdjustSide === 'in' && styles.optionTextSelected,
-                        ]}
-                      >
-                        增加
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[
-                        styles.option,
-                        cashAdjustSide === 'out' && styles.optionSelected,
-                      ]}
-                      onPress={() => setCashAdjustSide('out')}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          cashAdjustSide === 'out' && styles.optionTextSelected,
-                        ]}
-                      >
-                        减少
-                      </Text>
-                    </Pressable>
-                  </View>
+                  <Text style={styles.label}>当前余额</Text>
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: '700',
+                      color: theme.primary,
+                      marginBottom: 6,
+                    }}
+                  >
+                    {formatMoney(cashCurrentBalance, getAssetCurrency(asset))}
+                  </Text>
+                  <Text style={[styles.hintMuted, { marginBottom: 14 }]}>
+                    变动用正负号表示：增加填 + 或减少填 -；也可只填「更新后余额」自动计算变动。
+                  </Text>
                   <Text style={styles.label}>
-                    金额（{assetCurrencySymbol(cashCurrency)}）
+                    变动金额（{assetCurrencySymbol(cashCurrency)}）
                   </Text>
                   <TextInput
                     style={styles.input}
                     value={cashAdjustAmount}
-                    onChangeText={setCashAdjustAmount}
+                    onChangeText={onCashDeltaChange}
+                    keyboardType={
+                      Platform.OS === 'ios'
+                        ? 'numbers-and-punctuation'
+                        : 'default'
+                    }
+                    placeholderTextColor={placeholderColor}
+                    placeholder="如 +1000 或 -500"
+                  />
+                  <Text style={styles.label}>更新后余额（{assetCurrencySymbol(cashCurrency)}）</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={cashAdjustNewBalance}
+                    onChangeText={onCashNewBalanceChange}
                     keyboardType="decimal-pad"
                     placeholderTextColor={placeholderColor}
-                    placeholder="正数金额"
+                    placeholder="填写目标余额，或由上栏变动自动带出"
                   />
                   <Pressable
                     style={[
