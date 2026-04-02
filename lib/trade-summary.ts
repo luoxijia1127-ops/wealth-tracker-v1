@@ -60,9 +60,22 @@ export type DailyTradeSummary = {
   /** 残差拆解：按类别汇总的市场贡献 */
   marketByCategory?: Record<AssetCategory, number>;
   /** 残差拆解：贡献最大的资产（按绝对值排序，取前 N） */
-  topMarketMovers?: { assetName: string; delta: number; category: AssetCategory }[];
+  topMarketMovers?: MarketMoverEntry[];
 
   lines: DailyTradeLine[];
+};
+
+/** 市值贡献行：delta 为折人民币变动；dailyReturnPct 为当日收益率(%)，清仓/新进时为 null */
+export type MarketMoverEntry = {
+  assetName: string;
+  delta: number;
+  category: AssetCategory;
+  /** 当日收益率（%），分母为上一日该资产折人民币市值；清仓、新进为 null */
+  dailyReturnPct: number | null;
+  /** 上一日有持仓、当日已无（清仓） */
+  liquidated: boolean;
+  /** 上一日无、当日新进 */
+  opened: boolean;
 };
 
 function safeNum(x: unknown): number {
@@ -89,8 +102,21 @@ export function buildDailyTradeSummaries(params: {
   assetDailySnapshots?: AssetDailySnapshot[];
   /** 有则逐资产与总净值快照同为「折人民币」口径，并包含跨币种持仓变动与新进/清仓 */
   usdRates?: FxUsdMidRates['rates'] | null;
+  /**
+   * 按快照「上海日」取当日所用汇率表；与 `usdRates` 配合：解析不到时退回 `usdRates`。
+   * 有历史时应对「当日市值用当日 R、前一日市值用前一日 R」，与 totalValueCny 口径一致。
+   */
+  resolveFxRates?: (shanghaiDate: string) => FxUsdMidRates['rates'] | null;
 }): DailyTradeSummary[] {
-  const { assets, snapshots, assetDailySnapshots, usdRates } = params;
+  const { assets, snapshots, assetDailySnapshots, usdRates, resolveFxRates } =
+    params;
+
+  const pickRatesForDay = (shanghaiDate: string): FxUsdMidRates['rates'] | null => {
+    const r = resolveFxRates?.(shanghaiDate);
+    if (r && r.CNY > 0) return r;
+    if (usdRates && usdRates.CNY > 0) return usdRates;
+    return null;
+  };
 
   const byDate = new Map<string, DailyTradeSummary>();
   const ensureDay = (date: string): DailyTradeSummary => {
@@ -237,7 +263,7 @@ export function buildDailyTradeSummaries(params: {
         Cash: 0,
         Gold: 0,
       };
-      const movers: { assetName: string; delta: number; category: AssetCategory }[] = [];
+      const movers: MarketMoverEntry[] = [];
 
       let heldSum = 0;
       let openCloseSum = 0;
@@ -249,7 +275,13 @@ export function buildDailyTradeSummaries(params: {
 
         if (c && p) {
           let delta: number;
-          if (usdRates && usdRates.CNY > 0) {
+          const ratesCur = pickRatesForDay(day);
+          const ratesPrev = pickRatesForDay(prev);
+          if (ratesCur && ratesPrev) {
+            delta =
+              snapshotItemCny(c.value ?? 0, c.currency, ratesCur) -
+              snapshotItemCny(p.value ?? 0, p.currency, ratesPrev);
+          } else if (usdRates && usdRates.CNY > 0) {
             delta =
               snapshotItemCny(c.value ?? 0, c.currency, usdRates) -
               snapshotItemCny(p.value ?? 0, p.currency, usdRates);
@@ -260,32 +292,62 @@ export function buildDailyTradeSummaries(params: {
           }
           m[c.category] = (m[c.category] ?? 0) + delta;
           heldSum += delta;
-          movers.push({ assetName: c.name, delta, category: c.category });
+          let dailyReturnPct: number | null = null;
+          if (ratesCur && ratesPrev) {
+            const prevCny = snapshotItemCny(p.value ?? 0, p.currency, ratesPrev);
+            if (Math.abs(prevCny) > 1e-9) {
+              dailyReturnPct = (delta / prevCny) * 100;
+            }
+          } else if (usdRates && usdRates.CNY > 0) {
+            const prevCny = snapshotItemCny(p.value ?? 0, p.currency, usdRates);
+            if (Math.abs(prevCny) > 1e-9) {
+              dailyReturnPct = (delta / prevCny) * 100;
+            }
+          } else if (c.currency === p.currency) {
+            const prevCny = p.value ?? 0;
+            if (Math.abs(prevCny) > 1e-9) {
+              dailyReturnPct = (delta / prevCny) * 100;
+            }
+          }
+          movers.push({
+            assetName: c.name,
+            delta,
+            category: c.category,
+            dailyReturnPct,
+            liquidated: false,
+            opened: false,
+          });
           continue;
         }
 
         if (c && !p) {
-          const v = snapshotItemCny(c.value ?? 0, c.currency, usdRates);
+          const v = snapshotItemCny(c.value ?? 0, c.currency, pickRatesForDay(day));
           const delta = v;
           m[c.category] = (m[c.category] ?? 0) + delta;
           openCloseSum += delta;
           movers.push({
-            assetName: `${c.name}（新进）`,
+            assetName: c.name,
             delta,
             category: c.category,
+            dailyReturnPct: null,
+            liquidated: false,
+            opened: true,
           });
           continue;
         }
 
         if (!c && p) {
-          const v = snapshotItemCny(p.value ?? 0, p.currency, usdRates);
+          const v = snapshotItemCny(p.value ?? 0, p.currency, pickRatesForDay(prev));
           const delta = -v;
           m[p.category] = (m[p.category] ?? 0) + delta;
           openCloseSum += delta;
           movers.push({
-            assetName: `${p.name}（清仓）`,
+            assetName: p.name,
             delta,
             category: p.category,
+            dailyReturnPct: null,
+            liquidated: true,
+            opened: false,
           });
         }
       }

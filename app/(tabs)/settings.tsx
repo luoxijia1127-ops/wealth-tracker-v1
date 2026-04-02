@@ -5,7 +5,7 @@
 import { SettingsGridTile } from '@/components/settings-grid-tile';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import {
-  filterAssetsForDashboard,
+    filterAssetsForDashboard,
 } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getCachedFxUsdRates } from '@/lib/fx-rates';
@@ -16,16 +16,16 @@ import type { SimpleAsset } from '@/types/asset';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import type { ComponentProps } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
+    Alert,
+    Pressable,
+    ScrollView,
+    Text,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { ComponentProps } from 'react';
 
 type SettingsHref =
   | '/settings-palette'

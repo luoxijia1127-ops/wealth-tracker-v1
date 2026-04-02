@@ -6,28 +6,47 @@
  */
 
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
-import { buildPurposeFields } from '@/lib/add-asset-form';
-import {
-  appendCashMovement,
-  ensureCashBaselineLedger,
-  usesCashAmountLedger,
-} from '@/lib/cash-ledger';
-import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
-import { getShanghaiDateString } from '@/lib/date-shanghai';
+import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
-import { rgbaFromHex } from '@/lib/color-utils';
-import { createAddModalStyles } from '@/lib/modal-styles';
-import { createInsightsStyles } from '@/lib/insights-styles';
-import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
-import { tryApplyListedAdjustTrade } from '@/lib/listed-adjust-trade';
-import { formatExchangeSymbol } from '@/lib/eastmoney-suggest';
-import { ensureBaselineLedger } from '@/lib/trade-ledger';
+import { buildPurposeFields } from '@/lib/add-asset-form';
 import {
   ASSET_CURRENCY_OPTIONS,
   assetCurrencySymbol,
   normalizeAssetCurrency,
 } from '@/lib/asset-currency';
-import { useFocusEffect, useRouter, useGlobalSearchParams } from 'expo-router';
+import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
+import {
+  formatMoney,
+  getAssetCurrency,
+  getAssetDisplayValue,
+  isHeldChineseAsset,
+  isInternationalListedAsset,
+  isListedChineseAsset,
+} from '@/lib/asset-value';
+import {
+  appendCashMovement,
+  ensureCashBaselineLedger,
+  usesCashAmountLedger,
+} from '@/lib/cash-ledger';
+import { rgbaFromHex } from '@/lib/color-utils';
+import { getShanghaiDateString } from '@/lib/date-shanghai';
+import { formatExchangeSymbol } from '@/lib/eastmoney-suggest';
+import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
+import { createInsightsStyles } from '@/lib/insights-styles';
+import { tryApplyListedAdjustTrade } from '@/lib/listed-adjust-trade';
+import { createAddModalStyles } from '@/lib/modal-styles';
+import { ensureBaselineLedger } from '@/lib/trade-ledger';
+import {
+  ASSET_CATEGORY_ORDER,
+  CATEGORY_LABEL_ZH,
+  getListedUnitPrice,
+  isListedAssetCategory,
+  type AssetCategory,
+  type CashLedgerEntry,
+  type SimpleAsset,
+  type TradeLedgerEntry,
+} from '@/types/asset';
+import { useFocusEffect, useGlobalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -42,24 +61,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  formatMoney,
-  getAssetCurrency,
-  getAssetDisplayValue,
-  isHeldChineseAsset,
-  isInternationalListedAsset,
-  isListedChineseAsset,
-} from '@/lib/asset-value';
-import {
-  type AssetCategory,
-  ASSET_CATEGORY_ORDER,
-  CATEGORY_LABEL_ZH,
-  type CashLedgerEntry,
-  getListedUnitPrice,
-  isListedAssetCategory,
-  type SimpleAsset,
-  type TradeLedgerEntry,
-} from '@/types/asset';
 
 type ListedPanel = 'adjust' | 'edit';
 type CashPanel = 'balance' | 'edit';
@@ -813,6 +814,7 @@ export default function AssetActionScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={keyboardOffset}
     >
+      <View style={styles.modalAmbient} pointerEvents="none" />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{
@@ -859,8 +861,11 @@ export default function AssetActionScreen() {
             </View>
 
             {listedPanel === 'adjust' ? (
-              <View style={tabStyles.chartSurface}>
-                <View style={{ padding: 16 }}>
+              <GlassSurface
+                borderRadius={24}
+                intensity={42}
+                contentStyle={{ padding: 16 }}
+              >
                   <Text style={[styles.hintMuted, { marginBottom: 14 }]}>
                     {useGram
                       ? '克数变动：正为买入，负为卖出。成交金额 ≈ |克数|×单价，可任填两项推算第三项。'
@@ -969,11 +974,13 @@ export default function AssetActionScreen() {
                       ))}
                     </View>
                   )}
-                </View>
-              </View>
+              </GlassSurface>
             ) : (
-              <View style={tabStyles.chartSurface}>
-                <View style={{ padding: 16 }}>
+              <GlassSurface
+                borderRadius={24}
+                intensity={42}
+                contentStyle={{ padding: 16 }}
+              >
                   <View style={[styles.headerCard, { marginBottom: 16 }]}>
                     <Text style={styles.headerName}>{asset.name}</Text>
                     <Text style={[styles.headerMeta, { marginTop: 6 }]}>
@@ -1067,8 +1074,7 @@ export default function AssetActionScreen() {
                       {listedMetaSaving ? '保存中…' : '保存编辑信息'}
                     </Text>
                   </Pressable>
-                </View>
-              </View>
+            </GlassSurface>
             )}
           </>
         ) : cashLike ? (
@@ -1098,8 +1104,11 @@ export default function AssetActionScreen() {
             </View>
 
             {cashPanel === 'balance' ? (
-              <View style={tabStyles.chartSurface}>
-                <View style={{ padding: 16 }}>
+              <GlassSurface
+                borderRadius={24}
+                intensity={42}
+                contentStyle={{ padding: 16 }}
+              >
                   <Text style={styles.label}>当前余额</Text>
                   <Text
                     style={{
@@ -1191,11 +1200,13 @@ export default function AssetActionScreen() {
                       ))}
                     </View>
                   )}
-                </View>
-              </View>
+            </GlassSurface>
             ) : (
-              <View style={tabStyles.chartSurface}>
-                <View style={{ padding: 16 }}>
+              <GlassSurface
+                borderRadius={24}
+                intensity={42}
+                contentStyle={{ padding: 16 }}
+              >
                   <Text style={styles.label}>资产名称</Text>
                   <TextInput
                     style={styles.input}
@@ -1295,13 +1306,15 @@ export default function AssetActionScreen() {
                       {cashSaving ? '保存中…' : '保存编辑信息'}
                     </Text>
                   </Pressable>
-                </View>
-              </View>
+            </GlassSurface>
             )}
           </>
         ) : (
-          <View style={tabStyles.chartSurface}>
-            <View style={{ padding: 16 }}>
+          <GlassSurface
+            borderRadius={24}
+            intensity={42}
+            contentStyle={{ padding: 16 }}
+          >
               <Text style={styles.label}>资产名称</Text>
               <TextInput
                 style={styles.input}
@@ -1406,8 +1419,7 @@ export default function AssetActionScreen() {
                   {fbSaving ? '保存中…' : '保存'}
                 </Text>
               </Pressable>
-            </View>
-          </View>
+          </GlassSurface>
         )}
 
         <Pressable

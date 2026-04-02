@@ -7,7 +7,16 @@ import { getAssets } from '@/lib/asset-storage';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getSnapshots } from '@/lib/snapshots';
 import { getAssetDailySnapshots } from '@/lib/asset-daily-snapshots';
-import { getCachedFxUsdRates } from '@/lib/fx-rates';
+import {
+  createFxRatesResolver,
+  getCachedFxUsdRates,
+  getFxUsdRatesHistory,
+} from '@/lib/fx-rates';
+import {
+  financeDeltaColor,
+  FINANCE_DOWN,
+  FINANCE_UP,
+} from '@/lib/finance-colors';
 import {
   buildDailyTradeSummaries,
   filterInternalTradeLines,
@@ -15,8 +24,10 @@ import {
   type DailyTradeLine,
   type DailyTradeSummary,
 } from '@/lib/trade-summary';
+import { CATEGORY_LABEL_ZH } from '@/types/asset';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState, type ReactNode } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -27,9 +38,7 @@ function fmtMoney(n: number): string {
 }
 
 function deltaColor(v: number, themeMuted: string): string {
-  if (v > 0) return '#22A06B';
-  if (v < 0) return '#DC2626';
-  return themeMuted;
+  return financeDeltaColor(v, themeMuted);
 }
 
 function renderTradeLine(
@@ -39,7 +48,7 @@ function renderTradeLine(
 ): ReactNode {
   if (x.kind === 'trade') {
     const side = x.side === 'buy' ? '买' : '卖';
-    const sColor = x.side === 'buy' ? '#DC2626' : '#22A06B';
+    const sColor = x.side === 'buy' ? FINANCE_UP : FINANCE_DOWN;
     return (
       <Text
         key={`t-${idx}-${x.assetId}`}
@@ -56,7 +65,7 @@ function renderTradeLine(
     );
   }
   const side = x.side === 'in' ? '增' : '减';
-  const sColor = x.side === 'in' ? '#22A06B' : '#DC2626';
+  const sColor = x.side === 'in' ? FINANCE_UP : FINANCE_DOWN;
   return (
     <Text
       key={`c-${idx}-${x.assetId}`}
@@ -76,10 +85,21 @@ function renderTradeLine(
 export default function SettingsAttributionScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const params = useLocalSearchParams<{ focusDate?: string }>();
   const [tradeSummaries, setTradeSummaries] = useState<DailyTradeSummary[]>([]);
   const [tradeLoading, setTradeLoading] = useState(false);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [internalOpenDate, setInternalOpenDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    const raw = params.focusDate;
+    const fd =
+      typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
+    if (!fd || tradeLoading || tradeSummaries.length === 0) return;
+    if (tradeSummaries.some((r) => r.date === fd)) {
+      setExpandedDate(fd);
+    }
+  }, [params.focusDate, tradeSummaries, tradeLoading]);
 
   useFocusEffect(
     useCallback(() => {
@@ -87,17 +107,23 @@ export default function SettingsAttributionScreen() {
       setTradeLoading(true);
       (async () => {
         try {
-          const [assets, snaps, assetSnaps, fx] = await Promise.all([
+          const [assets, snaps, assetSnaps, fx, fxHistory] = await Promise.all([
             getAssets(),
             getSnapshots(),
             getAssetDailySnapshots(),
             getCachedFxUsdRates(),
+            getFxUsdRatesHistory(),
           ]);
+          const resolveFxRates = createFxRatesResolver(
+            fxHistory,
+            fx?.rates ?? null
+          );
           const rows = buildDailyTradeSummaries({
             assets,
             snapshots: snaps,
             assetDailySnapshots: assetSnaps,
             usdRates: fx?.rates ?? null,
+            resolveFxRates,
           });
           if (!cancelled) setTradeSummaries(rows);
         } catch {
@@ -142,7 +168,7 @@ export default function SettingsAttributionScreen() {
         }}
       >
         按日对照「总净值快照」变化（折人民币时与 Dashboard 一致）。持仓市值变动含两日均有持仓的涨跌，以及新进/清仓资产；
-        有缓存汇率时逐资产折人民币以对齐跨币种。外部净流入为现金类非内部划转；与现金账户成对的股票买卖默认折叠为「内部划转」。
+        外币逐资产折算使用「汇率历史」：当日市值按当日（或最近可用）中间价、前一日市值按前一日中间价，以减少与总净值口径差。外部净流入为现金类非内部划转；与现金账户成对的股票买卖默认折叠为「内部划转」。
       </Text>
 
       <View style={{ gap: 10 }}>
@@ -280,7 +306,7 @@ export default function SettingsAttributionScreen() {
                             lineHeight: 16,
                           }}
                         >
-                          口径差 {fmtMoney(unexplained!)}（现金外币未折人民币、汇率更新时点与快照不完全同步、舍入等）
+                          口径差 {fmtMoney(unexplained!)}（历史汇率缺失日回退当前缓存、现金外币流水、舍入等）
                         </Text>
                       ) : null}
                     </View>
@@ -334,22 +360,109 @@ export default function SettingsAttributionScreen() {
                     ) : null}
 
                     {d.topMarketMovers && d.topMarketMovers.length > 0 && market !== null ? (
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontWeight: '600',
-                          color: rgbaFromHex(theme.primary, 0.55),
-                          lineHeight: 16,
-                        }}
-                      >
-                        市值贡献：{' '}
-                        {d.topMarketMovers
-                          .map(
-                            (m) =>
-                              `${m.assetName} ${m.delta >= 0 ? '+' : ''}${Math.round(m.delta).toLocaleString()}`
-                          )
-                          .join(' · ')}
-                      </Text>
+                      <View style={{ gap: 8 }}>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '800',
+                            color: rgbaFromHex(theme.primary, 0.55),
+                            letterSpacing: 0.3,
+                          }}
+                        >
+                          市值贡献
+                        </Text>
+                        {d.topMarketMovers.map((m, idx) => (
+                          <View
+                            key={`${m.assetName}-${idx}`}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'flex-start',
+                              justifyContent: 'space-between',
+                              gap: 10,
+                            }}
+                          >
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: '700',
+                                  color: theme.primary,
+                                }}
+                                numberOfLines={2}
+                              >
+                                {m.assetName}
+                              </Text>
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: '600',
+                                  color: muted,
+                                  marginTop: 2,
+                                }}
+                              >
+                                {CATEGORY_LABEL_ZH[m.category]}
+                              </Text>
+                            </View>
+                            <View style={{ alignItems: 'flex-end' }}>
+                              <Text
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: '700',
+                                  color: deltaColor(m.delta, muted),
+                                }}
+                              >
+                                {fmtMoney(m.delta)}
+                              </Text>
+                              {m.liquidated ? (
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: '700',
+                                    color: muted,
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  清仓
+                                </Text>
+                              ) : m.dailyReturnPct !== null ? (
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: '700',
+                                    color: financeDeltaColor(m.dailyReturnPct, muted),
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {m.dailyReturnPct >= 0 ? '+' : ''}
+                                  {m.dailyReturnPct.toFixed(2)}%
+                                </Text>
+                              ) : m.opened ? (
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: '700',
+                                    color: muted,
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  新进
+                                </Text>
+                              ) : (
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: '700',
+                                    color: muted,
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  —
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                        ))}
+                      </View>
                     ) : null}
                   </View>
                 ) : null}

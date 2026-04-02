@@ -4,6 +4,7 @@
 
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { formatMoney } from '@/lib/asset-value';
+import { FINANCE_UP } from '@/lib/finance-colors';
 import {
   CUMULATIVE_CHART_CAP,
   CUMULATIVE_CHART_FLOOR,
@@ -57,7 +58,8 @@ function reasonLabel(m: InvestmentReturnMetric): string {
 
 /** 与散点图内平均参考线一致 */
 const RETURN_AVG_HOLDING_LINE = '#F59E0B';
-const RETURN_AVG_RETURN_LINE = '#22A06B';
+
+const RETURN_AVG_RETURN_LINE = FINANCE_UP;
 
 type ScatterPoint = {
   id: string;

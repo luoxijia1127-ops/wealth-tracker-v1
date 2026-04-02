@@ -5,58 +5,59 @@
  * 股票/基金/ETF：同一套表单，支持 A 股（东财）与美股/港股（OpenFIGI 联想）；收盘价仅由 Dashboard 同步写入。
  */
 
-import {
-  buildCashLikeAsset,
-  buildGoldAsset,
-  buildListedAsset,
-  buildPurposeFields,
-  validateCashLikeForm,
-  validateGoldForm,
-  validateListedForm,
-} from '@/lib/add-asset-form';
-import { saveAssets } from '@/lib/asset-storage';
-import { assetRepository } from '@/lib/repositories/asset-repository';
-import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
-import { getShanghaiDateString } from '@/lib/date-shanghai';
-import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
-import { formatExchangeSymbol } from '@/lib/eastmoney-suggest';
-import {
-  searchUnifiedInstruments,
-  type UnifiedSuggestItem,
-} from '@/lib/instrument-search';
+import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
+import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import {
+    buildCashLikeAsset,
+    buildGoldAsset,
+    buildListedAsset,
+    buildPurposeFields,
+    validateCashLikeForm,
+    validateGoldForm,
+    validateListedForm,
+} from '@/lib/add-asset-form';
+import {
+    ASSET_CURRENCY_OPTIONS,
+    assetCurrencySymbol,
+    normalizeAssetCurrency,
+} from '@/lib/asset-currency';
+import { saveAssets } from '@/lib/asset-storage';
+import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { getShanghaiDateString } from '@/lib/date-shanghai';
+import { formatExchangeSymbol } from '@/lib/eastmoney-suggest';
+import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
+import {
+    searchUnifiedInstruments,
+    type UnifiedSuggestItem,
+} from '@/lib/instrument-search';
 import { createAddModalStyles } from '@/lib/modal-styles';
-import { useRouter, useNavigation } from 'expo-router';
+import { assetRepository } from '@/lib/repositories/asset-repository';
+import {
+    ASSET_CATEGORY_ORDER,
+    CATEGORY_LABEL_ZH,
+    generateAssetId,
+    isListedAssetCategory,
+    type AssetCategory,
+    type ListingExchange,
+    type SimpleAsset,
+} from '@/types/asset';
+import { useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
-import {
-  ASSET_CURRENCY_OPTIONS,
-  assetCurrencySymbol,
-  normalizeAssetCurrency,
-} from '@/lib/asset-currency';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  type AssetCategory,
-  ASSET_CATEGORY_ORDER,
-  CATEGORY_LABEL_ZH,
-  isListedAssetCategory,
-  type ListingExchange,
-  type SimpleAsset,
-  generateAssetId,
-} from '@/types/asset';
-import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 
 export default function AddModal() {
   const router = useRouter();
@@ -410,12 +411,13 @@ export default function AddModal() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={keyboardOffset}
     >
+      <View style={styles.modalAmbient} pointerEvents="none" />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{
           paddingTop: 12,
           paddingBottom: insets.bottom + 120,
-          paddingHorizontal: 24,
+          paddingHorizontal: 14,
           flexGrow: 1,
         }}
         keyboardShouldPersistTaps="handled"
@@ -423,6 +425,7 @@ export default function AddModal() {
         showsVerticalScrollIndicator={false}
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
+        <GlassSurface borderRadius={32} intensity={50} contentStyle={styles.glassFormInner}>
         <Text style={styles.label}>资产类别</Text>
         <View style={styles.optionsRow}>
           {ASSET_CATEGORY_ORDER.map((opt) => (
@@ -705,6 +708,7 @@ export default function AddModal() {
             {saving ? '保存中…' : '保存'}
           </Text>
         </Pressable>
+        </GlassSurface>
       </ScrollView>
 
       <Modal

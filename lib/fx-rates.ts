@@ -8,6 +8,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ENDPOINTS } from '@/lib/config/endpoints';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
+import { upsertFxUsdRatesHistory } from '@/lib/fx-rates-history';
 
 const STORAGE_KEY = 'fx_usd_mid_rates_v1';
 
@@ -103,9 +104,11 @@ export async function ensureFxUsdRatesForToday(): Promise<{
       rates: { ...rates, CNY: rates.CNY },
     };
     await saveCachedFxUsdRates(next);
+    void upsertFxUsdRatesHistory(next);
     return { rates: next, source: 'network' };
   } catch {
     if (cached) {
+      void upsertFxUsdRatesHistory(cached);
       return { rates: cached, source: 'stale' };
     }
     return { rates: null, source: 'none' };
@@ -140,3 +143,9 @@ export async function convertListingCostToCnyCashDebit(
   }
   return { ok: true, cny };
 }
+
+export {
+  createFxRatesResolver,
+  getFxUsdRatesHistory,
+  upsertFxUsdRatesHistory,
+} from '@/lib/fx-rates-history';

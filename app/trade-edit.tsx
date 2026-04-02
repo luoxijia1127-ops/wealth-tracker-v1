@@ -3,31 +3,31 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
-import { rgbaFromHex } from '@/lib/color-utils';
-import { createAddModalStyles } from '@/lib/modal-styles';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
 import { deleteCashLedgerEntry, updateCashLedgerEntry } from '@/lib/cash-ledger';
+import { rgbaFromHex } from '@/lib/color-utils';
+import { createAddModalStyles } from '@/lib/modal-styles';
 import {
-  deleteListedTradeEntry,
-  updateListedTradeEntry,
+    deleteListedTradeEntry,
+    updateListedTradeEntry,
 } from '@/lib/trade-ledger';
-import { useGlobalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SimpleAsset, TradeLedgerEntry } from '@/types/asset';
 import { getListedUnitPrice } from '@/types/asset';
+import { useFocusEffect } from '@react-navigation/native';
+import { useGlobalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    Text,
+    TextInput,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function preserveQuotes(from: SimpleAsset, to: SimpleAsset): SimpleAsset {
   return {

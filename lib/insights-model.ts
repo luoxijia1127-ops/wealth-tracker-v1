@@ -145,6 +145,21 @@ export function formatChange(diff: number, pct: number): string {
   return `${sign}${Math.round(diff).toLocaleString()} (${sign}${pct.toFixed(1)}%)`;
 }
 
+/**
+ * Insights 顶部「今日盈亏」分行：金额（含 ±¥）与百分比（四位小数），便于与参考图一致排版。
+ */
+export function formatInsightsPnlParts(diff: number, pct: number): {
+  amountText: string;
+  pctText: string;
+} {
+  const sign = diff >= 0 ? '+' : '−';
+  const body = formatMoney(Math.abs(diff), 'CNY');
+  const amountText = `${sign}${body}`;
+  const signPct = pct >= 0 ? '+' : '−';
+  const pctText = `${signPct}${Math.abs(pct).toFixed(4)}%`;
+  return { amountText, pctText };
+}
+
 export function toTrendChartModel(snapshots: Snapshot[]): TrendChartModel {
   const dates = snapshots.map((s) => s.date);
   const labels = buildSparseMonthDayLabels(dates, 7);

@@ -4,8 +4,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import { FontRoot } from '@/components/font-root';
 import { AppPaletteProvider } from '@/contexts/app-palette-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AppFont } from '@/lib/app-fonts';
 import { purgeLegacyTestSnapshotDatesOnce } from '@/lib/legacy-test-snapshot-purge';
 
 // Anchor keeps (tabs) in the background when /modal is presented, so the tab context
@@ -23,8 +25,17 @@ export default function RootLayout() {
 
   return (
     <AppPaletteProvider>
+      <FontRoot>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
+        <Stack
+          screenOptions={{
+            headerTitleStyle: {
+              fontFamily: AppFont.bold,
+              fontSize: 17,
+              fontWeight: '700',
+            },
+          }}
+        >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
             name="modal"
@@ -97,6 +108,7 @@ export default function RootLayout() {
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
+      </FontRoot>
     </AppPaletteProvider>
   );
 }

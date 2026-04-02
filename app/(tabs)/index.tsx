@@ -14,12 +14,13 @@
  * 浅色「文件夹」交互：大类默认只显示合计 + 资产名摘要；点击展开明细；展开时头部用类别色条填充。
  */
 
+import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { BALANCE_INK } from '@/lib/finance-colors';
 import { deleteAsset, getAssets } from '@/lib/asset-storage';
 import {
   filterAssetsForDashboard,
   formatMoney,
-  formatNetWorthLines,
   formatNetWorthSummary,
   getAssetCurrency,
   getAssetDisplayValue,
@@ -29,6 +30,7 @@ import {
 } from '@/lib/asset-value';
 import { getCachedFxUsdRates } from '@/lib/fx-rates';
 import { rgbaFromHex } from '@/lib/color-utils';
+import type { AppPaletteTheme } from '@/lib/app-palette';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import {
@@ -46,7 +48,6 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -330,9 +331,11 @@ function AssetRow({
 function DashboardHeader({
   insets,
   styles,
+  theme,
 }: {
   insets: { top: number; right: number; left: number };
   styles: DashboardStyles;
+  theme: AppPaletteTheme;
 }) {
   return (
     <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -347,7 +350,18 @@ function DashboardHeader({
         }}
         accessibilityLabel="添加资产"
       >
-        <MaterialIcons name="add" size={28} color="#FFFFFF" />
+        <GlassSurface
+          borderRadius={27}
+          intensity={56}
+          style={styles.headerAddFab}
+          contentStyle={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <MaterialIcons name="add" size={28} color={theme.primary} />
+        </GlassSurface>
       </Pressable>
     </View>
   );
@@ -359,6 +373,15 @@ export default function Dashboard() {
   const chevronMuted = useMemo(
     () => rgbaFromHex(theme.primary, 0.38),
     [theme.primary]
+  );
+
+  const decorColors = useMemo(
+    () => [
+      rgbaFromHex('#8EA8C8', 0.4),
+      rgbaFromHex('#9EC4E8', 0.32),
+      rgbaFromHex('#B8D6F0', 0.26),
+    ],
+    []
   );
 
   const insets = useSafeAreaInsets();
@@ -498,7 +521,34 @@ export default function Dashboard() {
   if (loading) {
     return (
       <View style={styles.screenWrapper}>
-        <DashboardHeader insets={insets} styles={styles} />
+        <View style={styles.dashboardAmbient} pointerEvents="none" />
+        <View style={styles.decorWrap} pointerEvents="none">
+          <View
+            style={[
+              styles.decorBlob,
+              {
+                width: 240,
+                height: 300,
+                top: -50,
+                left: -70,
+                backgroundColor: decorColors[0],
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.decorBlob,
+              {
+                width: 300,
+                height: 280,
+                top: 100,
+                right: -90,
+                backgroundColor: decorColors[1],
+              },
+            ]}
+          />
+        </View>
+        <DashboardHeader insets={insets} styles={styles} theme={theme} />
         <View style={[styles.container, styles.centered]}>
           <ActivityIndicator size="large" color={theme.primary} />
         </View>
@@ -508,7 +558,46 @@ export default function Dashboard() {
 
   return (
     <View style={styles.screenWrapper}>
-      <DashboardHeader insets={insets} styles={styles} />
+      <View style={styles.dashboardAmbient} pointerEvents="none" />
+      <View style={styles.decorWrap} pointerEvents="none">
+        <View
+          style={[
+            styles.decorBlob,
+            {
+              width: 240,
+              height: 300,
+              top: -50,
+              left: -70,
+              backgroundColor: decorColors[0],
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.decorBlob,
+            {
+              width: 300,
+              height: 280,
+              top: 100,
+              right: -90,
+              backgroundColor: decorColors[1],
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.decorBlob,
+            {
+              width: 200,
+              height: 200,
+              bottom: 120,
+              left: 10,
+              backgroundColor: decorColors[2],
+            },
+          ]}
+        />
+      </View>
+      <DashboardHeader insets={insets} styles={styles} theme={theme} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={[
@@ -516,12 +605,13 @@ export default function Dashboard() {
           {
             paddingBottom: insets.bottom + 32,
             flexGrow: 1,
-            backgroundColor: theme.pageBg,
+            backgroundColor: 'transparent',
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
       {/* 1. Net Worth — large, centered (below header) */}
+      <GlassSurface borderRadius={32} intensity={52}>
       <View style={styles.netWorthSection}>
         <Text style={styles.netWorthLabel}>Net Worth</Text>
         {netWorthCny !== null && Number.isFinite(netWorthCny) ? (
@@ -529,7 +619,7 @@ export default function Dashboard() {
             <AssetPrimaryValue
               amount={netWorthCny}
               currency="CNY"
-              accentColor={theme.primary}
+              accentColor={BALANCE_INK}
               styles={styles}
               hero
             />
@@ -561,13 +651,16 @@ export default function Dashboard() {
           </View>
         ) : null}
       </View>
+      </GlassSurface>
 
       {/* 2. Grouped asset structure: Category → Assets (collapsible) */}
       <View style={styles.assetStructureSection}>
         {dashboardAssets.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Add assets from the Add tab</Text>
-          </View>
+          <GlassSurface borderRadius={28} intensity={44}>
+            <View style={styles.emptyCardInner}>
+              <Text style={styles.emptyText}>Add assets from the Add tab</Text>
+            </View>
+          </GlassSurface>
         ) : (
           <View style={styles.groupsContainer}>
             {CATEGORY_ORDER.map((category) => {
@@ -575,7 +668,7 @@ export default function Dashboard() {
               if (!list || list.length === 0) return null;
 
               const isCategoryExpanded = expandedCategories.has(category);
-              const categoryTotalText = formatNetWorthLines(list);
+              const categoryNetWorth = formatNetWorthSummary(list);
               const accent =
                 theme.categoryAccents[category as AssetCategory] ??
                 theme.primary;
@@ -584,14 +677,11 @@ export default function Dashboard() {
               const foot = categoryQuoteFootnote(list);
 
               return (
-                <View
+                <GlassSurface
                   key={category}
-                  style={[
-                    styles.categoryCardShadow,
-                    Platform.OS === 'ios'
-                      ? styles.categoryCardShadowIOS
-                      : styles.categoryCardShadowAndroid,
-                  ]}
+                  borderRadius={28}
+                  intensity={46}
+                  style={styles.categoryGlassOuter}
                 >
                   <View style={styles.folderCard}>
                     <View
@@ -635,11 +725,12 @@ export default function Dashboard() {
                           <Text
                             style={[
                               styles.folderTotal,
+                              categoryNetWorth.lines.includes('\n') &&
+                                styles.folderTotalMultiline,
                               isCategoryExpanded && styles.folderTotalOnAccent,
                             ]}
-                            numberOfLines={2}
                           >
-                            {categoryTotalText}
+                            {categoryNetWorth.lines}
                           </Text>
                           {foot && !isCategoryExpanded ? (
                             <Text style={styles.folderFootDate}>{foot}</Text>
@@ -672,7 +763,7 @@ export default function Dashboard() {
                       ) : null}
                     </View>
                   </View>
-                </View>
+                </GlassSurface>
               );
             })}
           </View>

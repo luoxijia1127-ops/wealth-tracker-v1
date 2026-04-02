@@ -27,18 +27,11 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       paddingBottom: 20,
       gap: 20,
     },
-    heroCard: {
-      borderRadius: 34,
-      paddingVertical: 28,
-      paddingHorizontal: 24,
-      backgroundColor: 'rgba(255,255,255,0.94)',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255,255,255,0.95)',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.07,
-      shadowRadius: 22,
-      elevation: 4,
+    /** 外层由 GlassSurface 承担圆角与模糊，内层仅留白 */
+    heroCardInner: {
+      paddingVertical: 26,
+      paddingHorizontal: 22,
+      backgroundColor: 'transparent',
     },
     card: {
       borderRadius: 28,
@@ -77,20 +70,50 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       marginBottom: 16,
     },
     currentValue: {
-      fontSize: 36,
+      fontSize: 40,
       fontWeight: '800',
-      letterSpacing: -0.7,
-      marginBottom: 4,
+      letterSpacing: -0.85,
+      marginBottom: 6,
     },
     unconvertedHint: {
       fontSize: 12,
       marginBottom: 6,
       lineHeight: 17,
     },
-    changeText: {
+    changeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    changeRowLeft: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 10,
+    },
+    changeLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    changeValues: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'baseline',
+      gap: 8,
+    },
+    changeAmount: {
+      fontSize: 16,
+      fontWeight: '700',
+      letterSpacing: -0.25,
+    },
+    changePct: {
       fontSize: 14,
       fontWeight: '600',
-      marginBottom: 20,
     },
     chartSection: {
       marginTop: 0,
@@ -178,12 +201,12 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       flex: 1,
       paddingVertical: 12,
       paddingHorizontal: 12,
-      borderRadius: 16,
+      borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(255,255,255,0.78)',
+      backgroundColor: 'rgba(255,255,255,0.38)',
       borderWidth: 1,
-      borderColor: p10,
+      borderColor: 'rgba(255,255,255,0.42)',
     },
     tabChipActive: {
       backgroundColor: t.primary,
@@ -209,9 +232,9 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     chartSurface: {
       borderRadius: 24,
       overflow: 'hidden',
-      backgroundColor: 'rgba(255,255,255,0.95)',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255,255,255,0.95)',
+      backgroundColor: 'rgba(255,255,255,0.42)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.4)',
     },
     timeframeRow: {
       flexDirection: 'row',

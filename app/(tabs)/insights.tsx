@@ -8,8 +8,10 @@ import {
 } from '@/components/insights/insights-distribution';
 import { GoalProgressCard } from '@/components/insights/insights-goal-cards';
 import { InsightsTrendChart } from '@/components/insights/insights-trend-tab';
+import { GlassSurface } from '@/components/glass-surface';
 import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { BALANCE_INK, financeDeltaColor } from '@/lib/finance-colors';
 import { formatMoney } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
@@ -24,7 +26,7 @@ import {
 import {
   buildDonutSlices,
   filterSnapshotsByTimeframe,
-  formatChange,
+  formatInsightsPnlParts,
   getCentroidForCategory,
   getDailyChange,
   INSIGHTS_CHART_TABS,
@@ -41,7 +43,9 @@ import {
   type Snapshot,
 } from '@/lib/snapshots';
 import type { AssetCategory, SimpleAsset } from '@/types/asset';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -320,7 +324,8 @@ export default function Insights() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
+        <GlassSurface borderRadius={34} intensity={46}>
+          <View style={styles.heroCardInner}>
           <Text style={[styles.cardKicker, { color: textSecondary }]}>
             {latest && typeof latest.totalValueCny === 'number'
               ? '折合人民币（快照）'
@@ -339,7 +344,7 @@ export default function Insights() {
             </Text>
           ) : hasSnapshotTrend ? (
             <>
-              <Text style={[styles.currentValue, { color: theme.primary }]}>
+              <Text style={[styles.currentValue, { color: BALANCE_INK }]}>
                 {latest
                   ? formatMoney(snapshotDisplayTotal(latest), 'CNY')
                   : ''}
@@ -351,25 +356,60 @@ export default function Insights() {
                     : '已按中间价折算为人民币'
                   : '历史或未同步汇率时为各币种数值直接相加'}
               </Text>
-              {dailyChange && (
-                <Text
-                  style={[
-                    styles.changeText,
-                    dailyChange.diff > 0 && { color: '#22A06B' },
-                    dailyChange.diff < 0 && { color: '#DC2626' },
-                    dailyChange.diff === 0 && { color: textSecondary },
-                  ]}
+              {dailyChange && latest ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="在净值归因中查看当日盈亏明细"
+                  onPress={() => {
+                    router.push({
+                      pathname: '/settings-attribution',
+                      params: { focusDate: latest.date },
+                    });
+                  }}
+                  style={styles.changeRow}
                 >
-                  较上一快照 {formatChange(dailyChange.diff, dailyChange.pct)}
-                </Text>
-              )}
+                  <View style={styles.changeRowLeft}>
+                    <Text style={[styles.changeLabel, { color: textSecondary }]}>
+                      今日盈亏
+                    </Text>
+                    <View style={styles.changeValues}>
+                      {(() => {
+                        const pnl = formatInsightsPnlParts(
+                          dailyChange.diff,
+                          dailyChange.pct
+                        );
+                        const deltaC = financeDeltaColor(
+                          dailyChange.diff,
+                          textSecondary
+                        );
+                        return (
+                          <>
+                            <Text style={[styles.changeAmount, { color: deltaC }]}>
+                              {pnl.amountText}
+                            </Text>
+                            <Text style={[styles.changePct, { color: deltaC }]}>
+                              {pnl.pctText}
+                            </Text>
+                          </>
+                        );
+                      })()}
+                    </View>
+                  </View>
+                  <MaterialIcons
+                    name="chevron-right"
+                    size={22}
+                    color={textMuted}
+                  />
+                </Pressable>
+              ) : null}
             </>
           ) : (
             <Text style={[styles.snapshotFallback, { color: textSecondary }]}>
               暂无净值快照。在 Dashboard 同步行情后可查看资产变动曲线；下方可查看当前持仓分布。
             </Text>
           )}
-        </View>
+          </View>
+        </GlassSurface>
 
         {!loading && showChartChrome && (
           <View style={styles.card}>

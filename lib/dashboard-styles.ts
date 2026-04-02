@@ -22,9 +22,22 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       flex: 1,
       backgroundColor: t.pageBg,
     },
+    /** 轻冷色氛围层（铺在 pageBg 之上，供玻璃卡片折射） */
+    dashboardAmbient: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(120, 145, 185, 0.09)',
+    },
+    decorWrap: {
+      ...StyleSheet.absoluteFillObject,
+      overflow: 'hidden',
+    },
+    decorBlob: {
+      position: 'absolute',
+      borderRadius: 999,
+    },
     container: {
       flex: 1,
-      backgroundColor: t.pageBg,
+      backgroundColor: 'transparent',
     },
     header: {
       flexDirection: 'row',
@@ -32,7 +45,7 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       justifyContent: 'space-between',
       paddingHorizontal: 24,
       paddingBottom: 16,
-      backgroundColor: t.pageBg,
+      backgroundColor: 'transparent',
     },
     headerTitle: {
       fontSize: 30,
@@ -44,23 +57,8 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       width: 54,
       height: 54,
       borderRadius: 27,
-      backgroundColor: t.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.6)',
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.12,
-          shadowRadius: 20,
-        },
-        android: {
-          elevation: 7,
-        },
-        default: {},
-      }),
     },
     headerAddFabPressed: {
       opacity: 0.88,
@@ -75,24 +73,11 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       paddingTop: 24,
       gap: 24,
     },
+    /** 净值卡片内层（外层由 GlassSurface 包裹） */
     netWorthSection: {
       alignItems: 'center',
       paddingVertical: 26,
       paddingHorizontal: 20,
-      borderRadius: 32,
-      backgroundColor: 'rgba(255, 255, 255, 0.8)',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255, 255, 255, 0.95)',
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.07,
-          shadowRadius: 24,
-        },
-        android: { elevation: 4 },
-        default: {},
-      }),
     },
     netWorthLabel: {
       fontSize: 12,
@@ -153,27 +138,15 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     groupsContainer: {
       gap: 20,
     },
-    categoryCardShadow: {
-      borderRadius: 28,
-      backgroundColor: 'transparent',
-    },
-    categoryCardShadowIOS: {
-      shadowColor: '#000000',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.07,
-      shadowRadius: 22,
-    },
-    categoryCardShadowAndroid: {
-      elevation: 5,
+    categoryGlassOuter: {
+      marginBottom: 0,
     },
     folderCard: {
       flexDirection: 'row',
       alignItems: 'stretch',
       borderRadius: 28,
-      backgroundColor: 'rgba(255, 255, 255, 0.94)',
+      backgroundColor: 'transparent',
       overflow: 'hidden',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255, 255, 255, 0.95)',
     },
     folderAccentStrip: {
       width: 8,
@@ -181,7 +154,7 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     },
     folderBody: {
       flex: 1,
-      backgroundColor: 'rgba(255, 255, 255, 0.96)',
+      backgroundColor: 'transparent',
     },
     folderHeader: {
       flexDirection: 'row',
@@ -216,13 +189,20 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     },
     folderHeaderRight: {
       alignItems: 'flex-end',
-      maxWidth: '46%',
+      maxWidth: '54%',
+      minWidth: 0,
     },
     folderTotal: {
       fontSize: 18,
       fontWeight: '800',
       color: t.primary,
       textAlign: 'right',
+    },
+    /** 多币种分行合计时略缩小字号，避免三行及以上顶破布局 */
+    folderTotalMultiline: {
+      fontSize: 14,
+      lineHeight: 20,
+      fontWeight: '800',
     },
     folderTotalOnAccent: {
       color: '#FFFFFF',
@@ -246,7 +226,7 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       paddingHorizontal: 12,
       paddingBottom: 14,
       paddingTop: 6,
-      backgroundColor: t.folderListBg,
+      backgroundColor: 'rgba(255, 255, 255, 0.38)',
       borderBottomLeftRadius: 24,
       borderBottomRightRadius: 24,
     },
@@ -266,24 +246,24 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       marginBottom: 12,
       paddingVertical: 15,
       paddingHorizontal: 15,
-      backgroundColor: 'rgba(255, 255, 255, 0.98)',
-      borderRadius: 20,
+      backgroundColor: 'rgba(255, 255, 255, 0.42)',
+      borderRadius: 22,
       borderWidth: 1,
-      borderColor: p08,
+      borderColor: 'rgba(255, 255, 255, 0.45)',
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.05,
-          shadowRadius: 10,
+          shadowColor: '#1a2744',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.08,
+          shadowRadius: 14,
         },
-        android: { elevation: 2 },
+        android: { elevation: 3 },
         default: {},
       }),
     },
     assetRowPressed: {
-      opacity: 0.94,
-      backgroundColor: '#FFFEFC',
+      opacity: 0.92,
+      backgroundColor: 'rgba(255, 255, 255, 0.58)',
     },
     assetRowLeft: {
       flex: 1,
@@ -355,22 +335,9 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       marginLeft: 2,
       marginTop: 4,
     },
-    emptyCard: {
-      backgroundColor: 'rgba(255, 255, 255, 0.82)',
-      borderRadius: 28,
+    emptyCardInner: {
       padding: 32,
       alignItems: 'center',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255, 255, 255, 0.95)',
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.06,
-          shadowRadius: 20,
-        },
-        android: { elevation: 4 },
-      }),
     },
     emptyText: {
       fontSize: 17,

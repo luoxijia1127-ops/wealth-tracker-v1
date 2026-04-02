@@ -7,6 +7,7 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { AppFont } from '@/lib/app-fonts';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
 import React, { useMemo } from 'react';
@@ -21,6 +22,10 @@ export default function TabLayout() {
       tabBarStyle: {
         backgroundColor: theme.tabBarBg,
         borderTopColor: theme.tabBarBorder,
+      },
+      tabBarLabelStyle: {
+        fontFamily: AppFont.semiBold,
+        fontSize: 11,
       },
       sceneStyle: { backgroundColor: theme.pageBg },
       headerShown: false as const,

@@ -4,7 +4,7 @@
 
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { rgbaFromHex } from '@/lib/color-utils';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export function createAddModalStyles(t: AppPaletteTheme) {
   const p = t.primary;
@@ -22,23 +22,35 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       flex: 1,
       backgroundColor: t.pageBg,
     },
+    modalAmbient: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(120, 145, 185, 0.08)',
+    },
     container: {
       flex: 1,
-      backgroundColor: t.pageBg,
+      backgroundColor: 'transparent',
+    },
+    glassFormInner: {
+      padding: 18,
     },
     headerCard: {
       marginTop: 4,
       marginBottom: 10,
       padding: 18,
       borderRadius: 22,
-      backgroundColor: 'rgba(255,255,255,0.94)',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: p12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.07,
-      shadowRadius: 16,
-      elevation: 3,
+      backgroundColor: 'rgba(255,255,255,0.38)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.42)',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#1a2744',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.08,
+          shadowRadius: 18,
+        },
+        android: { elevation: 4 },
+        default: {},
+      }),
     },
     headerCode: {
       fontSize: 15,
@@ -93,10 +105,10 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       minWidth: 56,
       paddingVertical: 13,
       paddingHorizontal: 12,
-      borderRadius: 14,
-      backgroundColor: 'rgba(255,255,255,0.92)',
+      borderRadius: 16,
+      backgroundColor: 'rgba(255,255,255,0.4)',
       borderWidth: 1,
-      borderColor: p12,
+      borderColor: 'rgba(255,255,255,0.45)',
     },
     currencyChipStatic: {
       minWidth: 44,
@@ -104,10 +116,10 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       justifyContent: 'center',
       paddingVertical: 13,
       paddingHorizontal: 12,
-      borderRadius: 14,
-      backgroundColor: 'rgba(255,255,255,0.92)',
+      borderRadius: 16,
+      backgroundColor: 'rgba(255,255,255,0.4)',
       borderWidth: 1,
-      borderColor: p12,
+      borderColor: 'rgba(255,255,255,0.45)',
     },
     currencyChipText: {
       fontSize: 17,
@@ -128,12 +140,12 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 10,
-      backgroundColor: 'rgba(255,255,255,0.94)',
+      backgroundColor: 'rgba(255,255,255,0.4)',
       paddingVertical: 15,
       paddingHorizontal: 14,
-      borderRadius: 14,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: p12,
+      borderColor: 'rgba(255,255,255,0.42)',
     },
     selectFieldButtonText: {
       flex: 1,
@@ -215,10 +227,10 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     option: {
       paddingVertical: 11,
       paddingHorizontal: 16,
-      borderRadius: 14,
-      backgroundColor: 'rgba(255,255,255,0.94)',
-      borderWidth: 1.5,
-      borderColor: p12,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255,255,255,0.38)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.42)',
     },
     optionSelected: {
       backgroundColor: p06,
@@ -234,13 +246,13 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       fontWeight: '600',
     },
     input: {
-      backgroundColor: 'rgba(255,255,255,0.94)',
+      backgroundColor: 'rgba(255,255,255,0.42)',
       color: p,
       padding: 15,
-      borderRadius: 14,
+      borderRadius: 16,
       fontSize: 16,
       borderWidth: 1,
-      borderColor: p12,
+      borderColor: 'rgba(255,255,255,0.45)',
     },
     valueInputHighlight: {
       borderColor: p,
@@ -275,10 +287,10 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     },
     suggestBox: {
       marginTop: 8,
-      borderRadius: 10,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: p12,
-      backgroundColor: '#FFFFFF',
+      borderColor: 'rgba(255,255,255,0.4)',
+      backgroundColor: 'rgba(255,255,255,0.55)',
       overflow: 'hidden',
       maxHeight: 220,
     },
@@ -310,10 +322,10 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     selectedCard: {
       marginTop: 14,
       padding: 14,
-      borderRadius: 18,
-      backgroundColor: 'rgba(255,255,255,0.9)',
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.4)',
       borderWidth: 1,
-      borderColor: p14,
+      borderColor: 'rgba(255,255,255,0.45)',
     },
     selectedLabel: {
       fontSize: 12,
@@ -336,20 +348,22 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       marginTop: 32,
       backgroundColor: p,
       paddingVertical: 16,
-      borderRadius: 18,
+      borderRadius: 22,
       alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 16,
-      elevation: 4,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.35)',
+      shadowColor: '#1a2744',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.14,
+      shadowRadius: 20,
+      elevation: 6,
     },
     saveButtonDisabled: {
       opacity: 0.55,
     },
     saveButtonText: {
       fontSize: 17,
-      fontWeight: '600',
+      fontWeight: '700',
       color: '#FFFFFF',
     },
   });
