@@ -104,3 +104,49 @@ export async function fetchDailySettlementClose(
   }
   return picked;
 }
+
+/**
+ * 拉取更长日 K，取「最后一根 tradeDate ≤ asOfYmd」的收盘价（用于按交易日回填成本）。
+ */
+export async function fetchEastMoneyCloseOnOrBefore(
+  secid: string,
+  asOfYmd: string,
+  signal?: AbortSignal
+): Promise<DailyCloseQuote | null> {
+  const params = new URLSearchParams({
+    secid,
+    ut: EASTMONEY_UT,
+    fields1: 'f1,f2,f3,f4,f5,f6',
+    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
+    klt: '101',
+    fqt: '1',
+    end: '20500101',
+    lmt: '500',
+  });
+  const url = `${KLINE_URL}?${params.toString()}`;
+  const res = await fetch(url, { signal });
+  if (!res.ok) return null;
+  const json = (await res.json()) as {
+    rc?: number;
+    data?: { klines?: string[]; name?: string };
+  };
+  if (json.rc !== undefined && json.rc !== 0) return null;
+  const klines = json.data?.klines;
+  if (!klines?.length) return null;
+
+  const bars: DailyCloseQuote[] = [];
+  for (const k of klines) {
+    const p = parseKlineLast(k);
+    if (p) bars.push(p);
+  }
+  bars.sort((a, b) => a.tradeDate.localeCompare(b.tradeDate));
+  let best: DailyCloseQuote | null = null;
+  for (const b of bars) {
+    if (b.tradeDate <= asOfYmd) best = b;
+  }
+  if (!best) return null;
+  if (typeof json.data?.name === 'string' && json.data.name.length > 0) {
+    return { ...best, name: json.data.name };
+  }
+  return best;
+}

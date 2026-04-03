@@ -2,6 +2,8 @@
  * 编辑或删除单条加减仓流水。
  */
 
+import { FormRow } from '@/components/add-asset/form-row';
+import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
 import { deleteCashLedgerEntry, updateCashLedgerEntry } from '@/lib/cash-ledger';
@@ -17,15 +19,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useGlobalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -62,6 +64,10 @@ export default function TradeEditScreen() {
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
   const placeholderColor = useMemo(
     () => rgbaFromHex(theme.primary, 0.42),
+    [theme.primary]
+  );
+  const iconMuted = useMemo(
+    () => rgbaFromHex(theme.primary, 0.5),
     [theme.primary]
   );
 
@@ -287,93 +293,123 @@ export default function TradeEditScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
     >
+      <View style={styles.modalAmbient} pointerEvents="none" />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{
           paddingTop: 12,
           paddingBottom: insets.bottom + 40,
-          paddingHorizontal: 24,
+          paddingHorizontal: 14,
         }}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.label}>方向</Text>
-        <View style={styles.optionsRow}>
-          <Pressable
-            style={[styles.option, side === 'buy' && styles.optionSelected]}
-            onPress={() => setSide('buy')}
+        <GlassSurface borderRadius={32} intensity={50} contentStyle={styles.glassFormInner}>
+          <FormRow
+            first
+            styles={styles}
+            iconMuted={iconMuted}
+            icon="swap-horizontal-outline"
+            label="方向"
           >
-            <Text
-              style={[
-                styles.optionText,
-                side === 'buy' && styles.optionTextSelected,
-              ]}
-            >
-              买入
+            <View style={styles.optionsRow}>
+              <Pressable
+                style={[styles.option, side === 'buy' && styles.optionSelected]}
+                onPress={() => setSide('buy')}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    side === 'buy' && styles.optionTextSelected,
+                  ]}
+                >
+                  买入
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.option, side === 'sell' && styles.optionSelected]}
+                onPress={() => setSide('sell')}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    side === 'sell' && styles.optionTextSelected,
+                  ]}
+                >
+                  卖出
+                </Text>
+              </Pressable>
+            </View>
+          </FormRow>
+
+          <FormRow
+            styles={styles}
+            iconMuted={iconMuted}
+            icon="calendar-outline"
+            label="成交日期（YYYY-MM-DD）"
+          >
+            <TextInput
+              style={styles.input}
+              value={tradeDate}
+              onChangeText={setTradeDate}
+              placeholder="2025-03-21"
+              placeholderTextColor={placeholderColor}
+            />
+          </FormRow>
+
+          <FormRow
+            styles={styles}
+            iconMuted={iconMuted}
+            icon={useGram ? 'fitness-outline' : 'pie-chart-outline'}
+            label={useGram ? '克数' : '份额'}
+          >
+            <TextInput
+              style={styles.input}
+              value={shares}
+              onChangeText={setShares}
+              keyboardType="decimal-pad"
+              placeholderTextColor={placeholderColor}
+            />
+          </FormRow>
+
+          <FormRow
+            styles={styles}
+            iconMuted={iconMuted}
+            icon="pricetag-outline"
+            label="成交单价"
+          >
+            <TextInput
+              style={styles.input}
+              value={unitPrice}
+              onChangeText={setUnitPrice}
+              keyboardType="decimal-pad"
+              placeholderTextColor={placeholderColor}
+            />
+          </FormRow>
+
+          <Pressable
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={() => void onSave()}
+            disabled={saving}
+          >
+            <Text style={styles.saveButtonText}>
+              {saving ? '保存中…' : '保存'}
             </Text>
           </Pressable>
+
           <Pressable
-            style={[styles.option, side === 'sell' && styles.optionSelected]}
-            onPress={() => setSide('sell')}
+            style={[
+              styles.saveButton,
+              { marginTop: 14, backgroundColor: 'rgba(220, 38, 38, 0.9)' },
+              saving && styles.saveButtonDisabled,
+            ]}
+            onPress={onDelete}
+            disabled={saving}
           >
-            <Text
-              style={[
-                styles.optionText,
-                side === 'sell' && styles.optionTextSelected,
-              ]}
-            >
-              卖出
-            </Text>
+            <Text style={styles.saveButtonText}>删除此流水</Text>
           </Pressable>
-        </View>
-
-        <Text style={styles.label}>成交日期（YYYY-MM-DD）</Text>
-        <TextInput
-          style={styles.input}
-          value={tradeDate}
-          onChangeText={setTradeDate}
-          placeholder="2025-03-21"
-          placeholderTextColor={placeholderColor}
-        />
-
-        <Text style={styles.label}>{useGram ? '克数' : '份额'}</Text>
-        <TextInput
-          style={styles.input}
-          value={shares}
-          onChangeText={setShares}
-          keyboardType="decimal-pad"
-          placeholderTextColor={placeholderColor}
-        />
-
-        <Text style={styles.label}>成交单价</Text>
-        <TextInput
-          style={styles.input}
-          value={unitPrice}
-          onChangeText={setUnitPrice}
-          keyboardType="decimal-pad"
-          placeholderTextColor={placeholderColor}
-        />
-
-        <Pressable
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={() => void onSave()}
-          disabled={saving}
-        >
-          <Text style={styles.saveButtonText}>
-            {saving ? '保存中…' : '保存'}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={[
-            styles.saveButton,
-            { marginTop: 14, backgroundColor: 'rgba(220, 38, 38, 0.9)' },
-            saving && styles.saveButtonDisabled,
-          ]}
-          onPress={onDelete}
-          disabled={saving}
-        >
-          <Text style={styles.saveButtonText}>删除此流水</Text>
-        </Pressable>
+        </GlassSurface>
       </ScrollView>
     </KeyboardAvoidingView>
   );

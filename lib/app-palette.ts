@@ -5,6 +5,7 @@
 import type { AssetCategory } from '@/types/asset';
 
 export const PALETTE_IDS = [
+  'miami',
   'sea',
   'cotton_candy_romance',
   'monochrome_beach',
@@ -15,7 +16,7 @@ export const PALETTE_IDS = [
 
 export type AppPaletteId = (typeof PALETTE_IDS)[number];
 
-export const DEFAULT_PALETTE_ID: AppPaletteId = 'sea';
+export const DEFAULT_PALETTE_ID: AppPaletteId = 'miami';
 
 export type AppPaletteTheme = {
   id: AppPaletteId;
@@ -45,6 +46,23 @@ export type AppPaletteTheme = {
   tabInactive: string;
   /** Insights 分布图描边/网格感 */
   chartGridStroke: string;
+  /** Dashboard 深色舞台背景（顶部区域） */
+  dashboardStageBg: string;
+  /** 卡片、表单、图表白底（hex） */
+  surfaceWhite: string;
+  /** 上涨 / 净流入等 */
+  statusPositive: string;
+  /** 下跌 / 净流出等 */
+  statusNegative: string;
+  /** Dashboard / Insights 深色区大标题手写字体（如 Pacifico）；未设置则用斜体系统字 */
+  dashboardHeroFontFamily?: string | null;
+  /** Dashboard 等顶部次要操作按钮背景（参考图右上角色块；其他主题可与 primary 一致） */
+  headerActionBg: string;
+  /** 对应按钮上图标颜色 */
+  headerActionIcon: string;
+  /** 设置页等胶囊强调按钮背景 */
+  ctaPillBg: string;
+  ctaPillText: string;
 };
 
 const CATEGORY_ORDER: AssetCategory[] = [
@@ -66,6 +84,46 @@ function accentsFromSwatches(
 }
 
 export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
+  miami: {
+    id: 'miami',
+    nameZh: '迈阿密落日',
+    /** 参考图左：珊瑚 / 橙 / 金黄 / 青绿 + 金色点缀 */
+    swatches: ['#E07A7E', '#F28C28', '#F2C94C', '#1DB5A6', '#D4A843'],
+    /** 底部文件框 / 口袋区奶油色 */
+    pageBg: '#EDE4D0',
+    /** 浅色区主文案（与参考图深蓝舞台对比） */
+    primary: '#0C1B2A',
+    categoryAccents: {
+      Stock: '#E07A7E',
+      Fund: '#F28C28',
+      ETF: '#1DB5A6',
+      Cash: '#F2C94C',
+      Gold: '#D4A843',
+    },
+    folderListBg: 'rgba(255, 253, 248, 0.9)',
+    purposeAccent: '#E07A7E',
+    chartLine: '#1DB5A6',
+    chartFillTop: 'rgba(29, 181, 166, 0.24)',
+    chartFillBottom: 'rgba(255, 255, 255, 0.04)',
+    goalRingColors: ['#E07A7E', '#F28C28', '#1DB5A6', '#F2C94C'],
+    tabBarBg: 'rgba(255, 253, 248, 0.96)',
+    tabBarBorder: 'rgba(12, 27, 42, 0.08)',
+    tabActive: '#0C1B2A',
+    tabInactive: 'rgba(12, 27, 42, 0.34)',
+    chartGridStroke: 'rgba(12, 27, 42, 0.08)',
+    /** 参考图左上半深色海军舞台 */
+    dashboardStageBg: '#001F3F',
+    surfaceWhite: '#FFFDF8',
+    statusPositive: '#1E8A62',
+    statusNegative: '#D64545',
+    dashboardHeroFontFamily: 'Pacifico_400Regular',
+    /** 参考图右上角邮票感蓝块 */
+    headerActionBg: '#1E6FD9',
+    headerActionIcon: '#FFFFFF',
+    ctaPillBg: '#F2C94C',
+    ctaPillText: '#1E1B16',
+  },
+
   sea: {
     id: 'sea',
     nameZh: '雾岛海盐',
@@ -90,6 +148,14 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
     tabActive: '#2F2A4A',
     tabInactive: 'rgba(47, 42, 74, 0.36)',
     chartGridStroke: 'rgba(47, 42, 74, 0.08)',
+    dashboardStageBg: '#2F2A4A',
+    surfaceWhite: '#FFFFFF',
+    statusPositive: '#22A06B',
+    statusNegative: '#DC2626',
+    headerActionBg: '#2F2A4A',
+    headerActionIcon: '#FFFFFF',
+    ctaPillBg: '#F6DE78',
+    ctaPillText: '#2F2A4A',
   },
 
   cotton_candy_romance: {
@@ -116,6 +182,14 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
     tabActive: '#402044',
     tabInactive: 'rgba(64, 32, 68, 0.34)',
     chartGridStroke: 'rgba(64, 32, 68, 0.08)',
+    dashboardStageBg: '#402044',
+    surfaceWhite: '#FFFFFF',
+    statusPositive: '#22A06B',
+    statusNegative: '#DC2626',
+    headerActionBg: '#402044',
+    headerActionIcon: '#FFFFFF',
+    ctaPillBg: '#F3D46A',
+    ctaPillText: '#402044',
   },
 
   monochrome_beach: {
@@ -142,6 +216,14 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
     tabActive: '#2E3138',
     tabInactive: 'rgba(46, 49, 56, 0.34)',
     chartGridStroke: 'rgba(46, 49, 56, 0.08)',
+    dashboardStageBg: '#2E3138',
+    surfaceWhite: '#FFFFFF',
+    statusPositive: '#22A06B',
+    statusNegative: '#DC2626',
+    headerActionBg: '#2E3138',
+    headerActionIcon: '#FFFFFF',
+    ctaPillBg: '#EADFCB',
+    ctaPillText: '#2E3138',
   },
 
   mountain_twilight: {
@@ -168,6 +250,14 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
     tabActive: '#2D2440',
     tabInactive: 'rgba(45, 36, 64, 0.34)',
     chartGridStroke: 'rgba(45, 36, 64, 0.08)',
+    dashboardStageBg: '#2D2440',
+    surfaceWhite: '#FFFFFF',
+    statusPositive: '#22A06B',
+    statusNegative: '#DC2626',
+    headerActionBg: '#2D2440',
+    headerActionIcon: '#FFFFFF',
+    ctaPillBg: '#E8C79E',
+    ctaPillText: '#2D2440',
   },
 
   berry_muse: {
@@ -194,6 +284,14 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
     tabActive: '#4A273D',
     tabInactive: 'rgba(74, 39, 61, 0.34)',
     chartGridStroke: 'rgba(74, 39, 61, 0.08)',
+    dashboardStageBg: '#4A273D',
+    surfaceWhite: '#FFFFFF',
+    statusPositive: '#22A06B',
+    statusNegative: '#DC2626',
+    headerActionBg: '#4A273D',
+    headerActionIcon: '#FFFFFF',
+    ctaPillBg: '#F0CB60',
+    ctaPillText: '#4A273D',
   },
 
   purple_rain_journal: {
@@ -220,6 +318,14 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
     tabActive: '#433160',
     tabInactive: 'rgba(67, 49, 96, 0.34)',
     chartGridStroke: 'rgba(67, 49, 96, 0.08)',
+    dashboardStageBg: '#433160',
+    surfaceWhite: '#FFFFFF',
+    statusPositive: '#22A06B',
+    statusNegative: '#DC2626',
+    headerActionBg: '#433160',
+    headerActionIcon: '#FFFFFF',
+    ctaPillBg: '#F4D97C',
+    ctaPillText: '#433160',
   },
 };
 

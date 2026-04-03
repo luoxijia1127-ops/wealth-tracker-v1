@@ -118,6 +118,8 @@ export type BuildListedParams = {
   shares: number;
   /** 持仓成本单价（与 listingCurrency 一致/份）；建仓市值=份额×成本，lastClose/markPrice 仅由行情同步写入 */
   avgCost: number;
+  /** 首笔买入交易日 YYYY-MM-DD（上海日历日） */
+  tradeDate?: string;
   purposeFields: Pick<SimpleAsset, 'purpose' | 'purposeTarget'>;
   account?: string;
   /** 报价币种（A 股为 CNY，美股多为 USD，港股多为 HKD） */
@@ -144,6 +146,11 @@ export function buildListedAsset(p: BuildListedParams): SimpleAsset {
     typeof p.intlQuoteSymbol === 'string' && p.intlQuoteSymbol.trim().length > 0
       ? p.intlQuoteSymbol.trim().toLowerCase()
       : '';
+  const tradeDay =
+    typeof p.tradeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.tradeDate.trim())
+      ? p.tradeDate.trim()
+      : getShanghaiDateString();
+
   const asset: SimpleAsset = {
     id: p.id,
     name: p.name.trim(),
@@ -157,7 +164,7 @@ export function buildListedAsset(p: BuildListedParams): SimpleAsset {
     tradeHistory: [
       {
         id: `baseline-${p.id}`,
-        tradeDate: getShanghaiDateString(),
+        tradeDate: tradeDay,
         side: 'buy',
         shares: p.shares,
         unitPriceCny: p.avgCost,
@@ -221,6 +228,8 @@ export type BuildGoldParams = {
   name: string;
   shares: number;
   avgCost: number;
+  /** 首笔买入交易日 YYYY-MM-DD */
+  tradeDate?: string;
   purposeFields: Pick<SimpleAsset, 'purpose' | 'purposeTarget'>;
   account?: string;
   fundingSourceAssetId?: string;
@@ -234,6 +243,10 @@ export function buildGoldAsset(p: BuildGoldParams): SimpleAsset {
   const value = p.shares * p.avgCost;
   const accountRaw =
     typeof p.account === 'string' ? p.account.trim() : '';
+  const tradeDay =
+    typeof p.tradeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.tradeDate.trim())
+      ? p.tradeDate.trim()
+      : getShanghaiDateString();
   const out: SimpleAsset = {
     id: p.id,
     name: p.name.trim(),
@@ -244,7 +257,7 @@ export function buildGoldAsset(p: BuildGoldParams): SimpleAsset {
     tradeHistory: [
       {
         id: `baseline-${p.id}`,
-        tradeDate: getShanghaiDateString(),
+        tradeDate: tradeDay,
         side: 'buy',
         shares: p.shares,
         unitPriceCny: p.avgCost,

@@ -40,3 +40,36 @@ export async function fetchStooqQuote(
     return null;
   }
 }
+
+/**
+ * 日 K 历史 CSV：取「最后一根 tradeDate ≤ asOfYmd」的收盘（与 add-asset 成本回填一致）。
+ */
+export async function fetchStooqCloseOnOrBefore(
+  intlQuoteSymbol: string,
+  asOfYmd: string,
+  signal?: AbortSignal
+): Promise<StooqQuoteRow | null> {
+  const sym = intlQuoteSymbol.trim().toLowerCase();
+  if (!/^[a-z0-9.\-]+\.(us|hk)$/.test(sym)) return null;
+  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`;
+  try {
+    const res = await fetch(url, { signal });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const lines = text.trim().split(/\r?\n/);
+    const rows: StooqQuoteRow[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = parseStooqCsvLine(lines[i]!);
+      if (row) rows.push(row);
+    }
+    if (rows.length === 0) return null;
+    rows.sort((a, b) => a.tradeDate.localeCompare(b.tradeDate));
+    let best: StooqQuoteRow | null = null;
+    for (const r of rows) {
+      if (r.tradeDate <= asOfYmd) best = r;
+    }
+    return best;
+  } catch {
+    return null;
+  }
+}

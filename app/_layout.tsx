@@ -105,6 +105,30 @@ export default function RootLayout() {
             name="settings-privacy"
             options={{ title: '隐私说明', headerShadowVisible: false }}
           />
+          <Stack.Screen
+            name="settings-display-currency"
+            options={{ title: '默认货币', headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="settings-language"
+            options={{ title: '语言设置', headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="settings-cashflow-colors"
+            options={{ title: '收支颜色', headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="settings-archived"
+            options={{ title: '已归档', headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="settings-trash"
+            options={{ title: '最近删除', headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="market"
+            options={{ title: '市场', headerShadowVisible: false }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

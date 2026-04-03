@@ -74,6 +74,11 @@ export function filterAssetsForDashboard(assets: SimpleAsset[]): SimpleAsset[] {
   });
 }
 
+/** 主列表不展示：现金余额为 0、场内/黄金份额≤0 等（清仓后仍可能留在存储中） */
+export function isAssetHiddenFromDashboard(a: SimpleAsset): boolean {
+  return filterAssetsForDashboard([a]).length === 0;
+}
+
 export { toEastMoneySecid };
 export type { ChinaExchange };
 

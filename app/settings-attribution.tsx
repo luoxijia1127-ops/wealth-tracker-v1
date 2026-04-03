@@ -3,26 +3,26 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { getAssetDailySnapshots } from '@/lib/asset-daily-snapshots';
 import { getAssets } from '@/lib/asset-storage';
 import { rgbaFromHex } from '@/lib/color-utils';
-import { getSnapshots } from '@/lib/snapshots';
-import { getAssetDailySnapshots } from '@/lib/asset-daily-snapshots';
 import {
-  createFxRatesResolver,
-  getCachedFxUsdRates,
-  getFxUsdRatesHistory,
-} from '@/lib/fx-rates';
-import {
-  financeDeltaColor,
-  FINANCE_DOWN,
-  FINANCE_UP,
+    FINANCE_DOWN,
+    FINANCE_UP,
+    financeDeltaColor,
 } from '@/lib/finance-colors';
 import {
-  buildDailyTradeSummaries,
-  filterInternalTradeLines,
-  filterTradeLinesForDisplay,
-  type DailyTradeLine,
-  type DailyTradeSummary,
+    createFxRatesResolver,
+    getCachedFxUsdRates,
+    getFxUsdRatesHistory,
+} from '@/lib/fx-rates';
+import { getSnapshots } from '@/lib/snapshots';
+import {
+    buildDailyTradeSummaries,
+    filterInternalTradeLines,
+    filterTradeLinesForDisplay,
+    type DailyTradeLine,
+    type DailyTradeSummary,
 } from '@/lib/trade-summary';
 import { CATEGORY_LABEL_ZH } from '@/types/asset';
 import { useFocusEffect } from '@react-navigation/native';

@@ -56,9 +56,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: '我的',
+          title: 'More',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="person-outline" size={24} color={color} />
+            <MaterialIcons name="widgets" size={24} color={color} />
           ),
         }}
       />

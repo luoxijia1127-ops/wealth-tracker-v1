@@ -13,6 +13,8 @@ import {
   deleteCashLedgerEntry,
   updateCashLedgerEntry,
 } from '@/lib/cash-ledger';
+import { FormRow } from '@/components/add-asset/form-row';
+import { GlassSurface } from '@/components/glass-surface';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createAddModalStyles } from '@/lib/modal-styles';
 import { deleteListedTradeEntry, updateListedTradeEntry } from '@/lib/trade-ledger';
@@ -45,6 +47,10 @@ export default function CashLedgerEditScreen() {
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
   const placeholderColor = useMemo(
     () => rgbaFromHex(theme.primary, 0.42),
+    [theme.primary]
+  );
+  const iconMuted = useMemo(
+    () => rgbaFromHex(theme.primary, 0.5),
     [theme.primary]
   );
 
@@ -252,88 +258,112 @@ export default function CashLedgerEditScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
     >
+      <View style={styles.modalAmbient} pointerEvents="none" />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{
           paddingTop: 12,
           paddingBottom: insets.bottom + 40,
-          paddingHorizontal: 24,
+          paddingHorizontal: 14,
         }}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.label}>类型</Text>
-        <View style={styles.optionsRow}>
-          <Pressable
-            style={[styles.option, side === 'in' && styles.optionSelected]}
-            onPress={() => setSide('in')}
+        <GlassSurface borderRadius={32} intensity={50} contentStyle={styles.glassFormInner}>
+          <FormRow
+            first
+            styles={styles}
+            iconMuted={iconMuted}
+            icon="swap-vertical-outline"
+            label="类型"
           >
-            <Text
-              style={[
-                styles.optionText,
-                side === 'in' && styles.optionTextSelected,
-              ]}
-            >
-              增加
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.option, side === 'out' && styles.optionSelected]}
-            onPress={() => setSide('out')}
+            <View style={styles.optionsRow}>
+              <Pressable
+                style={[styles.option, side === 'in' && styles.optionSelected]}
+                onPress={() => setSide('in')}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    side === 'in' && styles.optionTextSelected,
+                  ]}
+                >
+                  增加
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.option, side === 'out' && styles.optionSelected]}
+                onPress={() => setSide('out')}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    side === 'out' && styles.optionTextSelected,
+                  ]}
+                >
+                  减少
+                </Text>
+              </Pressable>
+            </View>
+          </FormRow>
+
+          <FormRow
+            styles={styles}
+            iconMuted={iconMuted}
+            icon="calendar-outline"
+            label="日期（YYYY-MM-DD）"
           >
-            <Text
-              style={[
-                styles.optionText,
-                side === 'out' && styles.optionTextSelected,
-              ]}
-            >
-              减少
-            </Text>
-          </Pressable>
-        </View>
+            <TextInput
+              style={styles.input}
+              value={entryDate}
+              onChangeText={setEntryDate}
+              placeholder="2025-03-21"
+              placeholderTextColor={placeholderColor}
+            />
+          </FormRow>
 
-        <Text style={styles.label}>日期（YYYY-MM-DD）</Text>
-        <TextInput
-          style={styles.input}
-          value={entryDate}
-          onChangeText={setEntryDate}
-          placeholder="2025-03-21"
-          placeholderTextColor={placeholderColor}
-        />
-
-        <Text style={styles.label}>金额（{cur}）</Text>
-        <TextInput
-          style={styles.input}
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="decimal-pad"
-          placeholderTextColor={placeholderColor}
-        />
-        <Text style={[styles.hintMuted, { marginTop: 6 }]}>
-          当前余额参考：{' '}
-          {formatMoney(getAssetDisplayValue(asset), getAssetCurrency(asset))}
-        </Text>
-
-        <Pressable
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={() => void onSave()}
-          disabled={saving}
-        >
-          <Text style={styles.saveButtonText}>
-            {saving ? '保存中…' : '保存'}
+          <FormRow
+            styles={styles}
+            iconMuted={iconMuted}
+            icon="cash-outline"
+            label={`金额（${cur}）`}
+          >
+            <TextInput
+              style={styles.input}
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+              placeholderTextColor={placeholderColor}
+            />
+          </FormRow>
+          <Text style={[styles.hintMuted, { marginTop: 8 }]}>
+            当前余额参考：{' '}
+            {formatMoney(getAssetDisplayValue(asset), getAssetCurrency(asset))}
           </Text>
-        </Pressable>
 
-        <Pressable
-          style={[
-            styles.saveButton,
-            { marginTop: 14, backgroundColor: 'rgba(220, 38, 38, 0.9)' },
-            saving && styles.saveButtonDisabled,
-          ]}
-          onPress={onDelete}
-          disabled={saving}
-        >
-          <Text style={styles.saveButtonText}>删除此流水</Text>
-        </Pressable>
+          <Pressable
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={() => void onSave()}
+            disabled={saving}
+          >
+            <Text style={styles.saveButtonText}>
+              {saving ? '保存中…' : '保存'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.saveButton,
+              { marginTop: 14, backgroundColor: 'rgba(220, 38, 38, 0.9)' },
+              saving && styles.saveButtonDisabled,
+            ]}
+            onPress={onDelete}
+            disabled={saving}
+          >
+            <Text style={styles.saveButtonText}>删除此流水</Text>
+          </Pressable>
+        </GlassSurface>
       </ScrollView>
     </KeyboardAvoidingView>
   );

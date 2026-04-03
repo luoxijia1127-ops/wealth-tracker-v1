@@ -5,6 +5,7 @@
  * - 现金类：加减余额 + 编辑信息（流水仅金额）
  */
 
+import { FormRow } from '@/components/add-asset/form-row';
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
@@ -14,11 +15,13 @@ import {
   assetCurrencySymbol,
   normalizeAssetCurrency,
 } from '@/lib/asset-currency';
+import { archiveAssetRecord } from '@/lib/asset-recycle';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
 import {
   formatMoney,
   getAssetCurrency,
   getAssetDisplayValue,
+  isAssetHiddenFromDashboard,
   isHeldChineseAsset,
   isInternationalListedAsset,
   isListedChineseAsset,
@@ -46,6 +49,7 @@ import {
   type SimpleAsset,
   type TradeLedgerEntry,
 } from '@/types/asset';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useGlobalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -163,6 +167,11 @@ export default function AssetActionScreen() {
     [theme.primary]
   );
   const muted = useMemo(() => rgbaFromHex(theme.primary, 0.55), [theme.primary]);
+  const iconMuted = useMemo(
+    () => rgbaFromHex(theme.primary, 0.5),
+    [theme.primary]
+  );
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   const [asset, setAsset] = useState<SimpleAsset | null>(null);
   const [loading, setLoading] = useState(true);
@@ -820,11 +829,13 @@ export default function AssetActionScreen() {
         contentContainerStyle={{
           paddingTop: contentPadTop,
           paddingBottom: insets.bottom + 32,
-          paddingHorizontal: 20,
+          paddingHorizontal: 14,
         }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        onScrollBeginDrag={() => setMenuOpen(null)}
       >
         <Text style={[styles.headerName, { marginBottom: 6 }]} numberOfLines={3}>
           {headerTitle}
@@ -862,63 +873,106 @@ export default function AssetActionScreen() {
 
             {listedPanel === 'adjust' ? (
               <GlassSurface
-                borderRadius={24}
-                intensity={42}
-                contentStyle={{ padding: 16 }}
+                borderRadius={32}
+                intensity={50}
+                contentStyle={styles.glassFormInner}
               >
                   <Text style={[styles.hintMuted, { marginBottom: 14 }]}>
                     {useGram
                       ? '克数变动：正为买入，负为卖出。成交金额 ≈ |克数|×单价，可任填两项推算第三项。'
                       : '份额变动：正为买入，负为卖出。成交金额 ≈ |份额|×单价，可任填两项推算第三项。'}
                   </Text>
-                  <Text style={styles.label}>
-                    {useGram ? '克数变动' : '份额变动'}
-                  </Text>
-                  <TextInput
-                    placeholder={useGram ? '如 +10 或 -5 克' : '如 +100 或 -50 份'}
-                    placeholderTextColor={placeholderColor}
-                    style={styles.input}
-                    value={tradeShares}
-                    onChangeText={onTradeSharesChange}
-                    keyboardType={
-                      Platform.OS === 'ios'
-                        ? 'numbers-and-punctuation'
-                        : 'default'
-                    }
-                  />
-                  <Text style={styles.label}>
-                    成交单价（{getAssetCurrency(asset)}
-                    {useGram ? '/克' : '/份'}）
-                  </Text>
-                  <TextInput
-                    placeholder={
-                      useGram ? '本笔成交单价/克' : '本笔成交单价/份'
-                    }
-                    placeholderTextColor={placeholderColor}
-                    style={styles.input}
-                    value={tradePrice}
-                    onChangeText={onTradePriceChange}
-                    keyboardType="decimal-pad"
-                  />
-                  <Text style={styles.label}>
-                    成交金额（{getAssetCurrency(asset)}，≈|变动|×单价）
-                  </Text>
-                  <TextInput
-                    placeholder="可与份额、单价交叉推算"
-                    placeholderTextColor={placeholderColor}
-                    style={styles.input}
-                    value={tradeAmount}
-                    onChangeText={onTradeAmountChange}
-                    keyboardType="decimal-pad"
-                  />
-                  <FundingSourcePicker
-                    label="资金账户（选填，加仓为扣款来源，减仓为入账去向）"
-                    emptyOptionLabel="不关联现金账户"
-                    valueId={tradeLinkedCashId}
-                    onSelectId={setTradeLinkedCashId}
-                    fundingOptions={tradeFundingOptions}
+                  <FormRow
+                    first
                     styles={styles}
-                  />
+                    iconMuted={iconMuted}
+                    icon={useGram ? 'fitness-outline' : 'pie-chart-outline'}
+                    label={useGram ? '克数变动' : '份额变动'}
+                  >
+                    <TextInput
+                      placeholder={useGram ? '如 +10 或 -5 克' : '如 +100 或 -50 份'}
+                      placeholderTextColor={placeholderColor}
+                      style={styles.input}
+                      value={tradeShares}
+                      onChangeText={onTradeSharesChange}
+                      keyboardType={
+                        Platform.OS === 'ios'
+                          ? 'numbers-and-punctuation'
+                          : 'default'
+                      }
+                    />
+                  </FormRow>
+                  <FormRow
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="pricetag-outline"
+                    label={`成交单价（${getAssetCurrency(asset)}${
+                      useGram ? '/克' : '/份'
+                    }）`}
+                  >
+                    <TextInput
+                      placeholder={
+                        useGram ? '本笔成交单价/克' : '本笔成交单价/份'
+                      }
+                      placeholderTextColor={placeholderColor}
+                      style={styles.input}
+                      value={tradePrice}
+                      onChangeText={onTradePriceChange}
+                      keyboardType="decimal-pad"
+                    />
+                  </FormRow>
+                  <FormRow
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="calculator-outline"
+                    label={`成交金额（${getAssetCurrency(
+                      asset
+                    )}，≈|变动|×单价）`}
+                  >
+                    <TextInput
+                      placeholder="可与份额、单价交叉推算"
+                      placeholderTextColor={placeholderColor}
+                      style={styles.input}
+                      value={tradeAmount}
+                      onChangeText={onTradeAmountChange}
+                      keyboardType="decimal-pad"
+                    />
+                  </FormRow>
+                  <View style={[styles.formRow, { zIndex: 25 }]}>
+                    <View style={styles.formRowIconColumn}>
+                      <View style={styles.formRowIconLabelSpacer} />
+                      <View style={styles.formRowIconWrap}>
+                        <Ionicons
+                          name="wallet-outline"
+                          size={18}
+                          color={iconMuted}
+                        />
+                      </View>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.formRowLabel}>
+                        资金账户（选填）
+                      </Text>
+                      <FundingSourcePicker
+                        label="资金账户（选填）"
+                        emptyOptionLabel="不关联现金账户"
+                        valueId={tradeLinkedCashId}
+                        onSelectId={setTradeLinkedCashId}
+                        fundingOptions={tradeFundingOptions}
+                        styles={styles}
+                        omitLabel
+                        mode="inline"
+                        menuKey="fund"
+                        openKey={menuOpen}
+                        setOpenKey={setMenuOpen}
+                        primaryColor={theme.primary}
+                        mutedColor={iconMuted}
+                      />
+                    </View>
+                  </View>
+                  <Text style={[styles.hintMuted, { marginTop: 4 }]}>
+                    加仓为扣款来源，减仓为入账去向
+                  </Text>
                   <Pressable
                     style={[
                       styles.saveButton,
@@ -932,7 +986,7 @@ export default function AssetActionScreen() {
                     </Text>
                   </Pressable>
 
-                  <Text style={[styles.label, { marginTop: 22 }]}>
+                  <Text style={[styles.formRowLabel, { marginTop: 22 }]}>
                     历史交易记录
                   </Text>
                   {trades.length === 0 ? (
@@ -977,9 +1031,9 @@ export default function AssetActionScreen() {
               </GlassSurface>
             ) : (
               <GlassSurface
-                borderRadius={24}
-                intensity={42}
-                contentStyle={{ padding: 16 }}
+                borderRadius={32}
+                intensity={50}
+                contentStyle={styles.glassFormInner}
               >
                   <View style={[styles.headerCard, { marginBottom: 16 }]}>
                     <Text style={styles.headerName}>{asset.name}</Text>
@@ -993,39 +1047,64 @@ export default function AssetActionScreen() {
                     </Text>
                   </View>
 
-                  <Text style={styles.label}>资产类别</Text>
-                  <View style={styles.optionsRow}>
-                    {(useGram ? (['Gold'] as const) : LISTED_EDIT_CATEGORIES).map((opt) => (
-                      <Pressable
-                        key={opt}
-                        style={[
-                          styles.option,
-                          listedMetaCategory === opt && styles.optionSelected,
-                        ]}
-                        onPress={() => setListedMetaCategory(opt)}
-                      >
-                        <Text
-                          style={[
-                            styles.optionText,
-                            listedMetaCategory === opt &&
-                              styles.optionTextSelected,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {CATEGORY_LABEL_ZH[opt]}
-                        </Text>
-                      </Pressable>
-                    ))}
+                  <View style={styles.categoryRowWrap}>
+                    <View style={styles.formRowIconColumn}>
+                      <View style={styles.formRowIconLabelSpacer} />
+                      <View style={styles.formRowIconWrap}>
+                        <Ionicons
+                          name="grid-outline"
+                          size={20}
+                          color={iconMuted}
+                        />
+                      </View>
+                    </View>
+                    <View style={styles.categoryChipsWrap}>
+                      <Text style={styles.formRowLabel}>资产类别</Text>
+                      <View style={styles.categoryRowOneLine}>
+                        {(useGram ? (['Gold'] as const) : LISTED_EDIT_CATEGORIES).map(
+                          (opt) => (
+                            <Pressable
+                              key={opt}
+                              style={[
+                                styles.optionMini,
+                                listedMetaCategory === opt &&
+                                  styles.optionSelected,
+                              ]}
+                              onPress={() => setListedMetaCategory(opt)}
+                            >
+                              <Text
+                                style={[
+                                  styles.optionTextMini,
+                                  listedMetaCategory === opt &&
+                                    styles.optionTextSelected,
+                                ]}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.88}
+                              >
+                                {CATEGORY_LABEL_ZH[opt]}
+                              </Text>
+                            </Pressable>
+                          )
+                        )}
+                      </View>
+                    </View>
                   </View>
 
-                  <Text style={styles.label}>所在账户（选填）</Text>
-                  <TextInput
-                    placeholder="如：同花顺、东方财富…"
-                    placeholderTextColor={placeholderColor}
-                    style={styles.input}
-                    value={listedMetaAccount}
-                    onChangeText={setListedMetaAccount}
-                  />
+                  <FormRow
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="folder-outline"
+                    label="所在账户（选填）"
+                  >
+                    <TextInput
+                      placeholder="如：同花顺、东方财富…"
+                      placeholderTextColor={placeholderColor}
+                      style={styles.input}
+                      value={listedMetaAccount}
+                      onChangeText={setListedMetaAccount}
+                    />
+                  </FormRow>
 
                   <Pressable
                     style={styles.purposeSectionHeader}
@@ -1042,23 +1121,35 @@ export default function AssetActionScreen() {
                   </Pressable>
                   {listedMetaPurposeExpanded ? (
                     <View style={styles.purposeSectionBody}>
-                      <Text style={styles.label}>用途说明</Text>
-                      <TextInput
-                        placeholder="如：旅游基金"
-                        placeholderTextColor={placeholderColor}
-                        style={styles.input}
-                        value={listedMetaPurpose}
-                        onChangeText={setListedMetaPurpose}
-                      />
-                      <Text style={styles.label}>目标金额（¥）</Text>
-                      <TextInput
-                        placeholder="不填则不显示进度"
-                        placeholderTextColor={placeholderColor}
-                        style={styles.input}
-                        value={listedMetaPurposeTarget}
-                        onChangeText={setListedMetaPurposeTarget}
-                        keyboardType="decimal-pad"
-                      />
+                      <FormRow
+                        styles={styles}
+                        iconMuted={iconMuted}
+                        icon="document-text-outline"
+                        label="用途说明"
+                      >
+                        <TextInput
+                          placeholder="如：旅游基金"
+                          placeholderTextColor={placeholderColor}
+                          style={styles.input}
+                          value={listedMetaPurpose}
+                          onChangeText={setListedMetaPurpose}
+                        />
+                      </FormRow>
+                      <FormRow
+                        styles={styles}
+                        iconMuted={iconMuted}
+                        icon="flag-outline"
+                        label="目标金额（¥）"
+                      >
+                        <TextInput
+                          placeholder="不填则不显示进度"
+                          placeholderTextColor={placeholderColor}
+                          style={styles.input}
+                          value={listedMetaPurposeTarget}
+                          onChangeText={setListedMetaPurposeTarget}
+                          keyboardType="decimal-pad"
+                        />
+                      </FormRow>
                     </View>
                   ) : null}
 
@@ -1105,48 +1196,64 @@ export default function AssetActionScreen() {
 
             {cashPanel === 'balance' ? (
               <GlassSurface
-                borderRadius={24}
-                intensity={42}
-                contentStyle={{ padding: 16 }}
+                borderRadius={32}
+                intensity={50}
+                contentStyle={styles.glassFormInner}
               >
-                  <Text style={styles.label}>当前余额</Text>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: '700',
-                      color: theme.primary,
-                      marginBottom: 6,
-                    }}
+                  <FormRow
+                    first
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="wallet-outline"
+                    label="当前余额"
                   >
-                    {formatMoney(cashCurrentBalance, getAssetCurrency(asset))}
-                  </Text>
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: '700',
+                        color: theme.primary,
+                      }}
+                    >
+                      {formatMoney(cashCurrentBalance, getAssetCurrency(asset))}
+                    </Text>
+                  </FormRow>
                   <Text style={[styles.hintMuted, { marginBottom: 14 }]}>
                     变动用正负号表示：增加填 + 或减少填 -；也可只填「更新后余额」自动计算变动。
                   </Text>
-                  <Text style={styles.label}>
-                    变动金额（{assetCurrencySymbol(cashCurrency)}）
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    value={cashAdjustAmount}
-                    onChangeText={onCashDeltaChange}
-                    keyboardType={
-                      Platform.OS === 'ios'
-                        ? 'numbers-and-punctuation'
-                        : 'default'
-                    }
-                    placeholderTextColor={placeholderColor}
-                    placeholder="如 +1000 或 -500"
-                  />
-                  <Text style={styles.label}>更新后余额（{assetCurrencySymbol(cashCurrency)}）</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={cashAdjustNewBalance}
-                    onChangeText={onCashNewBalanceChange}
-                    keyboardType="decimal-pad"
-                    placeholderTextColor={placeholderColor}
-                    placeholder="填写目标余额，或由上栏变动自动带出"
-                  />
+                  <FormRow
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="trending-up-outline"
+                    label={`变动金额（${assetCurrencySymbol(cashCurrency)}）`}
+                  >
+                    <TextInput
+                      style={styles.input}
+                      value={cashAdjustAmount}
+                      onChangeText={onCashDeltaChange}
+                      keyboardType={
+                        Platform.OS === 'ios'
+                          ? 'numbers-and-punctuation'
+                          : 'default'
+                      }
+                      placeholderTextColor={placeholderColor}
+                      placeholder="如 +1000 或 -500"
+                    />
+                  </FormRow>
+                  <FormRow
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="calculator-outline"
+                    label={`更新后余额（${assetCurrencySymbol(cashCurrency)}）`}
+                  >
+                    <TextInput
+                      style={styles.input}
+                      value={cashAdjustNewBalance}
+                      onChangeText={onCashNewBalanceChange}
+                      keyboardType="decimal-pad"
+                      placeholderTextColor={placeholderColor}
+                      placeholder="填写目标余额，或由上栏变动自动带出"
+                    />
+                  </FormRow>
                   <Pressable
                     style={[
                       styles.saveButton,
@@ -1160,7 +1267,9 @@ export default function AssetActionScreen() {
                     </Text>
                   </Pressable>
 
-                  <Text style={[styles.label, { marginTop: 22 }]}>余额流水</Text>
+                  <Text style={[styles.formRowLabel, { marginTop: 22 }]}>
+                    余额流水
+                  </Text>
                   {cashRows.length === 0 ? (
                     <Text style={[styles.hintMuted, { marginTop: 10 }]}>
                       暂无记录
@@ -1203,65 +1312,106 @@ export default function AssetActionScreen() {
             </GlassSurface>
             ) : (
               <GlassSurface
-                borderRadius={24}
-                intensity={42}
-                contentStyle={{ padding: 16 }}
+                borderRadius={32}
+                intensity={50}
+                contentStyle={styles.glassFormInner}
               >
-                  <Text style={styles.label}>资产名称</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={cashName}
-                    onChangeText={setCashName}
-                    placeholderTextColor={placeholderColor}
-                  />
-                  <Text style={styles.label}>币种</Text>
-                  <Pressable
-                    style={[styles.currencyChip, { alignSelf: 'flex-start' }]}
-                    onPress={() => setCashCurrencyModalVisible(true)}
+                  <FormRow
+                    first
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="albums-outline"
+                    label="资产名称"
                   >
-                    <Text style={styles.currencyChipText}>
-                      {assetCurrencySymbol(cashCurrency)}
-                    </Text>
-                    <Text style={styles.currencyChevron}>▼</Text>
-                  </Pressable>
-                  <Text style={styles.label}>本金（选填）</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={cashCostBasis}
-                    onChangeText={setCashCostBasis}
-                    keyboardType="decimal-pad"
-                    placeholderTextColor={placeholderColor}
-                  />
-                  <Text style={styles.label}>资产类别</Text>
-                  <View style={styles.optionsRow}>
-                    {ASSET_CATEGORY_ORDER.map((opt) => (
-                      <Pressable
-                        key={opt}
-                        style={[
-                          styles.option,
-                          cashCategory === opt && styles.optionSelected,
-                        ]}
-                        onPress={() => setCashCategory(opt)}
-                      >
-                        <Text
-                          style={[
-                            styles.optionText,
-                            cashCategory === opt && styles.optionTextSelected,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {CATEGORY_LABEL_ZH[opt]}
-                        </Text>
-                      </Pressable>
-                    ))}
+                    <TextInput
+                      style={styles.input}
+                      value={cashName}
+                      onChangeText={setCashName}
+                      placeholderTextColor={placeholderColor}
+                    />
+                  </FormRow>
+                  <FormRow
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="cash-outline"
+                    label="币种"
+                  >
+                    <Pressable
+                      style={[styles.currencyChip, { alignSelf: 'flex-start' }]}
+                      onPress={() => setCashCurrencyModalVisible(true)}
+                    >
+                      <Text style={styles.currencyChipText}>
+                        {assetCurrencySymbol(cashCurrency)}
+                      </Text>
+                      <Text style={styles.currencyChevron}>▼</Text>
+                    </Pressable>
+                  </FormRow>
+                  <FormRow
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="trending-up-outline"
+                    label="本金（选填）"
+                  >
+                    <TextInput
+                      style={styles.input}
+                      value={cashCostBasis}
+                      onChangeText={setCashCostBasis}
+                      keyboardType="decimal-pad"
+                      placeholderTextColor={placeholderColor}
+                    />
+                  </FormRow>
+                  <View style={styles.categoryRowWrap}>
+                    <View style={styles.formRowIconColumn}>
+                      <View style={styles.formRowIconLabelSpacer} />
+                      <View style={styles.formRowIconWrap}>
+                        <Ionicons
+                          name="grid-outline"
+                          size={20}
+                          color={iconMuted}
+                        />
+                      </View>
+                    </View>
+                    <View style={styles.categoryChipsWrap}>
+                      <Text style={styles.formRowLabel}>资产类别</Text>
+                      <View style={styles.categoryRowOneLine}>
+                        {ASSET_CATEGORY_ORDER.map((opt) => (
+                          <Pressable
+                            key={opt}
+                            style={[
+                              styles.optionMini,
+                              cashCategory === opt && styles.optionSelected,
+                            ]}
+                            onPress={() => setCashCategory(opt)}
+                          >
+                            <Text
+                              style={[
+                                styles.optionTextMini,
+                                cashCategory === opt && styles.optionTextSelected,
+                              ]}
+                              numberOfLines={1}
+                              adjustsFontSizeToFit
+                              minimumFontScale={0.88}
+                            >
+                              {CATEGORY_LABEL_ZH[opt]}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
                   </View>
-                  <Text style={styles.label}>所在账户（选填）</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={cashAccount}
-                    onChangeText={setCashAccount}
-                    placeholderTextColor={placeholderColor}
-                  />
+                  <FormRow
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="folder-outline"
+                    label="所在账户（选填）"
+                  >
+                    <TextInput
+                      style={styles.input}
+                      value={cashAccount}
+                      onChangeText={setCashAccount}
+                      placeholderTextColor={placeholderColor}
+                    />
+                  </FormRow>
                   <Pressable
                     style={styles.purposeSectionHeader}
                     onPress={() => setCashPurposeExpanded((e) => !e)}
@@ -1275,23 +1425,33 @@ export default function AssetActionScreen() {
                   </Pressable>
                   {cashPurposeExpanded ? (
                     <View style={styles.purposeSectionBody}>
-                      <Text style={styles.label}>用途说明</Text>
-                      <TextInput
-                        style={styles.input}
-                        value={cashPurpose}
-                        onChangeText={setCashPurpose}
-                        placeholderTextColor={placeholderColor}
-                      />
-                      <Text style={styles.label}>
-                        目标金额（{assetCurrencySymbol(cashCurrency)}）
-                      </Text>
-                      <TextInput
-                        style={styles.input}
-                        value={cashPurposeTarget}
-                        onChangeText={setCashPurposeTarget}
-                        keyboardType="decimal-pad"
-                        placeholderTextColor={placeholderColor}
-                      />
+                      <FormRow
+                        styles={styles}
+                        iconMuted={iconMuted}
+                        icon="document-text-outline"
+                        label="用途说明"
+                      >
+                        <TextInput
+                          style={styles.input}
+                          value={cashPurpose}
+                          onChangeText={setCashPurpose}
+                          placeholderTextColor={placeholderColor}
+                        />
+                      </FormRow>
+                      <FormRow
+                        styles={styles}
+                        iconMuted={iconMuted}
+                        icon="flag-outline"
+                        label={`目标金额（${assetCurrencySymbol(cashCurrency)}）`}
+                      >
+                        <TextInput
+                          style={styles.input}
+                          value={cashPurposeTarget}
+                          onChangeText={setCashPurposeTarget}
+                          keyboardType="decimal-pad"
+                          placeholderTextColor={placeholderColor}
+                        />
+                      </FormRow>
                     </View>
                   ) : null}
                   <Pressable
@@ -1311,74 +1471,111 @@ export default function AssetActionScreen() {
           </>
         ) : (
           <GlassSurface
-            borderRadius={24}
-            intensity={42}
-            contentStyle={{ padding: 16 }}
+            borderRadius={32}
+            intensity={50}
+            contentStyle={styles.glassFormInner}
           >
-              <Text style={styles.label}>资产名称</Text>
-              <TextInput
-                style={styles.input}
-                value={fbName}
-                onChangeText={setFbName}
-                placeholderTextColor={placeholderColor}
-              />
-              <Text style={styles.label}>当前金额</Text>
-              <View style={styles.amountRow}>
-                <Pressable
-                  style={styles.currencyChip}
-                  onPress={() => setFbCurrencyModal(true)}
-                >
-                  <Text style={styles.currencyChipText}>
-                    {assetCurrencySymbol(fbCurrency)}
-                  </Text>
-                  <Text style={styles.currencyChevron}>▼</Text>
-                </Pressable>
+              <FormRow
+                first
+                styles={styles}
+                iconMuted={iconMuted}
+                icon="albums-outline"
+                label="资产名称"
+              >
                 <TextInput
-                  style={[styles.input, styles.amountInputFlex]}
-                  value={fbValue}
-                  onChangeText={setFbValue}
+                  style={styles.input}
+                  value={fbName}
+                  onChangeText={setFbName}
+                  placeholderTextColor={placeholderColor}
+                />
+              </FormRow>
+              <FormRow
+                styles={styles}
+                iconMuted={iconMuted}
+                icon="cash-outline"
+                label="当前金额"
+              >
+                <View style={styles.amountRow}>
+                  <Pressable
+                    style={styles.currencyChip}
+                    onPress={() => setFbCurrencyModal(true)}
+                  >
+                    <Text style={styles.currencyChipText}>
+                      {assetCurrencySymbol(fbCurrency)}
+                    </Text>
+                    <Text style={styles.currencyChevron}>▼</Text>
+                  </Pressable>
+                  <TextInput
+                    style={[styles.input, styles.amountInputFlex]}
+                    value={fbValue}
+                    onChangeText={setFbValue}
+                    keyboardType="decimal-pad"
+                    placeholderTextColor={placeholderColor}
+                  />
+                </View>
+              </FormRow>
+              <FormRow
+                styles={styles}
+                iconMuted={iconMuted}
+                icon="trending-up-outline"
+                label="本金（选填）"
+              >
+                <TextInput
+                  style={styles.input}
+                  value={fbCostBasis}
+                  onChangeText={setFbCostBasis}
                   keyboardType="decimal-pad"
                   placeholderTextColor={placeholderColor}
                 />
+              </FormRow>
+              <View style={styles.categoryRowWrap}>
+                <View style={styles.formRowIconColumn}>
+                  <View style={styles.formRowIconLabelSpacer} />
+                  <View style={styles.formRowIconWrap}>
+                    <Ionicons name="grid-outline" size={20} color={iconMuted} />
+                  </View>
+                </View>
+                <View style={styles.categoryChipsWrap}>
+                  <Text style={styles.formRowLabel}>资产类别</Text>
+                  <View style={styles.categoryRowOneLine}>
+                    {ASSET_CATEGORY_ORDER.map((opt) => (
+                      <Pressable
+                        key={opt}
+                        style={[
+                          styles.optionMini,
+                          fbCategory === opt && styles.optionSelected,
+                        ]}
+                        onPress={() => setFbCategory(opt)}
+                      >
+                        <Text
+                          style={[
+                            styles.optionTextMini,
+                            fbCategory === opt && styles.optionTextSelected,
+                          ]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.88}
+                        >
+                          {CATEGORY_LABEL_ZH[opt]}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
               </View>
-              <Text style={styles.label}>本金（选填）</Text>
-              <TextInput
-                style={styles.input}
-                value={fbCostBasis}
-                onChangeText={setFbCostBasis}
-                keyboardType="decimal-pad"
-                placeholderTextColor={placeholderColor}
-              />
-              <Text style={styles.label}>资产类别</Text>
-              <View style={styles.optionsRow}>
-                {ASSET_CATEGORY_ORDER.map((opt) => (
-                  <Pressable
-                    key={opt}
-                    style={[
-                      styles.option,
-                      fbCategory === opt && styles.optionSelected,
-                    ]}
-                    onPress={() => setFbCategory(opt)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        fbCategory === opt && styles.optionTextSelected,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {CATEGORY_LABEL_ZH[opt]}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={styles.label}>所在账户（选填）</Text>
-              <TextInput
-                style={styles.input}
-                value={fbAccount}
-                onChangeText={setFbAccount}
-                placeholderTextColor={placeholderColor}
-              />
+              <FormRow
+                styles={styles}
+                iconMuted={iconMuted}
+                icon="folder-outline"
+                label="所在账户（选填）"
+              >
+                <TextInput
+                  style={styles.input}
+                  value={fbAccount}
+                  onChangeText={setFbAccount}
+                  placeholderTextColor={placeholderColor}
+                />
+              </FormRow>
               <Pressable
                 style={styles.purposeSectionHeader}
                 onPress={() => setFbPurposeExpanded((e) => !e)}
@@ -1390,21 +1587,33 @@ export default function AssetActionScreen() {
               </Pressable>
               {fbPurposeExpanded ? (
                 <View style={styles.purposeSectionBody}>
-                  <Text style={styles.label}>用途说明</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={fbPurpose}
-                    onChangeText={setFbPurpose}
-                    placeholderTextColor={placeholderColor}
-                  />
-                  <Text style={styles.label}>目标金额</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={fbPurposeTarget}
-                    onChangeText={setFbPurposeTarget}
-                    keyboardType="decimal-pad"
-                    placeholderTextColor={placeholderColor}
-                  />
+                  <FormRow
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="document-text-outline"
+                    label="用途说明"
+                  >
+                    <TextInput
+                      style={styles.input}
+                      value={fbPurpose}
+                      onChangeText={setFbPurpose}
+                      placeholderTextColor={placeholderColor}
+                    />
+                  </FormRow>
+                  <FormRow
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="flag-outline"
+                    label="目标金额"
+                  >
+                    <TextInput
+                      style={styles.input}
+                      value={fbPurposeTarget}
+                      onChangeText={setFbPurposeTarget}
+                      keyboardType="decimal-pad"
+                      placeholderTextColor={placeholderColor}
+                    />
+                  </FormRow>
                 </View>
               ) : null}
               <Pressable
@@ -1421,6 +1630,47 @@ export default function AssetActionScreen() {
               </Pressable>
           </GlassSurface>
         )}
+
+        {isAssetHiddenFromDashboard(asset) ? (
+          <Pressable
+            style={[
+              styles.saveButton,
+              {
+                marginTop: 18,
+                backgroundColor: rgbaFromHex(theme.primary, 0.12),
+              },
+            ]}
+            onPress={() => {
+              Alert.alert(
+                '归档清仓记录',
+                '将从主列表移除本资产，完整交易/余额流水可在「More → 已归档」查看并恢复。',
+                [
+                  { text: '取消', style: 'cancel' },
+                  {
+                    text: '归档',
+                    onPress: () => {
+                      void (async () => {
+                        try {
+                          await archiveAssetRecord(asset);
+                          router.back();
+                        } catch (e) {
+                          Alert.alert(
+                            '失败',
+                            e instanceof Error ? e.message : '无法归档'
+                          );
+                        }
+                      })();
+                    },
+                  },
+                ]
+              );
+            }}
+          >
+            <Text style={[styles.saveButtonText, { color: theme.primary }]}>
+              归档清仓记录
+            </Text>
+          </Pressable>
+        ) : null}
 
         <Pressable
           style={[styles.saveButton, { marginTop: 22, backgroundColor: muted }]}

@@ -9,3 +9,20 @@ export function getShanghaiDateString(): string {
     timeZone: 'Asia/Shanghai',
   });
 }
+
+/** 任意时刻转为上海日历日 YYYY-MM-DD（用于日期选择器变更后落库） */
+export function formatInstantToShanghaiDateString(d: Date): string {
+  return d.toLocaleDateString('en-CA', {
+    timeZone: 'Asia/Shanghai',
+  });
+}
+
+/** YYYY-MM-DD → 本地 Date（用于原生 DatePicker 的 value） */
+export function shanghaiYmdToLocalNoon(ymd: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!m) return new Date();
+  const y = parseInt(m[1]!, 10);
+  const mo = parseInt(m[2]!, 10);
+  const day = parseInt(m[3]!, 10);
+  return new Date(y, mo - 1, day, 12, 0, 0, 0);
+}

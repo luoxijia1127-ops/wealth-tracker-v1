@@ -5,7 +5,11 @@
  * 股票/基金/ETF：同一套表单，支持 A 股（东财）与美股/港股（OpenFIGI 联想）；收盘价仅由 Dashboard 同步写入。
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { FormRow } from '@/components/add-asset/form-row';
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
+import { InlineSelect } from '@/components/add-asset/inline-select';
 import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import {
@@ -25,8 +29,13 @@ import {
 import { saveAssets } from '@/lib/asset-storage';
 import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
 import { rgbaFromHex } from '@/lib/color-utils';
-import { getShanghaiDateString } from '@/lib/date-shanghai';
+import {
+  formatInstantToShanghaiDateString,
+  getShanghaiDateString,
+  shanghaiYmdToLocalNoon,
+} from '@/lib/date-shanghai';
 import { formatExchangeSymbol } from '@/lib/eastmoney-suggest';
+import { fetchAddAssetReferencePrice } from '@/lib/add-asset-reference-price';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
 import {
     searchUnifiedInstruments,
@@ -44,7 +53,13 @@ import {
     type SimpleAsset,
 } from '@/types/asset';
 import { useNavigation, useRouter } from 'expo-router';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -68,7 +83,12 @@ export default function AddModal() {
     () => rgbaFromHex(theme.primary, 0.42),
     [theme.primary]
   );
+  const iconMuted = useMemo(() => rgbaFromHex(theme.primary, 0.5), [theme.primary]);
   const insets = useSafeAreaInsets();
+
+  const [tradeDate, setTradeDate] = useState(() => getShanghaiDateString());
+  const [iosDateOpen, setIosDateOpen] = useState(false);
+  const [androidDateOpen, setAndroidDateOpen] = useState(false);
 
   const [category, setCategory] = useState<AssetCategory>('Stock');
   const [name, setName] = useState('');
@@ -88,7 +108,10 @@ export default function AddModal() {
   );
 
   const [assetCurrency, setAssetCurrency] = useState('CNY');
-  const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  /** 内联下拉互斥：ccy | fund */
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteHint, setQuoteHint] = useState<string | null>(null);
   const [purposeExpanded, setPurposeExpanded] = useState(false);
 
   const [account, setAccount] = useState('');
@@ -99,7 +122,7 @@ export default function AddModal() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: 'Add Asset',
+      title: '添加资产',
       headerStyle: { backgroundColor: theme.pageBg },
       headerTintColor: theme.primary,
       headerTitleStyle: {
@@ -177,6 +200,60 @@ export default function AddModal() {
     };
   }, [searchText, showListedSecuritiesForm]);
 
+  useEffect(() => {
+    if (!showListedSecuritiesForm || !instrumentPick) {
+      setQuoteHint(null);
+      setQuoteLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setQuoteLoading(true);
+    setQuoteHint(null);
+    fetchAddAssetReferencePrice(instrumentPick, tradeDate)
+      .then((r) => {
+        if (cancelled || !r) return;
+        setCostPrice(String(r.price));
+        setQuoteHint(r.hint);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setQuoteLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showListedSecuritiesForm,
+    tradeDate,
+    instrumentPick?.code,
+    instrumentPick?.quoteId,
+    instrumentPick?.intlQuoteSymbol,
+  ]);
+
+  const amountDisplay = useMemo(() => {
+    const s = parseFloat(shares);
+    const c = parseFloat(costPrice);
+    if (!Number.isFinite(s) || !Number.isFinite(c) || s <= 0 || c <= 0) return '';
+    return (s * c).toFixed(2);
+  }, [shares, costPrice]);
+
+  const onAmountChange = useCallback(
+    (t: string) => {
+      const raw = t.replace(/,/g, '').trim();
+      if (raw === '') {
+        setCostPrice('');
+        return;
+      }
+      const a = parseFloat(raw);
+      const s = parseFloat(shares);
+      if (!Number.isFinite(a) || a <= 0 || !Number.isFinite(s) || s <= 0) return;
+      const next = a / s;
+      const rounded = Math.round(next * 1e8) / 1e8;
+      setCostPrice(String(rounded));
+    },
+    [shares]
+  );
+
   const handleCategoryChange = useCallback((cat: AssetCategory) => {
     setCategory(cat);
     if (!isListedAssetCategory(cat)) {
@@ -223,6 +300,12 @@ export default function AddModal() {
 
     setSaving(true);
     try {
+      const tradeDay = tradeDate.trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(tradeDay)) {
+        Alert.alert('无法保存', '请选择有效的交易日期。');
+        return;
+      }
+
       let assetToSave: SimpleAsset;
 
       const transferId =
@@ -250,6 +333,7 @@ export default function AddModal() {
           name,
           shares: grams,
           avgCost: costNum,
+          tradeDate: tradeDay,
           purposeFields,
           account: accountTrim || undefined,
           fundingSourceAssetId: src?.id,
@@ -288,6 +372,7 @@ export default function AddModal() {
           exchange: exchange as NonNullable<SimpleAsset['exchange']>,
           shares: finalShares,
           avgCost: finalAvg,
+          tradeDate: tradeDay,
           purposeFields,
           listingCurrency: normalizeAssetCurrency(assetCurrency),
           emSecid: instrumentPick?.intlQuoteSymbol
@@ -371,7 +456,7 @@ export default function AddModal() {
             src,
             'out',
             amount,
-            getShanghaiDateString(),
+            tradeDay,
             {
               relatedAssetId: assetToSave.id,
               relatedAssetName: assetToSave.name,
@@ -405,6 +490,29 @@ export default function AddModal() {
 
   const keyboardOffset = Platform.OS === 'ios' ? insets.top + 56 : 0;
 
+  const openTradeDatePicker = () => {
+    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'android') {
+      setAndroidDateOpen(true);
+    } else {
+      setIosDateOpen(true);
+    }
+  };
+
+  const currencyModalOptions =
+    category === 'Gold'
+      ? ASSET_CURRENCY_OPTIONS.filter((o) => o.code === 'CNY')
+      : ASSET_CURRENCY_OPTIONS;
+
+  const currencySelectOptions = useMemo(
+    () =>
+      currencyModalOptions.map((o) => ({
+        value: o.code,
+        label: o.code,
+      })),
+    [currencyModalOptions]
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboardRoot}
@@ -424,100 +532,200 @@ export default function AddModal() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        nestedScrollEnabled
+        onScrollBeginDrag={() => setMenuOpen(null)}
       >
         <GlassSurface borderRadius={32} intensity={50} contentStyle={styles.glassFormInner}>
-        <Text style={styles.label}>资产类别</Text>
-        <View style={styles.optionsRow}>
-          {ASSET_CATEGORY_ORDER.map((opt) => (
-            <Pressable
-              key={opt}
-              style={[styles.option, category === opt && styles.optionSelected]}
-              onPress={() => handleCategoryChange(opt)}
-            >
-              <Text
-                style={[
-                  styles.optionText,
-                  category === opt && styles.optionTextSelected,
-                ]}
-                numberOfLines={1}
-              >
-                {CATEGORY_LABEL_ZH[opt]}
-              </Text>
-            </Pressable>
-          ))}
+        <View style={styles.categoryRowWrap}>
+          <View style={styles.formRowIconColumn}>
+            <View style={styles.formRowIconLabelSpacer} />
+            <View style={styles.formRowIconWrap}>
+              <Ionicons name="grid-outline" size={20} color={iconMuted} />
+            </View>
+          </View>
+          <View style={styles.categoryChipsWrap}>
+            <Text style={styles.formRowLabel}>资产类别</Text>
+            <View style={styles.categoryRowOneLine}>
+              {ASSET_CATEGORY_ORDER.map((opt) => (
+                <Pressable
+                  key={opt}
+                  style={[
+                    styles.optionMini,
+                    category === opt && styles.optionSelected,
+                  ]}
+                  onPress={() => handleCategoryChange(opt)}
+                >
+                  <Text
+                    style={[
+                      styles.optionTextMini,
+                      category === opt && styles.optionTextSelected,
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.88}
+                  >
+                    {CATEGORY_LABEL_ZH[opt]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
         </View>
 
-        <Text style={styles.label}>所在账户（选填）</Text>
-        <TextInput
-          placeholder="如：支付宝、招商银行储蓄卡、同花顺…"
-          placeholderTextColor={placeholderColor}
-          style={styles.input}
-          value={account}
-          onChangeText={setAccount}
-        />
+        <FormRow
+          styles={styles}
+          iconMuted={iconMuted}
+          icon="calendar-outline"
+          label="交易时间"
+          right={
+            Platform.OS !== 'web' ? (
+              <Ionicons name="chevron-forward" size={18} color={iconMuted} />
+            ) : undefined
+          }
+        >
+          {Platform.OS === 'web' ? (
+            <TextInput
+              value={tradeDate}
+              onChangeText={setTradeDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={placeholderColor}
+              style={styles.input}
+              autoCapitalize="none"
+            />
+          ) : (
+            <Pressable
+              onPress={openTradeDatePicker}
+              style={styles.formRowValuePressable}
+              accessibilityRole="button"
+              accessibilityLabel="选择交易日期"
+            >
+              <Text style={styles.formRowValue}>{tradeDate}</Text>
+            </Pressable>
+          )}
+        </FormRow>
 
         {showGoldForm && (
           <>
-            <Text style={styles.label}>名称</Text>
-            <TextInput
-              placeholder="如：工行如意金、实物金条"
-              placeholderTextColor={placeholderColor}
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-            />
-            <Text style={styles.label}>持有克数</Text>
-            <TextInput
-              placeholder="购买或当前记账克数"
-              placeholderTextColor={placeholderColor}
-              style={styles.input}
-              value={shares}
-              onChangeText={setShares}
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.label}>购买单价</Text>
-            <View style={styles.amountRow}>
-              <View style={styles.currencyChipStatic}>
-                <Text style={styles.currencyChipText}>¥</Text>
-              </View>
+            <FormRow
+              styles={styles}
+              iconMuted={iconMuted}
+              icon="text-outline"
+              label="名称"
+            >
               <TextInput
-                placeholder="如 520"
+                placeholder="如：工行如意金、实物金条"
                 placeholderTextColor={placeholderColor}
-                style={[styles.input, styles.amountInputFlex]}
-                value={costPrice}
-                onChangeText={setCostPrice}
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+              />
+            </FormRow>
+            <FormRow
+              styles={styles}
+              iconMuted={iconMuted}
+              icon="fitness-outline"
+              label="数量"
+              right={
+                <View style={styles.unitPill}>
+                  <Text style={styles.formRowRightText}>克</Text>
+                </View>
+              }
+            >
+              <TextInput
+                placeholder="克数"
+                placeholderTextColor={placeholderColor}
+                style={styles.input}
+                value={shares}
+                onChangeText={setShares}
                 keyboardType="decimal-pad"
               />
-            </View>
-            <FundingSourcePicker
-              label="资金来源（选填）"
-              emptyOptionLabel="其他外部资金"
-              valueId={fundingSourceId}
-              onSelectId={setFundingSourceId}
-              fundingOptions={fundingOptions}
+            </FormRow>
+            <FormRow
               styles={styles}
-            />
+              iconMuted={iconMuted}
+              icon="pricetag-outline"
+              label="购买单价（CNY/克）"
+            >
+              <View style={styles.inputCurrencyShell}>
+                <TextInput
+                  placeholder="单价"
+                  placeholderTextColor={placeholderColor}
+                  style={styles.inputCurrencyField}
+                  value={costPrice}
+                  onChangeText={setCostPrice}
+                  keyboardType="decimal-pad"
+                />
+                <View style={styles.inputCurrencyDivider} />
+                <InlineSelect
+                  menuKey="ccy"
+                  openKey={menuOpen}
+                  setOpenKey={setMenuOpen}
+                  value={assetCurrency}
+                  options={currencySelectOptions}
+                  onChange={(v) => setAssetCurrency(v)}
+                  embedded
+                  primaryColor={theme.primary}
+                  mutedColor={iconMuted}
+                />
+              </View>
+            </FormRow>
+            <View style={[styles.formRow, { zIndex: 25 }]}>
+              <View style={styles.formRowIconColumn}>
+                <View style={styles.formRowIconLabelSpacer} />
+                <View style={styles.formRowIconWrap}>
+                  <Ionicons name="wallet-outline" size={18} color={iconMuted} />
+                </View>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.formRowLabel}>资金来源（选填）</Text>
+                <FundingSourcePicker
+                  label="资金来源（选填）"
+                  emptyOptionLabel="其他外部资金"
+                  valueId={fundingSourceId}
+                  onSelectId={setFundingSourceId}
+                  fundingOptions={fundingOptions}
+                  styles={styles}
+                  omitLabel
+                  mode="inline"
+                  menuKey="fund"
+                  openKey={menuOpen}
+                  setOpenKey={setMenuOpen}
+                  primaryColor={theme.primary}
+                  mutedColor={iconMuted}
+                />
+              </View>
+            </View>
           </>
         )}
 
         {showListedSecuritiesForm && (
           <>
-            <Text style={styles.label}>搜索证券（代码或简称）</Text>
-            <TextInput
-              placeholder="如 茅台、012922、AAPL、腾讯、700…"
-              placeholderTextColor={placeholderColor}
-              style={styles.input}
-              value={searchText}
-              onChangeText={(t) => {
-                setSearchText(t);
-                if (instrumentPick && t.trim().length > 0) {
-                  setInstrumentPick(null);
-                  setSymbol('');
-                }
-              }}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            <View style={styles.categoryBlock}>
+              <View style={styles.formRowIconColumn}>
+                <View style={styles.formRowIconLabelSpacer} />
+                <View style={styles.formRowIconWrap}>
+                  <Ionicons name="search-outline" size={18} color={iconMuted} />
+                </View>
+              </View>
+              <View style={styles.categoryChipsWrap}>
+                <Text style={styles.formRowLabel}>搜索证券（代码或简称）</Text>
+                <TextInput
+                  placeholder="如 茅台、012922、AAPL、腾讯、700…"
+                  placeholderTextColor={placeholderColor}
+                  style={styles.input}
+                  value={searchText}
+                  onChangeText={(t) => {
+                    setSearchText(t);
+                    if (instrumentPick && t.trim().length > 0) {
+                      setInstrumentPick(null);
+                      setSymbol('');
+                    }
+                  }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
             {suggestLoading && (
               <View style={styles.suggestLoadingRow}>
                 <ActivityIndicator size="small" color={theme.primary} />
@@ -569,189 +777,299 @@ export default function AddModal() {
               </View>
             )}
 
-            <Text style={styles.label}>标的名称</Text>
-            <TextInput
-              placeholder="可从上方搜索结果带入，也可修改"
-              placeholderTextColor={placeholderColor}
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-            />
+            <FormRow styles={styles} iconMuted={iconMuted} icon="pie-chart-outline">
+              <View style={[styles.listedTwoCol, { alignItems: 'flex-start' }]}>
+                <View style={[styles.listedColFlex, { maxWidth: '36%' }]}>
+                  <Text style={styles.formRowLabel}>份额</Text>
+                  <TextInput
+                    placeholder="份"
+                    placeholderTextColor={placeholderColor}
+                    style={styles.inputCompact}
+                    value={shares}
+                    onChangeText={setShares}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                <View style={[styles.listedColFlex, { flex: 1.4, minWidth: 0 }]}>
+                  <Text style={styles.formRowLabel}>单价</Text>
+                  <View style={styles.inputCurrencyShell}>
+                    <TextInput
+                      placeholder="单价"
+                      placeholderTextColor={placeholderColor}
+                      style={styles.inputCurrencyField}
+                      value={costPrice}
+                      onChangeText={setCostPrice}
+                      keyboardType="decimal-pad"
+                    />
+                    <View style={styles.inputCurrencyDivider} />
+                    <InlineSelect
+                      menuKey="ccy"
+                      openKey={menuOpen}
+                      setOpenKey={setMenuOpen}
+                      value={assetCurrency}
+                      options={currencySelectOptions}
+                      onChange={(v) => setAssetCurrency(v)}
+                      embedded
+                      primaryColor={theme.primary}
+                      mutedColor={iconMuted}
+                    />
+                  </View>
+                </View>
+              </View>
+              {quoteLoading ? (
+                <View style={styles.suggestLoadingRow}>
+                  <ActivityIndicator size="small" color={theme.primary} />
+                  <Text style={styles.suggestLoadingText}>同步参考价…</Text>
+                </View>
+              ) : quoteHint ? (
+                <Text style={styles.hint}>参考：{quoteHint}</Text>
+              ) : null}
+            </FormRow>
 
-            <Text style={styles.label}>份额</Text>
-            <TextInput
-              placeholder="持有数量"
-              placeholderTextColor={placeholderColor}
-              style={styles.input}
-              value={shares}
-              onChangeText={setShares}
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.label}>成本价 / 买价</Text>
-            <View style={styles.amountRow}>
-              <Pressable
-                style={styles.currencyChip}
-                onPress={() => setCurrencyModalVisible(true)}
-                accessibilityRole="button"
-                accessibilityLabel="选择报价币种"
-              >
-                <Text style={styles.currencyChipText}>
-                  {assetCurrencySymbol(assetCurrency)}
-                </Text>
-                <Text style={styles.currencyChevron}>▼</Text>
-              </Pressable>
+            <FormRow
+              styles={styles}
+              iconMuted={iconMuted}
+              icon="calculator-outline"
+              label="金额（份额×单价，改金额反算单价）"
+            >
               <TextInput
-                placeholder="如建仓均价"
+                placeholder="自动计算，可改"
                 placeholderTextColor={placeholderColor}
-                style={[styles.input, styles.amountInputFlex]}
-                value={costPrice}
-                onChangeText={setCostPrice}
+                style={styles.input}
+                value={amountDisplay}
+                onChangeText={onAmountChange}
                 keyboardType="decimal-pad"
               />
+            </FormRow>
+
+            <View style={[styles.formRow, { zIndex: 25 }]}>
+              <View style={styles.formRowIconColumn}>
+                <View style={styles.formRowIconLabelSpacer} />
+                <View style={styles.formRowIconWrap}>
+                  <Ionicons name="wallet-outline" size={18} color={iconMuted} />
+                </View>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.formRowLabel}>资金来源（选填）</Text>
+                <FundingSourcePicker
+                  label="资金来源（选填）"
+                  emptyOptionLabel="其他外部资金"
+                  valueId={fundingSourceId}
+                  onSelectId={setFundingSourceId}
+                  fundingOptions={fundingOptions}
+                  styles={styles}
+                  omitLabel
+                  mode="inline"
+                  menuKey="fund"
+                  openKey={menuOpen}
+                  setOpenKey={setMenuOpen}
+                  primaryColor={theme.primary}
+                  mutedColor={iconMuted}
+                />
+              </View>
             </View>
-            <FundingSourcePicker
-              label="资金来源（选填）"
-              emptyOptionLabel="其他外部资金"
-              valueId={fundingSourceId}
-              onSelectId={setFundingSourceId}
-              fundingOptions={fundingOptions}
-              styles={styles}
-            />
           </>
         )}
 
         {showSimpleBalanceForm && (
           <>
-            <Text style={styles.label}>资产名称</Text>
-            <TextInput
-              placeholder="如：招行朝朝宝、余额宝、车贷专户"
-              placeholderTextColor={placeholderColor}
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-            />
-            <Text style={styles.label}>当前金额</Text>
-            <View style={styles.amountRow}>
-              <Pressable
-                style={styles.currencyChip}
-                onPress={() => setCurrencyModalVisible(true)}
-                accessibilityRole="button"
-                accessibilityLabel="选择币种"
-              >
-                <Text style={styles.currencyChipText}>
-                  {assetCurrencySymbol(assetCurrency)}
-                </Text>
-                <Text style={styles.currencyChevron}>▼</Text>
-              </Pressable>
+            <FormRow
+              styles={styles}
+              iconMuted={iconMuted}
+              icon="albums-outline"
+              label="资产名称"
+            >
               <TextInput
-                placeholder="如存款、黄金市值等"
+                placeholder="如：招行朝朝宝、余额宝、车贷专户"
                 placeholderTextColor={placeholderColor}
-                style={[styles.input, styles.amountInputFlex]}
-                value={value}
-                onChangeText={setValue}
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+              />
+            </FormRow>
+            <FormRow
+              styles={styles}
+              iconMuted={iconMuted}
+              icon="cash-outline"
+              label="当前金额"
+            >
+              <View style={styles.inputCurrencyShell}>
+                <TextInput
+                  placeholder="金额"
+                  placeholderTextColor={placeholderColor}
+                  style={styles.inputCurrencyField}
+                  value={value}
+                  onChangeText={setValue}
+                  keyboardType="decimal-pad"
+                />
+                <View style={styles.inputCurrencyDivider} />
+                <InlineSelect
+                  menuKey="ccy"
+                  openKey={menuOpen}
+                  setOpenKey={setMenuOpen}
+                  value={assetCurrency}
+                  options={currencySelectOptions}
+                  onChange={(v) => setAssetCurrency(v)}
+                  embedded
+                  primaryColor={theme.primary}
+                  mutedColor={iconMuted}
+                />
+              </View>
+            </FormRow>
+            <FormRow
+              styles={styles}
+              iconMuted={iconMuted}
+              icon="trending-up-outline"
+              label="本金（选填）"
+            >
+              <TextInput
+                placeholder="不填则仅记录当前金额"
+                placeholderTextColor={placeholderColor}
+                style={styles.input}
+                value={costBasis}
+                onChangeText={setCostBasis}
+                keyboardType="decimal-pad"
+              />
+            </FormRow>
+          </>
+        )}
+
+        {!purposeExpanded ? (
+          <Pressable
+            style={styles.moreOptionsLink}
+            onPress={() => setPurposeExpanded(true)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.moreOptionsLinkText}>+ 更多选项</Text>
+          </Pressable>
+        ) : (
+          <>
+            <Pressable
+              style={styles.purposeSectionHeader}
+              onPress={() => setPurposeExpanded(false)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: true }}
+            >
+              <Text style={styles.purposeSectionTitle}>更多选项</Text>
+              <Text style={styles.purposeCaret}>▲</Text>
+            </Pressable>
+            <View style={styles.purposeSectionBody}>
+              <Text style={styles.label}>所在账户（选填）</Text>
+              <TextInput
+                placeholder="如：支付宝、招商银行储蓄卡、同花顺…"
+                placeholderTextColor={placeholderColor}
+                style={styles.input}
+                value={account}
+                onChangeText={setAccount}
+              />
+              <Text style={styles.label}>用途说明</Text>
+              <TextInput
+                placeholder="如：旅游基金、应急金"
+                placeholderTextColor={placeholderColor}
+                style={styles.input}
+                value={purpose}
+                onChangeText={setPurpose}
+              />
+              <Text style={styles.label}>
+                目标金额（{purposeYuan ? '¥' : assetCurrencySymbol(assetCurrency)}）
+              </Text>
+              <TextInput
+                placeholder="不填则不显示进度"
+                placeholderTextColor={placeholderColor}
+                style={styles.input}
+                value={purposeTarget}
+                onChangeText={setPurposeTarget}
                 keyboardType="decimal-pad"
               />
             </View>
-            <Text style={styles.label}>本金（选填）</Text>
-            <TextInput
-              placeholder="不填则仅记录当前金额"
-              placeholderTextColor={placeholderColor}
-              style={styles.input}
-              value={costBasis}
-              onChangeText={setCostBasis}
-              keyboardType="decimal-pad"
-            />
           </>
         )}
 
         <Pressable
-          style={styles.purposeSectionHeader}
-          onPress={() => setPurposeExpanded((e) => !e)}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: purposeExpanded }}
-        >
-          <Text style={styles.purposeSectionTitle}>用途与目标（选填）</Text>
-          <Text style={styles.purposeCaret}>
-            {purposeExpanded ? '▲' : '▼'}
-          </Text>
-        </Pressable>
-        {purposeExpanded ? (
-          <View style={styles.purposeSectionBody}>
-            <Text style={styles.label}>用途说明</Text>
-            <TextInput
-              placeholder="如：旅游基金、应急金"
-              placeholderTextColor={placeholderColor}
-              style={styles.input}
-              value={purpose}
-              onChangeText={setPurpose}
-            />
-            <Text style={styles.label}>
-              目标金额（{purposeYuan ? '¥' : assetCurrencySymbol(assetCurrency)}）
-            </Text>
-            <TextInput
-              placeholder="不填则不显示进度"
-              placeholderTextColor={placeholderColor}
-              style={styles.input}
-              value={purposeTarget}
-              onChangeText={setPurposeTarget}
-              keyboardType="decimal-pad"
-            />
-          </View>
-        ) : null}
-
-        <Pressable
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          style={[styles.saveButtonPill, saving && styles.saveButtonDisabled]}
           onPress={saveAsset}
           disabled={saving}
         >
-          <Text style={styles.saveButtonText}>
-            {saving ? '保存中…' : '保存'}
+          <Text style={styles.saveButtonPillText}>
+            {saving ? '保存中…' : '添加'}
           </Text>
+        </Pressable>
+        <Pressable
+          style={styles.discardButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+        >
+          <Text style={styles.discardButtonText}>放弃</Text>
         </Pressable>
         </GlassSurface>
       </ScrollView>
 
-      <Modal
-        visible={currencyModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCurrencyModalVisible(false)}
-      >
-        <View style={styles.currencyModalBackdrop}>
-          <Pressable
-            style={styles.currencyModalDismiss}
-            onPress={() => setCurrencyModalVisible(false)}
-            accessibilityLabel="关闭"
-          />
-          <View style={styles.currencyModalCard}>
-            <Text style={styles.currencyModalTitle}>选择币种</Text>
-            {ASSET_CURRENCY_OPTIONS.map((o) => (
-              <Pressable
-                key={o.code}
-                style={[
-                  styles.currencyModalRow,
-                  assetCurrency === o.code && styles.currencyModalRowSelected,
-                ]}
-                onPress={() => {
-                  setAssetCurrency(o.code);
-                  setCurrencyModalVisible(false);
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={iosDateOpen}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setIosDateOpen(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              justifyContent: 'flex-end',
+              backgroundColor: 'rgba(0,0,0,0.45)',
+            }}
+          >
+            <Pressable style={{ flex: 1 }} onPress={() => setIosDateOpen(false)} />
+            <View
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                paddingBottom: insets.bottom + 10,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: 18,
+                  paddingVertical: 14,
                 }}
               >
-                <Text style={styles.currencyModalRowSymbol}>{o.symbol}</Text>
-                <Text style={styles.currencyModalRowLabel}>
-                  {o.code} · {o.label}
-                </Text>
-              </Pressable>
-            ))}
-            <Pressable
-              style={styles.currencyModalCancel}
-              onPress={() => setCurrencyModalVisible(false)}
-            >
-              <Text style={styles.currencyModalCancelText}>取消</Text>
-            </Pressable>
+                <Pressable onPress={() => setIosDateOpen(false)}>
+                  <Text style={{ fontSize: 16, color: theme.primary }}>取消</Text>
+                </Pressable>
+                <Pressable onPress={() => setIosDateOpen(false)}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: theme.primary }}>
+                    完成
+                  </Text>
+                </Pressable>
+              </View>
+              <DateTimePicker
+                value={shanghaiYmdToLocalNoon(tradeDate)}
+                mode="date"
+                display="spinner"
+                themeVariant="light"
+                onChange={(_, date) => {
+                  if (date) setTradeDate(formatInstantToShanghaiDateString(date));
+                }}
+              />
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      ) : null}
+
+      {Platform.OS === 'android' && androidDateOpen ? (
+        <DateTimePicker
+          value={shanghaiYmdToLocalNoon(tradeDate)}
+          mode="date"
+          display="default"
+          onChange={(_, date) => {
+            setAndroidDateOpen(false);
+            if (date) setTradeDate(formatInstantToShanghaiDateString(date));
+          }}
+        />
+      ) : null}
+
     </KeyboardAvoidingView>
   );
 }

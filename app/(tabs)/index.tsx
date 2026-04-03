@@ -1,6 +1,5 @@
 /**
  * DASHBOARD SCREEN
- *
  * Merged view: Net Worth at top, then grouped asset structure (Category → Type → Assets).
  * Loads assets from AsyncStorage (key "assets"). Net Worth = sum of all asset values.
  *
@@ -17,13 +16,15 @@
 import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { BALANCE_INK } from '@/lib/finance-colors';
-import { deleteAsset, getAssets } from '@/lib/asset-storage';
+import { moveAssetToTrash } from '@/lib/asset-recycle';
+import { getAssets } from '@/lib/asset-storage';
 import {
   filterAssetsForDashboard,
   formatMoney,
   formatNetWorthSummary,
   getAssetCurrency,
   getAssetDisplayValue,
+  isAssetHiddenFromDashboard,
   isHeldChineseAsset,
   sumDisplayValuesInCny,
   sumDisplayValuesNaive,
@@ -409,7 +410,7 @@ export default function Dashboard() {
   }, []);
 
   const handleDeleteAsset = useCallback(async (id: string) => {
-    await deleteAsset(id);
+    await moveAssetToTrash(id);
     try {
       setAssets(await getAssets());
     } catch {
@@ -504,6 +505,12 @@ export default function Dashboard() {
 
   const dashboardAssets = useMemo(
     () => filterAssetsForDashboard(assets),
+    [assets]
+  );
+
+  /** 主列表隐藏但仍保存在本地的清仓 / 零余额资产，可点进详情并归档 */
+  const hiddenFromDashboardAssets = useMemo(
+    () => assets.filter((a) => isAssetHiddenFromDashboard(a)),
     [assets]
   );
 
@@ -655,7 +662,7 @@ export default function Dashboard() {
 
       {/* 2. Grouped asset structure: Category → Assets (collapsible) */}
       <View style={styles.assetStructureSection}>
-        {dashboardAssets.length === 0 ? (
+        {dashboardAssets.length === 0 && hiddenFromDashboardAssets.length === 0 ? (
           <GlassSurface borderRadius={28} intensity={44}>
             <View style={styles.emptyCardInner}>
               <Text style={styles.emptyText}>Add assets from the Add tab</Text>
@@ -766,6 +773,53 @@ export default function Dashboard() {
                 </GlassSurface>
               );
             })}
+
+            {hiddenFromDashboardAssets.length > 0 ? (
+              <GlassSurface
+                borderRadius={28}
+                intensity={46}
+                style={styles.categoryGlassOuter}
+              >
+                <View style={styles.folderCard}>
+                  <View
+                    style={[
+                      styles.folderAccentStrip,
+                      { backgroundColor: rgbaFromHex(theme.primary, 0.35) },
+                    ]}
+                  />
+                  <View style={styles.folderBody}>
+                    <View style={[styles.folderHeader, { backgroundColor: rgbaFromHex(theme.primary, 0.12) }]}>
+                      <View style={styles.folderHeaderTextCol}>
+                        <Text style={styles.folderTitle} numberOfLines={1}>
+                          已清仓 / 零余额
+                        </Text>
+                        <Text style={styles.folderSubtitle} numberOfLines={2}>
+                          不计入上方净值汇总；可进入详情后归档交易明细至「More - 已归档」
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.folderAssetList}>
+                      {hiddenFromDashboardAssets.map((asset) => {
+                        const cat = asset.category as AssetCategory;
+                        const accent =
+                          theme.categoryAccents[cat] ?? theme.primary;
+                        return (
+                          <AssetRow
+                            key={asset.id}
+                            asset={asset}
+                            accentColor={accent}
+                            styles={styles}
+                            chevronMuted={chevronMuted}
+                            onEdit={handleEditAsset}
+                            onDelete={handleDeleteAsset}
+                          />
+                        );
+                      })}
+                    </View>
+                  </View>
+                </View>
+              </GlassSurface>
+            ) : null}
           </View>
         )}
       </View>
