@@ -2,6 +2,7 @@
  * 「More」：账号卡 + 工具 / 设置 / 数据 / 支持 分区网格。
  */
 
+import { GlassSurface } from '@/components/glass-surface';
 import { SettingsGridTile } from '@/components/settings-grid-tile';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { rgbaFromHex } from '@/lib/color-utils';
@@ -85,7 +86,7 @@ export default function SettingsScreen() {
       },
       {
         id: 'cashflow',
-        label: '收支颜色',
+        label: '主题颜色',
         icon: 'invert-colors-on',
         onPress: () => router.push('/settings-cashflow-colors'),
       },
@@ -209,7 +210,11 @@ export default function SettingsScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 28 },
+          {
+            paddingTop: insets.top + 8,
+            paddingBottom: insets.bottom + 28,
+            backgroundColor: 'transparent',
+          },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -219,40 +224,50 @@ export default function SettingsScreen() {
           <View style={{ width: 46 }} />
         </View>
 
-        <View style={styles.profileCard}>
-          <View style={[styles.profileTopRow, { marginBottom: 0 }]}>
-            <View style={styles.avatar}>
-              <MaterialIcons name="person" size={28} color={theme.primary} />
+        <GlassSurface borderRadius={28} intensity={50} style={styles.profileGlassOuter}>
+          <View style={styles.profileCardInner}>
+            <View style={[styles.profileTopRow, { marginBottom: 0 }]}>
+              <View style={styles.avatar}>
+                <MaterialIcons name="person" size={28} color={theme.primary} />
+              </View>
+              <View style={styles.profileNameBlock}>
+                <Text style={styles.profileName}>本地账本</Text>
+                <Text style={styles.profileSub} numberOfLines={2}>
+                  本地账户 · 数据仅保存在本机，不上传服务器。
+                </Text>
+              </View>
+              <Pressable
+                onPress={openMembership}
+                style={({ pressed }) => [
+                  styles.profileCta,
+                  pressed && { opacity: 0.9 },
+                ]}
+              >
+                <Text style={styles.profileCtaText}>会员</Text>
+              </Pressable>
             </View>
-            <View style={styles.profileNameBlock}>
-              <Text style={styles.profileName}>本地账本</Text>
-              <Text style={styles.profileSub} numberOfLines={2}>
-                本地账户 · 数据仅保存在本机，不上传服务器。
-              </Text>
-            </View>
-            <Pressable
-              onPress={openMembership}
-              style={({ pressed }) => [
-                styles.profileCta,
-                pressed && { opacity: 0.9 },
-              ]}
-            >
-              <Text style={styles.profileCtaText}>会员</Text>
-            </Pressable>
           </View>
-        </View>
+        </GlassSurface>
 
-        <Text style={styles.sectionLabel}>工具</Text>
-        {renderGrid(toolTiles)}
+        <GlassSurface borderRadius={26} intensity={44} style={styles.sectionGlassOuter}>
+          <Text style={styles.sectionLabel}>工具</Text>
+          {renderGrid(toolTiles)}
+        </GlassSurface>
 
-        <Text style={styles.sectionLabel}>设置</Text>
-        {renderGrid(settingsTiles)}
+        <GlassSurface borderRadius={26} intensity={44} style={styles.sectionGlassOuter}>
+          <Text style={styles.sectionLabel}>设置</Text>
+          {renderGrid(settingsTiles)}
+        </GlassSurface>
 
-        <Text style={styles.sectionLabel}>数据</Text>
-        {renderGrid(dataTiles)}
+        <GlassSurface borderRadius={26} intensity={44} style={styles.sectionGlassOuter}>
+          <Text style={styles.sectionLabel}>数据</Text>
+          {renderGrid(dataTiles)}
+        </GlassSurface>
 
-        <Text style={styles.sectionLabel}>支持</Text>
-        {renderGrid(supportTiles)}
+        <GlassSurface borderRadius={26} intensity={44} style={styles.sectionGlassOuter}>
+          <Text style={styles.sectionLabel}>支持</Text>
+          {renderGrid(supportTiles)}
+        </GlassSurface>
       </ScrollView>
     </View>
   );

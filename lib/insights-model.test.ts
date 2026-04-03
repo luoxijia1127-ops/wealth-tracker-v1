@@ -21,8 +21,12 @@ describe('filterSnapshotsByTimeframe', () => {
     { date: '2026-03-01', totalValue: 1, totalValueCny: 120 },
   ];
 
-  it('returns all for ALL', () => {
-    expect(filterSnapshotsByTimeframe(snaps, 'ALL', '2026-03-28')).toEqual(snaps);
+  it('returns full range for CUSTOM when range covers all dates', () => {
+    const out = filterSnapshotsByTimeframe(snaps, 'CUSTOM', '2026-03-28', {
+      start: '2025-12-01',
+      end: '2026-03-28',
+    });
+    expect(out).toEqual(snaps);
   });
 
   it('filters by lookback from anchor', () => {
@@ -36,7 +40,10 @@ describe('filterSnapshotsByTimeframe', () => {
       ...snaps,
       { date: '2026-04-01', totalValue: 1, totalValueCny: 130 },
     ];
-    const out = filterSnapshotsByTimeframe(withFuture, 'ALL', '2026-03-28');
+    const out = filterSnapshotsByTimeframe(withFuture, 'CUSTOM', '2026-03-28', {
+      start: '2025-01-01',
+      end: '2026-03-28',
+    });
     expect(out.map((s) => s.date)).toEqual([
       '2026-01-01',
       '2026-02-01',

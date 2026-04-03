@@ -15,6 +15,25 @@ export function generateTradeId(): string {
 }
 
 /**
+ * 无流水、需补「期初」买入时，建仓日不可用行情 lastCloseDate：
+ * 该字段多为「上一交易日收盘」且全市场同类，会导致多只标的持有天数被算成同一天数（如均为 1 天）。
+ * 优先用资产市值快照 history 的最早一日；否则用上海当日（表示仅有持仓、建仓日不可考）。
+ */
+export function pickListedSyntheticOpenDate(asset: SimpleAsset): string {
+  const today = getShanghaiDateString();
+  if (asset.history && asset.history.length > 0) {
+    const sorted = [...asset.history].sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
+    const first = sorted[0]!.date;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(first) && first <= today) {
+      return first;
+    }
+  }
+  return today;
+}
+
+/**
  * 若尚无流水但有持仓，补一条「期初」买入，便于与后续加减仓一并回放。
  */
 export function ensureBaselineLedger(asset: SimpleAsset): TradeLedgerEntry[] {
@@ -39,7 +58,7 @@ export function ensureBaselineLedger(asset: SimpleAsset): TradeLedgerEntry[] {
   return [
     {
       id: `baseline-${asset.id}`,
-      tradeDate: asset.lastCloseDate || getShanghaiDateString(),
+      tradeDate: pickListedSyntheticOpenDate(asset),
       side: 'buy',
       shares: sh,
       unitPriceCny: px,
@@ -52,6 +71,45 @@ export type ReplayResult = {
   avgCost?: number;
   error?: string;
 };
+
+/**
+ * 按摊薄成本逐笔计算「卖出」已实现盈亏（与 replay 一致）；用于交易明细展示。
+ * 流水无效（如超卖）时自该笔起不再写入，已算出的仍保留。
+ */
+export function computeSellRealizedPnlByTradeId(
+  trades: TradeLedgerEntry[]
+): Map<string, number> {
+  const out = new Map<string, number>();
+  const sorted = [...trades].sort((a, b) =>
+    a.tradeDate.localeCompare(b.tradeDate) !== 0
+      ? a.tradeDate.localeCompare(b.tradeDate)
+      : a.id.localeCompare(b.id)
+  );
+  let sh = 0;
+  let totalCost = 0;
+  for (const t of sorted) {
+    const q = t.shares;
+    const p = t.unitPriceCny;
+    if (!(q > 0) || p < 0 || Number.isNaN(q) || Number.isNaN(p)) {
+      break;
+    }
+    if (t.side === 'buy') {
+      totalCost += q * p;
+      sh += q;
+    } else {
+      if (sh <= 0 || q > sh + 1e-9) {
+        break;
+      }
+      const avg = totalCost / sh;
+      const realized = (p - avg) * q;
+      out.set(t.id, realized);
+      totalCost -= q * avg;
+      sh -= q;
+      if (totalCost < 0) totalCost = 0;
+    }
+  }
+  return out;
+}
 
 export function replayListedPosition(trades: TradeLedgerEntry[]): ReplayResult {
   const sorted = [...trades].sort((a, b) =>

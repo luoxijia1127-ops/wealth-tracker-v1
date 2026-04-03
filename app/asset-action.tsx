@@ -35,10 +35,14 @@ import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { formatExchangeSymbol } from '@/lib/eastmoney-suggest';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
+import { FINANCE_DOWN, FINANCE_UP } from '@/lib/finance-colors';
 import { createInsightsStyles } from '@/lib/insights-styles';
 import { tryApplyListedAdjustTrade } from '@/lib/listed-adjust-trade';
 import { createAddModalStyles } from '@/lib/modal-styles';
-import { ensureBaselineLedger } from '@/lib/trade-ledger';
+import {
+  computeSellRealizedPnlByTradeId,
+  ensureBaselineLedger,
+} from '@/lib/trade-ledger';
 import {
   ASSET_CATEGORY_ORDER,
   CATEGORY_LABEL_ZH,
@@ -81,26 +85,6 @@ const CASH_TABS: { id: CashPanel; label: string }[] = [
 
 /** 场内「编辑信息」里可切换的类别，仅三类 */
 const LISTED_EDIT_CATEGORIES: AssetCategory[] = ['Stock', 'Fund', 'ETF'];
-
-function formatTradeLine(
-  t: TradeLedgerEntry,
-  useGram: boolean,
-  quoteCurrency: string
-): string {
-  const side = t.side === 'buy' ? '买入' : '卖出';
-  const q = useGram ? '克' : '份';
-  const u = useGram ? 'CNY/克' : `${quoteCurrency}/份`;
-  const px = formatMoney(t.unitPriceCny, quoteCurrency);
-  const src =
-    t.side === 'buy' && t.fundingSourceAssetName
-      ? ` · 资金来源：${t.fundingSourceAssetName}`
-      : '';
-  const dst =
-    t.side === 'sell' && t.cashDestinationAssetName
-      ? ` · 去向：${t.cashDestinationAssetName}`
-      : '';
-  return `${t.tradeDate} · ${side} ${t.shares} ${q} @ ${px}（${u}）${src}${dst}`;
-}
 
 function formatCashLine(e: CashLedgerEntry, currency: string): string {
   const lab = e.side === 'in' ? '增加' : '减少';
@@ -344,6 +328,11 @@ export default function AssetActionScreen() {
     }
     return { trades: [], tradesAreSynthetic: false };
   }, [asset]);
+
+  const sellRealizedById = useMemo(
+    () => computeSellRealizedPnlByTradeId(trades),
+    [trades]
+  );
 
   const { cashRows, cashRowsSynthetic } = useMemo(() => {
     if (!asset || !usesCashAmountLedger(asset)) {
@@ -816,6 +805,7 @@ export default function AssetActionScreen() {
     typeof asset.lastClose === 'number' && asset.lastClose > 0
       ? String(asset.lastClose)
       : '—';
+  const quoteCurrency = getAssetCurrency(asset);
 
   return (
     <KeyboardAvoidingView
@@ -986,48 +976,183 @@ export default function AssetActionScreen() {
                     </Text>
                   </Pressable>
 
-                  <Text style={[styles.formRowLabel, { marginTop: 22 }]}>
-                    历史交易记录
-                  </Text>
-                  {trades.length === 0 ? (
-                    <Text style={[styles.hintMuted, { marginTop: 10 }]}>
-                      暂无记录
-                    </Text>
-                  ) : (
-                    <View style={{ marginTop: 12, gap: 10 }}>
-                      {trades.map((t) => (
-                        <Pressable
-                          key={t.id}
-                          style={styles.headerCard}
-                          disabled={tradesAreSynthetic}
-                          onPress={() => {
-                            if (tradesAreSynthetic) return;
-                            router.push({
-                              pathname: '/trade-edit',
-                              params: { assetId: asset.id, tradeId: t.id },
-                            });
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              color: theme.primary,
-                              fontWeight: '600',
-                            }}
-                          >
-                            {formatTradeLine(t, useGram, getAssetCurrency(asset))}
-                          </Text>
-                          {!tradesAreSynthetic ? (
-                            <Text
-                              style={{ fontSize: 12, color: muted, marginTop: 6 }}
-                            >
-                              点按编辑
-                            </Text>
-                          ) : null}
-                        </Pressable>
-                      ))}
+                  <View
+                    style={[styles.tradeDetailSection, { marginTop: 22 }]}
+                  >
+                    <View style={styles.tradeDetailTitleRow}>
+                      <Text style={styles.tradeDetailTitle}>交易明细</Text>
+                      <View style={styles.tradeDetailTitleActions}>
+                        <Ionicons
+                          name="reorder-three-outline"
+                          size={22}
+                          color={theme.primary}
+                        />
+                        <Ionicons
+                          name="options-outline"
+                          size={20}
+                          color={iconMuted}
+                        />
+                      </View>
                     </View>
-                  )}
+                    {trades.length === 0 ? (
+                      <Text style={[styles.hintMuted, { marginTop: 10 }]}>
+                        暂无记录
+                      </Text>
+                    ) : (
+                      <>
+                        <ScrollView
+                          horizontal
+                          nestedScrollEnabled
+                          showsHorizontalScrollIndicator={false}
+                          style={styles.tradeTableScroll}
+                        >
+                          <View style={styles.tradeTableInner}>
+                            <View style={styles.tradeTableHeader}>
+                              <View style={styles.tradeTypeCol}>
+                                <Text style={styles.tradeTh}>类型</Text>
+                              </View>
+                              <View style={styles.tradeQtyCol}>
+                                <Text style={styles.tradeTh}>数量</Text>
+                              </View>
+                              <View style={styles.tradePriceCol}>
+                                <Text style={styles.tradeTh}>价格</Text>
+                              </View>
+                              <View
+                                style={[
+                                  styles.tradeFundCol,
+                                  { alignItems: 'flex-end' },
+                                ]}
+                              >
+                                <Text style={styles.tradeTh}>资金来源</Text>
+                              </View>
+                              <View style={styles.tradePnlCol}>
+                                <Text style={styles.tradeTh}>已实现盈亏</Text>
+                              </View>
+                            </View>
+                            {trades.map((t) => {
+                              const isBuy = t.side === 'buy';
+                              const fundLabel = isBuy
+                                ? t.fundingSourceAssetName?.trim() || '—'
+                                : t.cashDestinationAssetName?.trim() || '—';
+                              const pl =
+                                t.side === 'sell'
+                                  ? sellRealizedById.get(t.id)
+                                  : undefined;
+                              const showPnl =
+                                t.side === 'sell' &&
+                                pl !== undefined &&
+                                Number.isFinite(pl);
+                              const plColor = showPnl
+                                ? pl >= 0
+                                  ? FINANCE_DOWN
+                                  : FINANCE_UP
+                                : muted;
+                              const plText = showPnl
+                                ? pl > 0
+                                  ? `+${formatMoney(pl, quoteCurrency)}`
+                                  : formatMoney(pl, quoteCurrency)
+                                : '—';
+                              return (
+                                <Pressable
+                                  key={t.id}
+                                  style={({ pressed }) => [
+                                    styles.tradeTableRow,
+                                    pressed &&
+                                      !tradesAreSynthetic && {
+                                        opacity: 0.88,
+                                      },
+                                  ]}
+                                  disabled={tradesAreSynthetic}
+                                  onPress={() => {
+                                    if (tradesAreSynthetic) return;
+                                    router.push({
+                                      pathname: '/trade-edit',
+                                      params: {
+                                        assetId: asset.id,
+                                        tradeId: t.id,
+                                      },
+                                    });
+                                  }}
+                                >
+                                  <View style={styles.tradeTypeCol}>
+                                    <View style={styles.tradeIconCircle}>
+                                      <Ionicons
+                                        name={
+                                          isBuy ? 'arrow-down' : 'arrow-up'
+                                        }
+                                        size={18}
+                                        color="#FFFFFF"
+                                      />
+                                    </View>
+                                    <View style={{ flex: 1, minWidth: 0 }}>
+                                      <Text
+                                        style={[
+                                          styles.tradeTypeLabel,
+                                          {
+                                            color: isBuy
+                                              ? FINANCE_DOWN
+                                              : FINANCE_UP,
+                                          },
+                                        ]}
+                                        numberOfLines={1}
+                                      >
+                                        {isBuy ? '买入' : '卖出'}
+                                      </Text>
+                                      <Text
+                                        style={styles.tradeTypeDate}
+                                        numberOfLines={1}
+                                      >
+                                        {t.tradeDate}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                  <View style={styles.tradeQtyCol}>
+                                    <Text style={styles.tradeTdNum}>
+                                      {String(t.shares)}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.tradePriceCol}>
+                                    <Text style={styles.tradeTdNum}>
+                                      {formatMoney(
+                                        t.unitPriceCny,
+                                        quoteCurrency
+                                      )}
+                                    </Text>
+                                  </View>
+                                  <View
+                                    style={[
+                                      styles.tradeFundCol,
+                                      { alignItems: 'flex-end' },
+                                    ]}
+                                  >
+                                    <Text
+                                      style={styles.tradeTdFund}
+                                      numberOfLines={1}
+                                    >
+                                      {fundLabel}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.tradePnlCol}>
+                                    <Text
+                                      style={[
+                                        styles.tradeTdPnl,
+                                        { color: plColor },
+                                      ]}
+                                    >
+                                      {plText}
+                                    </Text>
+                                  </View>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </ScrollView>
+                        {!tradesAreSynthetic ? (
+                          <Text style={styles.tradeEditHint}>点按行可编辑</Text>
+                        ) : null}
+                      </>
+                    )}
+                  </View>
               </GlassSurface>
             ) : (
               <GlassSurface

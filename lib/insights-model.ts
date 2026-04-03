@@ -34,24 +34,26 @@ export const INSIGHTS_CHART_TABS: {
   { id: 'returns', label: '投资回报' },
 ];
 
-/** 净值曲线时间范围（相对「锚定日」向前回溯） */
-export type TrendTimeframe = '1M' | '3M' | '6M' | '1Y' | 'ALL';
+/** 净值曲线时间范围（相对「锚定日」向前回溯）；CUSTOM 用起止日截取 */
+export type TrendTimeframe = '7D' | '1M' | '3M' | '1Y' | 'CUSTOM';
+
+export type TrendCustomRange = { start: string; end: string };
 
 export const TREND_TIMEFRAME_OPTIONS: {
   id: TrendTimeframe;
   label: string;
 }[] = [
-  { id: '1M', label: '1M' },
-  { id: '3M', label: '3M' },
-  { id: '6M', label: '6M' },
-  { id: '1Y', label: '1Y' },
-  { id: 'ALL', label: 'ALL' },
+  { id: '7D', label: '7天' },
+  { id: '1M', label: '1月' },
+  { id: '3M', label: '3月' },
+  { id: '1Y', label: '1年' },
+  { id: 'CUSTOM', label: '自定义' },
 ];
 
-const TREND_LOOKBACK_DAYS: Record<Exclude<TrendTimeframe, 'ALL'>, number> = {
+const TREND_LOOKBACK_DAYS: Record<Exclude<TrendTimeframe, 'CUSTOM'>, number> = {
+  '7D': 7,
   '1M': 31,
   '3M': 92,
-  '6M': 183,
   '1Y': 366,
 };
 
@@ -73,19 +75,45 @@ export function addCalendarDaysYmd(ymd: string, deltaDays: number): string {
 }
 
 /**
- * 按时间范围截取已按日期升序排列的快照；ALL 为全部。
- * anchorDate 一般为上海当日，窗口为 [anchorDate - 回溯天数, anchorDate] 内的快照。
+ * 按时间范围截取已按日期升序排列的快照。
+ * CUSTOM：用 customRange 与 anchor 交集；未传 customRange 时默认近 30 日。
  */
 export function filterSnapshotsByTimeframe(
   orderedAsc: Snapshot[],
   tf: TrendTimeframe,
-  anchorDate: string
+  anchorDate: string,
+  customRange?: TrendCustomRange | null
 ): Snapshot[] {
   const upToToday = orderedAsc.filter((s) => s.date <= anchorDate);
-  if (tf === 'ALL') return upToToday;
+  if (tf === 'CUSTOM') {
+    let start =
+      customRange?.start ?? addCalendarDaysYmd(anchorDate, -30);
+    let end = customRange?.end ?? anchorDate;
+    if (start > end) {
+      const t = start;
+      start = end;
+      end = t;
+    }
+    return upToToday.filter((s) => s.date >= start && s.date <= end);
+  }
   const days = TREND_LOOKBACK_DAYS[tf];
   const minDate = addCalendarDaysYmd(anchorDate, -days);
   return upToToday.filter((s) => s.date >= minDate);
+}
+
+/** `YYYY-MM-DD` → `2026年4月2日` */
+export function formatYmdChinese(ymd: string): string {
+  const p = parseYmd(ymd);
+  if (!p) return ymd;
+  return `${p.y}年${p.m}月${p.d}日`;
+}
+
+/** 纵轴刻度：千元人民币，保留 1 位小数，如 `¥10.2K` */
+export function formatTrendYAxisThousandsCny(value: number): string {
+  if (!Number.isFinite(value)) return '';
+  const k = value / 1000;
+  const sign = k < 0 ? '−' : '';
+  return `${sign}¥${Math.abs(k).toFixed(1)}K`;
 }
 
 /** Y 轴刻度：紧凑人民币读数（万 / 亿），占宽尽量小 */
@@ -109,29 +137,32 @@ export function formatTrendAxisCny(value: number): string {
   return `${sign}${Math.round(value)}`;
 }
 
-function buildSparseMonthDayLabels(dates: string[], maxTicks: number): string[] {
-  if (dates.length === 0) return [];
-  if (dates.length <= maxTicks) {
-    return dates.map((d) => d.slice(5));
-  }
-  const out = dates.map(() => '');
-  const n = dates.length;
-  for (let t = 0; t < maxTicks; t++) {
-    const idx = Math.round((t / Math.max(1, maxTicks - 1)) * (n - 1));
-    out[idx] = dates[idx]!.slice(5);
-  }
-  return out;
-}
-
 export type ChartData = {
   labels: string[];
   datasets: [{ data: number[] }];
 };
 
+export type TrendPoint = { date: string; valueCny: number };
+
 export type TrendChartModel = {
+  /** 兼容旧 LineChart 数据（已不再用于主渲染） */
   data: ChartData;
   formatYLabel: (v: string) => string;
+  series: TrendPoint[];
+  yMin: number;
+  yMax: number;
 };
+
+function computeYDomain(min: number, max: number): { yMin: number; yMax: number } {
+  if (!(max > min)) {
+    const base = min;
+    const pad = Math.max(1, Math.abs(base) * 0.002);
+    return { yMin: base - pad, yMax: base + pad };
+  }
+  const span = max - min;
+  const pad = span * 0.08;
+  return { yMin: min - pad, yMax: max + pad };
+}
 
 export type DonutSlice = {
   category: AssetCategory;
@@ -161,33 +192,44 @@ export function formatInsightsPnlParts(diff: number, pct: number): {
 }
 
 export function toTrendChartModel(snapshots: Snapshot[]): TrendChartModel {
-  const dates = snapshots.map((s) => s.date);
-  const labels = buildSparseMonthDayLabels(dates, 7);
-  const raw = snapshots.map((s) => snapshotDisplayTotal(s));
+  const series: TrendPoint[] = snapshots.map((s) => ({
+    date: s.date,
+    valueCny: snapshotDisplayTotal(s),
+  }));
+  const dates = series.map((s) => s.date);
+  const labels = dates.map((d, i) =>
+    dates.length === 1
+      ? formatYmdChinese(d)
+      : i === 0 || i === dates.length - 1
+        ? formatYmdChinese(d)
+        : ''
+  );
+  const raw = series.map((s) => s.valueCny);
   if (raw.length === 0) {
     return {
       data: { labels, datasets: [{ data: [] }] },
       formatYLabel: () => '',
+      series: [],
+      yMin: 0,
+      yMax: 1,
     };
   }
   let min = Math.min(...raw);
   let max = Math.max(...raw);
-  if (!(max > min)) {
-    const base = raw[0] ?? 0;
-    const pad = Math.max(1, Math.abs(base) * 0.002);
-    min = base - pad;
-    max = base + pad;
-  }
-  const span = max - min;
-  const normalized = raw.map((v) => ((v - min) / span) * 100);
+  const { yMin, yMax } = computeYDomain(min, max);
+  const span = yMax - yMin;
+  const normalized = raw.map((v) => ((v - yMin) / span) * 100);
   return {
     data: { labels, datasets: [{ data: normalized }] },
     formatYLabel: (v: string) => {
       const n = parseFloat(v);
       if (Number.isNaN(n)) return '';
-      const actual = min + (n / 100) * span;
-      return formatTrendAxisCny(actual);
+      const actual = yMin + (n / 100) * span;
+      return formatTrendYAxisThousandsCny(actual);
     },
+    series,
+    yMin,
+    yMax,
   };
 }
 

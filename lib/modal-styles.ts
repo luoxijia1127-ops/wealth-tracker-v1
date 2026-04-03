@@ -578,6 +578,117 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       fontWeight: '700',
       color: '#FFFFFF',
     },
+    /** 资产详情 · 交易明细表 */
+    tradeDetailSection: {
+      marginTop: 8,
+    },
+    tradeDetailTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+      paddingHorizontal: 2,
+    },
+    tradeDetailTitle: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: p,
+      letterSpacing: -0.35,
+    },
+    tradeDetailTitleActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
+    tradeTableScroll: {
+      marginHorizontal: -6,
+    },
+    tradeTableInner: {
+      minWidth: 336,
+      paddingBottom: 4,
+    },
+    tradeTableHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 8,
+      paddingHorizontal: 6,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: p12,
+    },
+    tradeTh: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: p55,
+    },
+    tradeTableRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 6,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: p08,
+    },
+    tradeTypeCol: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      width: 130,
+      gap: 8,
+      paddingRight: 4,
+    },
+    tradeIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(186, 202, 224, 0.55)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tradeTypeLabel: {
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    tradeTypeDate: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: p55,
+      marginTop: 2,
+    },
+    tradeQtyCol: {
+      width: 36,
+      alignItems: 'flex-end',
+    },
+    tradeTdNum: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: p,
+    },
+    tradePriceCol: {
+      width: 96,
+      alignItems: 'flex-end',
+    },
+    tradeFundCol: {
+      width: 86,
+      paddingLeft: 2,
+    },
+    tradeTdFund: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: p65,
+    },
+    tradePnlCol: {
+      width: 102,
+      alignItems: 'flex-end',
+    },
+    tradeTdPnl: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    tradeEditHint: {
+      fontSize: 11,
+      color: p55,
+      marginTop: 10,
+      textAlign: 'center',
+    },
   });
 }
 

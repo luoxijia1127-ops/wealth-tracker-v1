@@ -8,6 +8,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FormRow } from '@/components/add-asset/form-row';
+import { formatYmdChineseLine, YmdDateFields } from '@/components/ymd-date-fields';
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { InlineSelect } from '@/components/add-asset/inline-select';
 import { GlassSurface } from '@/components/glass-surface';
@@ -576,7 +577,7 @@ export default function AddModal() {
           styles={styles}
           iconMuted={iconMuted}
           icon="calendar-outline"
-          label="交易时间"
+          label="交易时间（年 · 月 · 日）"
           right={
             Platform.OS !== 'web' ? (
               <Ionicons name="chevron-forward" size={18} color={iconMuted} />
@@ -584,13 +585,12 @@ export default function AddModal() {
           }
         >
           {Platform.OS === 'web' ? (
-            <TextInput
+            <YmdDateFields
               value={tradeDate}
               onChangeText={setTradeDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={placeholderColor}
-              style={styles.input}
-              autoCapitalize="none"
+              placeholderColor={placeholderColor}
+              inputStyle={styles.input}
+              labelColor={rgbaFromHex(theme.primary, 0.62)}
             />
           ) : (
             <Pressable
@@ -599,7 +599,9 @@ export default function AddModal() {
               accessibilityRole="button"
               accessibilityLabel="选择交易日期"
             >
-              <Text style={styles.formRowValue}>{tradeDate}</Text>
+              <Text style={styles.formRowValue}>
+                {formatYmdChineseLine(tradeDate)}
+              </Text>
             </Pressable>
           )}
         </FormRow>
@@ -1049,6 +1051,7 @@ export default function AddModal() {
                 mode="date"
                 display="spinner"
                 themeVariant="light"
+                locale="zh_CN"
                 onChange={(_, date) => {
                   if (date) setTradeDate(formatInstantToShanghaiDateString(date));
                 }}
@@ -1063,6 +1066,7 @@ export default function AddModal() {
           value={shanghaiYmdToLocalNoon(tradeDate)}
           mode="date"
           display="default"
+          locale="zh-CN"
           onChange={(_, date) => {
             setAndroidDateOpen(false);
             if (date) setTradeDate(formatInstantToShanghaiDateString(date));

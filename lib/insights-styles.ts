@@ -19,6 +19,14 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     screen: {
       flex: 1,
     },
+    decorWrap: {
+      ...StyleSheet.absoluteFillObject,
+      overflow: 'hidden',
+    },
+    decorBlob: {
+      position: 'absolute',
+      borderRadius: 999,
+    },
     scroll: {
       flex: 1,
     },
@@ -33,17 +41,10 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       paddingHorizontal: 22,
       backgroundColor: 'transparent',
     },
-    card: {
-      borderRadius: 28,
+    /** 外层由 GlassSurface 承担模糊与描边，此处仅内边距 */
+    cardGlassInner: {
       padding: 22,
-      backgroundColor: 'rgba(255,255,255,0.94)',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255,255,255,0.95)',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.07,
-      shadowRadius: 22,
-      elevation: 4,
+      backgroundColor: 'transparent',
     },
     cardKicker: {
       fontSize: 12,
@@ -118,18 +119,10 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     chartSection: {
       marginTop: 0,
     },
-    goalsSection: {
-      borderRadius: 24,
+    goalsGlassInner: {
       paddingVertical: 20,
       paddingHorizontal: 20,
-      backgroundColor: 'rgba(255,255,255,0.94)',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255,255,255,0.95)',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.06,
-      shadowRadius: 18,
-      elevation: 3,
+      backgroundColor: 'transparent',
     },
     goalsSectionTitle: {
       fontSize: 16,
@@ -229,32 +222,44 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     tabChipTextDisabled: {
       color: rgbaFromHex(p, 0.5),
     },
+    /** 已落在外层 GlassSurface 内，仅轻量衬底以区分图表区 */
     chartSurface: {
       borderRadius: 24,
       overflow: 'hidden',
-      backgroundColor: 'rgba(255,255,255,0.42)',
+      backgroundColor: 'rgba(255,255,255,0.2)',
       borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.4)',
+      borderColor: 'rgba(255,255,255,0.32)',
     },
+    /** 五个区间等分整行，视觉居中对称 */
     timeframeRow: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 6,
-      marginBottom: 10,
+      alignItems: 'stretch',
+      justifyContent: 'center',
+      width: '100%',
+      gap: 6,
+      marginBottom: 12,
+      paddingHorizontal: 0,
     },
     timeframeChip: {
-      paddingVertical: 7,
-      paddingHorizontal: 13,
+      flex: 1,
+      minWidth: 0,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
       borderRadius: 12,
       borderWidth: 1.5,
       borderColor: p14,
       backgroundColor: 'rgba(255,255,255,0.82)',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     timeframeChipActive: {
       borderColor: t.primary,
       backgroundColor: p08,
+    },
+    /** 净值曲线区间：选中为当前主题主色 + 白字 */
+    timeframeChipActiveDark: {
+      borderColor: t.primary,
+      backgroundColor: t.primary,
     },
     timeframeChipText: {
       fontSize: 12,
@@ -263,6 +268,9 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     },
     timeframeChipTextActive: {
       color: t.primary,
+    },
+    timeframeChipTextActiveDark: {
+      color: '#FFFFFF',
     },
     inlineLegendRow: {
       flexDirection: 'row',
@@ -539,9 +547,9 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       overflow: 'hidden',
       backgroundColor: 'rgba(255,255,255,0.88)',
     },
-    /** 表体约 5 行高度，其余纵向拖动查看 */
+    /** 表体默认约 4 行可见高度，其余纵向滚动查看 */
     returnTableBodyScroll: {
-      maxHeight: 268,
+      maxHeight: 130,
     },
     returnTableHeader: {
       flexDirection: 'row',

@@ -3,6 +3,7 @@
  */
 
 import { FormRow } from '@/components/add-asset/form-row';
+import { YmdDateFields } from '@/components/ymd-date-fields';
 import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
@@ -347,14 +348,14 @@ export default function TradeEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon="calendar-outline"
-            label="成交日期（YYYY-MM-DD）"
+            label="成交日期（年 · 月 · 日）"
           >
-            <TextInput
-              style={styles.input}
+            <YmdDateFields
               value={tradeDate}
               onChangeText={setTradeDate}
-              placeholder="2025-03-21"
-              placeholderTextColor={placeholderColor}
+              placeholderColor={placeholderColor}
+              inputStyle={styles.input}
+              labelColor={rgbaFromHex(theme.primary, 0.62)}
             />
           </FormRow>
 

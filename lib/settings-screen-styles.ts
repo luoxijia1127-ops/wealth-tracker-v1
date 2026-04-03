@@ -64,25 +64,14 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
       letterSpacing: -0.4,
       color: p,
     },
-    profileCard: {
-      borderRadius: 28,
+    /** 外层 GlassSurface 负责模糊与圆角，此处仅内边距 */
+    profileCardInner: {
       paddingVertical: 20,
       paddingHorizontal: 18,
+    },
+    profileGlassOuter: {
       marginHorizontal: 20,
-      marginBottom: 22,
-      backgroundColor: 'rgba(255,255,255,0.88)',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255,255,255,0.95)',
-      ...Platform.select({
-        ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.07,
-          shadowRadius: 22,
-        },
-        android: { elevation: 4 },
-        default: {},
-      }),
+      marginBottom: 20,
     },
     profileTopRow: {
       flexDirection: 'row',
@@ -186,18 +175,24 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
       fontWeight: '700',
       color: p65,
     },
+    sectionGlassOuter: {
+      marginHorizontal: 20,
+      marginBottom: 14,
+    },
     sectionLabel: {
       fontSize: 13,
       fontWeight: '700',
       color: p65,
-      marginBottom: 12,
-      paddingHorizontal: 22,
+      marginBottom: 10,
+      paddingHorizontal: 18,
+      paddingTop: 16,
       letterSpacing: 0.2,
     },
     gridWrap: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       paddingHorizontal: 14,
+      paddingBottom: 12,
     },
   });
 }

@@ -55,7 +55,23 @@ function calendarDaysBetweenYmd(start: string, end: string): number {
   }
   const t0 = Date.UTC(y1, m1 - 1, d1);
   const t1 = Date.UTC(y2, m2 - 1, d2);
-  return Math.round((t1 - t0) / 86400000);
+  const diff = Math.round((t1 - t0) / 86400000);
+  return diff < 0 ? 0 : diff;
+}
+
+/** 持有自然日数（含建仓日与今日），与常见「持有天数」展示一致 */
+function calendarDaysInclusiveYmd(start: string, end: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+    return 0;
+  }
+  let a = start;
+  let b = end;
+  if (a > b) {
+    const t = a;
+    a = b;
+    b = t;
+  }
+  return calendarDaysBetweenYmd(a, b) + 1;
 }
 
 function sumListedFlows(history: TradeLedgerEntry[]): {
@@ -135,7 +151,7 @@ export function computeInvestmentReturnMetric(
         : a.id.localeCompare(b.id)
     );
     const startDate = sorted[0]!.entryDate;
-    const holdingDays = calendarDaysBetweenYmd(startDate, today);
+    const holdingDays = calendarDaysInclusiveYmd(startDate, today);
     if (basis === null || !(basis > 0)) {
       return {
         ...base,
@@ -189,7 +205,7 @@ export function computeInvestmentReturnMetric(
   const cashFlowNet = 0;
   const startDate = firstDate ?? null;
   const holdingDays =
-    startDate !== null ? calendarDaysBetweenYmd(startDate, today) : 0;
+    startDate !== null ? calendarDaysInclusiveYmd(startDate, today) : 0;
 
   if (!(buyCost > 0)) {
     return {

@@ -61,6 +61,8 @@ export type DailyTradeSummary = {
   marketByCategory?: Record<AssetCategory, number>;
   /** 残差拆解：贡献最大的资产（按绝对值排序，取前 N） */
   topMarketMovers?: MarketMoverEntry[];
+  /** 当日全部逐资产市值变动（|delta| 降序）；明细页用 */
+  marketMovers?: MarketMoverEntry[];
 
   lines: DailyTradeLine[];
 };
@@ -96,20 +98,32 @@ function snapshotItemCny(
   return value;
 }
 
-export function buildDailyTradeSummaries(params: {
-  assets: SimpleAsset[];
-  snapshots: Snapshot[];
-  assetDailySnapshots?: AssetDailySnapshot[];
-  /** 有则逐资产与总净值快照同为「折人民币」口径，并包含跨币种持仓变动与新进/清仓 */
-  usdRates?: FxUsdMidRates['rates'] | null;
+export type BuildDailyTradeSummariesOptions = {
   /**
-   * 按快照「上海日」取当日所用汇率表；与 `usdRates` 配合：解析不到时退回 `usdRates`。
-   * 有历史时应对「当日市值用当日 R、前一日市值用前一日 R」，与 totalValueCny 口径一致。
+   * 为 true（默认）时仅保留净值/外部流/残差至少一项较显著的日期；
+   * 为 false 时返回全部有流水或快照的日期，供收益日历等按日查询。
    */
-  resolveFxRates?: (shanghaiDate: string) => FxUsdMidRates['rates'] | null;
-}): DailyTradeSummary[] {
+  filterInsignificant?: boolean;
+};
+
+export function buildDailyTradeSummaries(
+  params: {
+    assets: SimpleAsset[];
+    snapshots: Snapshot[];
+    assetDailySnapshots?: AssetDailySnapshot[];
+    /** 有则逐资产与总净值快照同为「折人民币」口径，并包含跨币种持仓变动与新进/清仓 */
+    usdRates?: FxUsdMidRates['rates'] | null;
+    /**
+     * 按快照「上海日」取当日所用汇率表；与 `usdRates` 配合：解析不到时退回 `usdRates`。
+     * 有历史时应对「当日市值用当日 R、前一日市值用前一日 R」，与 totalValueCny 口径一致。
+     */
+    resolveFxRates?: (shanghaiDate: string) => FxUsdMidRates['rates'] | null;
+  },
+  options?: BuildDailyTradeSummariesOptions
+): DailyTradeSummary[] {
   const { assets, snapshots, assetDailySnapshots, usdRates, resolveFxRates } =
     params;
+  const filterInsignificant = options?.filterInsignificant ?? true;
 
   const pickRatesForDay = (shanghaiDate: string): FxUsdMidRates['rates'] | null => {
     const r = resolveFxRates?.(shanghaiDate);
@@ -357,6 +371,7 @@ export function buildDailyTradeSummaries(params: {
       const row = byDate.get(day);
       if (!row) continue;
       row.marketByCategory = m;
+      row.marketMovers = movers;
       row.topMarketMovers = movers.slice(0, 5);
       row.attributionHeld = row.residual !== null ? heldSum : null;
       row.attributionOpenClose = row.residual !== null ? openCloseSum : null;
@@ -368,7 +383,7 @@ export function buildDailyTradeSummaries(params: {
   }
 
   const all = [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date));
-  return all.filter(isSignificantTradeSummaryDay);
+  return filterInsignificant ? all.filter(isSignificantTradeSummaryDay) : all;
 }
 
 /** 当日净值变动、外部现金流、或残差任一有显著变化才展示（过滤「几乎为 0」的日期） */

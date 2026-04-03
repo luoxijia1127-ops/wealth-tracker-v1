@@ -14,6 +14,7 @@ import {
   updateCashLedgerEntry,
 } from '@/lib/cash-ledger';
 import { FormRow } from '@/components/add-asset/form-row';
+import { YmdDateFields } from '@/components/ymd-date-fields';
 import { GlassSurface } from '@/components/glass-surface';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createAddModalStyles } from '@/lib/modal-styles';
@@ -45,6 +46,10 @@ export default function CashLedgerEditScreen() {
   }>();
   const { theme } = useAppPalette();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
+  const labelMuted = useMemo(
+    () => rgbaFromHex(theme.primary, 0.62),
+    [theme.primary]
+  );
   const placeholderColor = useMemo(
     () => rgbaFromHex(theme.primary, 0.42),
     [theme.primary]
@@ -312,14 +317,14 @@ export default function CashLedgerEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon="calendar-outline"
-            label="日期（YYYY-MM-DD）"
+            label="日期（年 · 月 · 日）"
           >
-            <TextInput
-              style={styles.input}
+            <YmdDateFields
               value={entryDate}
               onChangeText={setEntryDate}
-              placeholder="2025-03-21"
-              placeholderTextColor={placeholderColor}
+              placeholderColor={placeholderColor}
+              inputStyle={styles.input}
+              labelColor={labelMuted}
             />
           </FormRow>
 

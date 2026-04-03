@@ -32,6 +32,7 @@ import {
   INSIGHTS_CHART_TABS,
   toTrendChartModel,
   type InsightsChartTab,
+  type TrendCustomRange,
   type TrendTimeframe,
 } from '@/lib/insights-model';
 import { createInsightsStyles } from '@/lib/insights-styles';
@@ -72,6 +73,14 @@ export default function Insights() {
     () => rgbaFromHex(theme.primary, 0.14),
     [theme.primary]
   );
+  const decorColors = useMemo(
+    () => [
+      rgbaFromHex('#8EA8C8', 0.36),
+      rgbaFromHex('#9EC4E8', 0.28),
+      rgbaFromHex('#B8D6F0', 0.22),
+    ],
+    []
+  );
 
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -89,7 +98,9 @@ export default function Insights() {
     x: number;
     y: number;
   } | null>(null);
-  const [trendTimeframe, setTrendTimeframe] = useState<TrendTimeframe>('3M');
+  const [trendTimeframe, setTrendTimeframe] = useState<TrendTimeframe>('7D');
+  const [trendCustomRange, setTrendCustomRange] =
+    useState<TrendCustomRange | null>(null);
 
   const chartHeight = useMemo(() => {
     const h = Math.round(windowHeight * 0.33);
@@ -122,11 +133,6 @@ export default function Insights() {
     );
   }, []);
 
-  const chartLabelColor = useMemo(
-    () => rgbaFromHex(theme.primary, 0.55),
-    [theme.primary]
-  );
-
   const orderedSnapshots = useMemo(
     () => [...snapshots].sort((a, b) => a.date.localeCompare(b.date)),
     [snapshots]
@@ -136,48 +142,14 @@ export default function Insights() {
     return filterSnapshotsByTimeframe(
       orderedSnapshots,
       trendTimeframe,
-      anchor
+      anchor,
+      trendTimeframe === 'CUSTOM' ? trendCustomRange : null
     );
-  }, [orderedSnapshots, trendTimeframe]);
+  }, [orderedSnapshots, trendTimeframe, trendCustomRange]);
   const trendModel = useMemo(
     () => toTrendChartModel(trendRangeSnapshots),
     [trendRangeSnapshots]
   );
-  const chartData = trendModel.data;
-
-  const chartConfig = useMemo(
-    () => ({
-      backgroundColor: '#FFFFFF',
-      backgroundGradientFrom: '#FFFFFF',
-      backgroundGradientTo: '#F4F6FB',
-      backgroundGradientFromOpacity: 1,
-      backgroundGradientToOpacity: 1,
-      color: (_opacity = 1) => theme.chartLine,
-      labelColor: () => chartLabelColor,
-      strokeWidth: 2.5,
-      decimalPlaces: 0,
-      fillShadowGradient: theme.chartFillTop,
-      fillShadowGradientOpacity: 1,
-      fillShadowGradientFrom: theme.chartFillTop,
-      fillShadowGradientFromOpacity: 0.55,
-      fillShadowGradientTo: theme.chartFillBottom,
-      fillShadowGradientToOpacity: 0.08,
-      propsForBackgroundLines: {
-        stroke: theme.chartGridStroke,
-        strokeWidth: 1,
-        strokeDasharray: '0',
-      },
-      propsForLabels: {
-        fontSize: 11,
-      },
-      propsForVerticalLabels: {
-        fontSize: 10,
-      },
-      formatYLabel: trendModel.formatYLabel,
-    }),
-    [theme, chartLabelColor, trendModel]
-  );
-
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -225,8 +197,7 @@ export default function Insights() {
     }, [])
   );
 
-  const hasSnapshotTrend =
-    chartData.labels.length > 0 && chartData.datasets[0].data.length > 0;
+  const hasSnapshotTrend = trendModel.series.length > 0;
   const hasAnySnapshots = orderedSnapshots.length > 0;
   const hasAssets = assets.length > 0;
   const donutSlices = useMemo(
@@ -300,7 +271,7 @@ export default function Insights() {
 
   useEffect(() => {
     setTrendTip(null);
-  }, [trendTimeframe]);
+  }, [trendTimeframe, trendCustomRange]);
 
   useEffect(() => {
     if (
@@ -313,6 +284,44 @@ export default function Insights() {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.pageBg }]}>
+      <View style={styles.decorWrap} pointerEvents="none">
+        <View
+          style={[
+            styles.decorBlob,
+            {
+              width: 240,
+              height: 300,
+              top: -50,
+              left: -70,
+              backgroundColor: decorColors[0],
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.decorBlob,
+            {
+              width: 260,
+              height: 280,
+              top: 140,
+              right: -90,
+              backgroundColor: decorColors[1],
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.decorBlob,
+            {
+              width: 200,
+              height: 220,
+              bottom: 100,
+              left: 10,
+              backgroundColor: decorColors[2],
+            },
+          ]}
+        />
+      </View>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -320,11 +329,12 @@ export default function Insights() {
           {
             paddingTop: insets.top + 16,
             paddingBottom: insets.bottom + 32,
+            backgroundColor: 'transparent',
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <GlassSurface borderRadius={34} intensity={46}>
+        <GlassSurface borderRadius={34} intensity={50}>
           <View style={styles.heroCardInner}>
           <Text style={[styles.cardKicker, { color: textSecondary }]}>
             {latest && typeof latest.totalValueCny === 'number'
@@ -412,7 +422,8 @@ export default function Insights() {
         </GlassSurface>
 
         {!loading && showChartChrome && (
-          <View style={styles.card}>
+          <GlassSurface borderRadius={28} intensity={46}>
+            <View style={styles.cardGlassInner}>
                   <View style={styles.tabRow}>
                     {INSIGHTS_CHART_TABS.map((tab) => {
                       const disabled =
@@ -458,22 +469,23 @@ export default function Insights() {
                   >
                     {chartTab === 'trend' && (
                       <InsightsTrendChart
-                        chartData={chartData}
                         chartWidth={chartWidth}
                         chartHeight={chartHeight}
-                        chartConfig={chartConfig}
                         trendModel={trendModel}
                         styles={styles}
                         textSecondary={textSecondary}
+                        textMuted={textMuted}
                         orderedSnapshots={trendRangeSnapshots}
                         trendTip={trendTip}
                         theme={theme}
                         timeframe={trendTimeframe}
                         onTimeframeChange={setTrendTimeframe}
+                        customRange={trendCustomRange}
+                        onCustomRangeChange={setTrendCustomRange}
                         hasChartData={hasSnapshotTrend}
                         emptyHint={
                           hasAnySnapshots
-                            ? '该时间范围内暂无净值快照，可切换到 ALL 或更长区间'
+                            ? '该时间范围内暂无净值快照，可切换区间或更长范围'
                             : '暂无走势数据'
                         }
                         emptyHintColor={textMuted}
@@ -641,34 +653,37 @@ export default function Insights() {
                       </View>
                     )}
                   </View>
-          </View>
+            </View>
+          </GlassSurface>
         )}
 
         {!loading && hasAssets ? (
-          <View style={styles.goalsSection}>
-            <Text
-              style={[styles.goalsSectionTitle, { color: theme.primary }]}
-            >
-              目标进度
-            </Text>
-            {goalRows.length === 0 ? (
-              <Text style={[styles.goalsEmpty, { color: textMuted }]}>
-                在资产编辑中展开「用途与目标」并填写目标金额后，将在此显示完成度。
+          <GlassSurface borderRadius={26} intensity={44}>
+            <View style={styles.goalsGlassInner}>
+              <Text
+                style={[styles.goalsSectionTitle, { color: theme.primary }]}
+              >
+                目标进度
               </Text>
-            ) : (
-              goalRows.map((row: GoalProgressDisplayRow) => (
-                <GoalProgressCard
-                  key={row.id}
-                  row={row}
-                  styles={styles}
-                  textSecondary={textSecondary}
-                  textMuted={textMuted}
-                  primary={theme.primary}
-                  ringTrackColor={ringTrackColor}
-                />
-              ))
-            )}
-          </View>
+              {goalRows.length === 0 ? (
+                <Text style={[styles.goalsEmpty, { color: textMuted }]}>
+                  在资产编辑中展开「用途与目标」并填写目标金额后，将在此显示完成度。
+                </Text>
+              ) : (
+                goalRows.map((row: GoalProgressDisplayRow) => (
+                  <GoalProgressCard
+                    key={row.id}
+                    row={row}
+                    styles={styles}
+                    textSecondary={textSecondary}
+                    textMuted={textMuted}
+                    primary={theme.primary}
+                    ringTrackColor={ringTrackColor}
+                  />
+                ))
+              )}
+            </View>
+          </GlassSurface>
         ) : null}
       </ScrollView>
     </View>
