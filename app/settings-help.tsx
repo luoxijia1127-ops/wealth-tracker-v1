@@ -16,7 +16,7 @@ export default function SettingsHelpScreen() {
   const bullets = [
     '在 Dashboard 右上角「+」添加资产；场内标的可同步行情并写入净值快照。',
     '「Insights」可查看净值走势、资产分布与投资回报。',
-    '现金类支持增加/减少流水；证券类支持加减仓与成交记录。',
+    '类现金支持增加/减少流水；证券类支持加减仓与成交记录。',
     '汇率与快照说明见「汇率信息」页。',
   ];
 

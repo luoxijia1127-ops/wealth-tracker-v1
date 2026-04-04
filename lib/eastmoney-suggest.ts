@@ -14,7 +14,7 @@ const SUGGEST_URL = ENDPOINTS.eastmoneySuggest;
 export type SuggestInstrument = {
   code: string;
   name: string;
-  exchange: ChinaExchange;
+  exchange: ChinaExchange | 'SGE';
   quoteId: string;
 };
 
@@ -35,6 +35,16 @@ function normalizeCode(raw: unknown): string | null {
 export function parseSuggestRow(raw: RawRow): SuggestInstrument | null {
   const classify = String(raw.Classify ?? '');
   if (classify === 'Index') return null;
+
+  /** 上金现货：须先于六位数字 Code 解析（合约含字母，Code 可能不全） */
+  const quoteIdSge = String(raw.QuoteID ?? '').trim();
+  if (/^118\./.test(quoteIdSge)) {
+    const tail = quoteIdSge.slice(4).trim();
+    if (tail.length < 2) return null;
+    const nm = String(raw.Name ?? '').trim();
+    if (!nm) return null;
+    return { code: tail, name: nm, exchange: 'SGE', quoteId: quoteIdSge };
+  }
 
   const code = normalizeCode(raw.Code);
   if (!code) return null;
@@ -100,7 +110,75 @@ export async function searchSecurities(
   return out;
 }
 
-/** 展示：交易所前缀 + 代码；场外 / 美股 / 港股 */
+/** 上金联想：原样 / 大写 / 去空格等多路请求，合并去重并做本地相关度排序（小写、简称更友好） */
+export function sgeSearchQueryVariants(raw: string): string[] {
+  const t = raw.trim();
+  if (t.length < 1) return [];
+  const out: string[] = [];
+  const push = (s: string) => {
+    const x = s.trim();
+    if (x.length > 0 && !out.includes(x)) out.push(x);
+  };
+  push(t);
+  const upper = t.toUpperCase();
+  if (upper !== t) push(upper);
+  const lower = t.toLowerCase();
+  if (lower !== t && lower !== upper) push(lower);
+  const compact = t.replace(/\s/g, '');
+  if (compact !== t) {
+    push(compact);
+    const cup = compact.toUpperCase();
+    if (cup !== compact) push(cup);
+  }
+  const digits = t.replace(/\D/g, '');
+  if (digits.length >= 3 && digits !== t && !out.includes(digits)) {
+    push(digits);
+  }
+  return out.slice(0, 6);
+}
+
+function scoreSgeMatch(item: SuggestInstrument, qRaw: string): number {
+  const q = qRaw.trim().toLowerCase();
+  if (q.length < 1) return 0;
+  const code = item.code.toLowerCase();
+  const name = item.name.toLowerCase();
+  let s = 0;
+  if (code === q) s += 100;
+  else if (code.startsWith(q)) s += 45;
+  else if (code.includes(q)) s += 28;
+  if (name.includes(q)) s += 18;
+  const qd = q.replace(/\D/g, '');
+  const cd = code.replace(/\D/g, '');
+  if (qd.length >= 2 && cd.includes(qd)) s += 22;
+  return s;
+}
+
+export async function searchSgeSecuritiesMerged(
+  query: string,
+  signal?: AbortSignal
+): Promise<SuggestInstrument[]> {
+  const variants = sgeSearchQueryVariants(query);
+  if (variants.length === 0) return [];
+  const lists = await Promise.all(
+    variants.map((v) => searchSecurities(v, signal))
+  );
+  const seen = new Set<string>();
+  const merged: SuggestInstrument[] = [];
+  for (const list of lists) {
+    for (const item of list) {
+      if (item.exchange !== 'SGE') continue;
+      const k = item.quoteId;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      merged.push(item);
+    }
+  }
+  const q0 = query.trim();
+  merged.sort((a, b) => scoreSgeMatch(b, q0) - scoreSgeMatch(a, q0));
+  return merged;
+}
+
+/** 展示：交易所前缀 + 代码；场外 / 美股 / 港股 / 上金现货 */
 export function formatExchangeSymbol(
   exchange: ListingExchange,
   code: string
@@ -108,5 +186,6 @@ export function formatExchangeSymbol(
   if (exchange === 'OTC') return `场外·${code}`;
   if (exchange === 'US') return `US·${code}`;
   if (exchange === 'HK') return `HK·${code}`;
+  if (exchange === 'SGE') return `上金·${code}`;
   return `${exchange}${code}`;
 }

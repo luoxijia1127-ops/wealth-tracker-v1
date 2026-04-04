@@ -260,6 +260,7 @@ export function aggregateByCategory(
     ETF: 0,
     Cash: 0,
     Gold: 0,
+    Custom: 0,
   };
   const useFx = usdRates != null && usdRates.CNY > 0;
   for (const a of assets) {

@@ -276,6 +276,7 @@ export function buildDailyTradeSummaries(
         ETF: 0,
         Cash: 0,
         Gold: 0,
+        Custom: 0,
       };
       const movers: MarketMoverEntry[] = [];
 

@@ -1,16 +1,16 @@
 /**
  * 全应用唯一的资产数据形状定义（勿再使用已删除的 lib/asset-types.ts）。
- * - 扁平五大类：股票 / 基金 / ETF / 现金类 / 黄金
+ * - 扁平六大类：股票 / 基金 / ETF / 类现金 / 贵金属 / 自定义（数字货币、期货等）
  * - 场内：symbol、exchange、shares；价格分 markPrice（盘中现价）与 lastClose（日 K 结算）
  * - 可选 purpose / purposeTarget
- * - 可选 account（所在账户）、avgCost（场内成本单价）、costBasis（现金类等本金）
+ * - 可选 account（所在账户）、avgCost（场内成本单价）、costBasis（类现金等本金）
  */
 
 /** 交易所：沪 / 深 / 北；OTC 为场外开放式基金（东财 secid 前缀 2） */
 export type ChinaExchange = 'SH' | 'SZ' | 'BJ' | 'OTC';
 
-/** A 股/场外 + 美股 / 港股（国际行情用 Stooq 代码，见 intlQuoteSymbol） */
-export type ListingExchange = ChinaExchange | 'US' | 'HK';
+/** A 股/场外 + 美股 / 港股（国际行情用 Stooq 代码，见 intlQuoteSymbol）；SGE 为上海黄金现货（东财 secid 118，仅贵金属可选用） */
+export type ListingExchange = ChinaExchange | 'US' | 'HK' | 'SGE';
 
 /** 资产大类（存储与逻辑的唯一分类来源，不再单独存 type 字段） */
 export const ASSET_CATEGORY_ORDER = [
@@ -19,17 +19,30 @@ export const ASSET_CATEGORY_ORDER = [
   'ETF',
   'Cash',
   'Gold',
+  'Custom',
 ] as const;
 
 export type AssetCategory = (typeof ASSET_CATEGORY_ORDER)[number];
+
+/** 贵金属现货品种（仅 category=Gold 时使用）；默认 XAU 兼容旧数据 */
+export const PRECIOUS_METAL_SPOT_ORDER = ['XAU', 'XAG', 'XPT', 'XPD'] as const;
+export type PreciousMetalSpot = (typeof PRECIOUS_METAL_SPOT_ORDER)[number];
+
+export const PRECIOUS_METAL_LABEL_ZH: Record<PreciousMetalSpot, string> = {
+  XAU: '黄金（XAU）',
+  XAG: '白银（XAG）',
+  XPT: '铂金（XPT）',
+  XPD: '钯金（XPD）',
+};
 
 /** 界面展示用中文名 */
 export const CATEGORY_LABEL_ZH: Record<AssetCategory, string> = {
   Stock: '股票',
   Fund: '基金',
   ETF: 'ETF',
-  Cash: '现金类',
-  Gold: '黄金',
+  Cash: '类现金',
+  Gold: '贵金属',
+  Custom: '自定义',
 };
 
 /**
@@ -40,12 +53,12 @@ export function isListedAssetCategory(c: AssetCategory): boolean {
   return c === 'Stock' || c === 'Fund' || c === 'ETF';
 }
 
-/** 黄金类别：按克记账，可不填证券代码 */
+/** 贵金属类别：按克记账，可不填证券代码 */
 export function isGoldAssetCategory(c: AssetCategory): boolean {
   return c === 'Gold';
 }
 
-/** 会与「同代码」合并去重的类别：仅场内三类（黄金无代码不参与按代码合并） */
+/** 会与「同代码」合并去重的类别：仅场内三类（贵金属无代码不参与按代码合并） */
 export function isHeldMergeCategory(c: AssetCategory): boolean {
   return isListedAssetCategory(c);
 }
@@ -61,6 +74,7 @@ export function migrateLegacyCategoryType(
     'ETF',
     'Cash',
     'Gold',
+    'Custom',
   ];
   if (flat.includes(category as AssetCategory)) {
     return category as AssetCategory;
@@ -89,7 +103,7 @@ export type AssetHistoryEntry = {
   value: number;
 };
 
-/** 场内加减仓流水（买卖均需记录单价）；黄金时 shares 为克、单价为 CNY/克 */
+/** 场内加减仓流水（买卖均需记录单价）；贵金属时 shares 为克、单价为 CNY/克 */
 export type TradeLedgerEntry = {
   id: string;
   /** YYYY-MM-DD */
@@ -102,7 +116,7 @@ export type TradeLedgerEntry = {
   fundingSourceAssetId?: string;
   /** 可选：资金来源资产名称快照 */
   fundingSourceAssetName?: string;
-  /** 可选：本笔卖出的资金去向资产 id（如余额宝/银行卡现金类） */
+  /** 可选：本笔卖出的资金去向资产 id（如余额宝、银行卡等类现金资产） */
   cashDestinationAssetId?: string;
   /** 可选：资金去向资产名称快照 */
   cashDestinationAssetName?: string;
@@ -110,7 +124,7 @@ export type TradeLedgerEntry = {
   transferId?: string;
 };
 
-/** 现金类余额变动流水（仅金额，无单价） */
+/** 类现金余额变动流水（仅金额，无单价） */
 export type CashLedgerEntry = {
   id: string;
   /** YYYY-MM-DD */
@@ -141,13 +155,18 @@ export type SimpleAsset = {
   /** 场内六位代码；美股/港股为行情所用语短码（如 AAPL、700） */
   symbol?: string;
   exchange?: ListingExchange;
-  /** 东财 push2/K 线用 secid（联想 QuoteID，如 1.600519、150.012922）；有则优先于 exchange+symbol 推导 */
+  /** 东财 push2/K 线用 secid（联想 QuoteID，如 1.600519、150.012922；贵金属现货可为 118.AU9999）；有则优先于 exchange+symbol 推导 */
   emSecid?: string;
   /**
    * 国际收盘价来源：Stooq 符号，如 `aapl.us`、`700.hk`（与东财体系互斥）。
    * 由 OpenFIGI 联想映射得到。
    */
   intlQuoteSymbol?: string;
+  /**
+   * 贵金属现货品种（仅 category=Gold）。
+   * 若同时有 emSecid（上金现货合约），行情以 push2 该 secid 为准；否则按品种走参考价逻辑。
+   */
+  preciousMetalSpot?: PreciousMetalSpot;
   shares?: number;
   /** 日 K 结算价（来自 K 线接口，语义为「收盘价/结算价」） */
   lastClose?: number;
@@ -162,17 +181,17 @@ export type SimpleAsset = {
   account?: string;
   /**
    * 场内：持仓平均成本单价（与报价币种一致：A 股为 CNY/份，美股多为 USD/份等）。
-   * 黄金：购买均价（CNY/克）。
-   * 现金类：可不填；也可用 costBasis 表示本金。
+   * 贵金属：购买均价（CNY/克）。
+   * 类现金：可不填；也可用 costBasis 表示本金。
    */
   avgCost?: number;
-  /** 现金类等：可选总本金/成本（与当前市值分开时使用） */
+  /** 类现金等：可选总本金/成本（与当前市值分开时使用） */
   costBasis?: number;
   purpose?: string;
   purposeTarget?: number;
   /** 场内：加减仓流水；编辑/删除流水后会重算 shares / avgCost */
   tradeHistory?: TradeLedgerEntry[];
-  /** 现金类：增加/减少流水，重算 value */
+  /** 类现金：增加/减少流水，重算 value */
   cashLedger?: CashLedgerEntry[];
 };
 
@@ -319,7 +338,7 @@ export function getListedUnitPrice(a: SimpleAsset): number | null {
  * - 迁移旧分类、补齐 category
  * - 丢弃重复字段 type（若存在仅用于迁移）
  * - 场内证券：有完整代码与交易所时，用 markPrice 或 lastClose 重算 value
- * - 黄金：有克数时，优先用参考单价算市值；无单价则用 avgCost（CNY/克）估算
+ * - 贵金属：有克数时，优先用参考单价算市值；无单价则用 avgCost（CNY/克）估算
  */
 export function ensureAsset(raw: unknown): SimpleAsset {
   const o = raw as Record<string, unknown>;
@@ -345,7 +364,8 @@ export function ensureAsset(raw: unknown): SimpleAsset {
     o.exchange === 'BJ' ||
     o.exchange === 'OTC' ||
     o.exchange === 'US' ||
-    o.exchange === 'HK'
+    o.exchange === 'HK' ||
+    o.exchange === 'SGE'
   ) {
     exchange = o.exchange;
   }
@@ -359,6 +379,15 @@ export function ensureAsset(raw: unknown): SimpleAsset {
     intlRaw.length > 0 && /^[a-z0-9.\-]+\.(us|hk)$/i.test(intlRaw)
       ? intlRaw.toLowerCase()
       : undefined;
+  const pmRaw =
+    typeof o.preciousMetalSpot === 'string'
+      ? o.preciousMetalSpot.trim().toUpperCase()
+      : '';
+  const preciousMetalSpot = PRECIOUS_METAL_SPOT_ORDER.includes(
+    pmRaw as PreciousMetalSpot
+  )
+    ? (pmRaw as PreciousMetalSpot)
+    : undefined;
   const lastClose =
     typeof o.lastClose === 'number' && !Number.isNaN(o.lastClose)
       ? o.lastClose
@@ -441,6 +470,7 @@ export function ensureAsset(raw: unknown): SimpleAsset {
   if (markPriceDate) asset.markPriceDate = markPriceDate;
   if (emSecid) asset.emSecid = emSecid;
   if (intlQuoteSymbol) asset.intlQuoteSymbol = intlQuoteSymbol;
+  if (preciousMetalSpot) asset.preciousMetalSpot = preciousMetalSpot;
   if (currency && /^[A-Z]{3}$/.test(currency)) {
     asset.currency = currency;
   }

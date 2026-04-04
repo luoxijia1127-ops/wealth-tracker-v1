@@ -116,7 +116,7 @@ export async function ensureFxUsdRatesForToday(): Promise<{
 }
 
 /**
- * 现金类账本为人民币时：将「按证券报价币种计的买入/卖出总额」折为应从现金扣减或增加的人民币金额。
+ * 类现金账本为人民币时：将「按证券报价币种计的买入/卖出总额」折为应从现金扣减或增加的人民币金额。
  */
 export async function convertListingCostToCnyCashDebit(
   amount: number,

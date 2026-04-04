@@ -150,7 +150,7 @@ export default function SettingsExportScreen() {
         数据与存储
       </Text>
       <Text style={{ fontSize: 15, lineHeight: 22, color: secondary, marginBottom: 20 }}>
-        资产、流水与快照均保存在本机（AsyncStorage），不会上传至服务器。以下为「手动增减」相关流水导出：现金类
+        资产、流水与快照均保存在本机（AsyncStorage），不会上传至服务器。以下为「手动增减」相关流水导出：类现金
         「加减余额」与场内证券的买卖记录；不含因行情导致的市值变动、也不含每日净值快照本身。
       </Text>
 

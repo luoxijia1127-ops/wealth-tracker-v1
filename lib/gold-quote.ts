@@ -1,10 +1,12 @@
 /**
- * 黄金参考价（CNY/克）：
- * - 默认尝试招商银行公开行情页（取 Au99.99 最新价）
- * - 也支持 EXPO_PUBLIC_GOLD_QUOTE_URL（GET, JSON）覆盖默认来源
+ * 贵金属·金（XAU）人民币参考价（CNY/克）：
+ * - 优先 EXPO_PUBLIC_GOLD_QUOTE_URL（GET, JSON）
+ * - 其次东方财富上海金现货 AU9999（与上金所现货品种对应，非官方直连）
+ * - 最后招商银行公开行情页（Au99.99）
  */
 
 import { ENDPOINTS } from '@/lib/config/endpoints';
+import { fetchSgeCnyPerGramFromEastmoney } from '@/lib/sge-eastmoney-quote';
 
 function parseFlexiblePrice(data: unknown, depth = 0): number | null {
   if (depth > 4) return null;
@@ -85,8 +87,10 @@ export async function fetchGoldReferenceCnyPerGram(
         }
       }
     } catch {
-      // ignore and fallback to 招行公开页
+      // ignore and fallback
     }
   }
+  const sge = await fetchSgeCnyPerGramFromEastmoney('XAU', signal);
+  if (sge) return sge;
   return fetchCmbGoldQuote(signal);
 }

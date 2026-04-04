@@ -36,7 +36,7 @@ export function buildAggregatedGoalRows(
   type Bucket = { assets: SimpleAsset[] };
   const map = new Map<string, Bucket>();
 
-  /** 与 Dashboard 一致：清仓证券、零份额黄金、零余额现金不参与目标进度 */
+  /** 与 Dashboard 一致：清仓证券、零份额贵金属、零余额现金不参与目标进度 */
   const visible = filterAssetsForDashboard(assets);
   for (const a of visible) {
     if (typeof a.purposeTarget !== 'number' || a.purposeTarget <= 0) continue;

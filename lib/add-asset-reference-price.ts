@@ -63,5 +63,16 @@ export async function fetchAddAssetReferencePrice(
   if (k) {
     return { price: k.close, hint: `收盘 ${k.tradeDate}` };
   }
+
+  const pushFallback = await fetchPush2LastPrice(secid, signal);
+  if (pushFallback && pushFallback.price > 0) {
+    return {
+      price: pushFallback.price,
+      hint:
+        td === today
+          ? '现价'
+          : `现价（${td} 当日收盘未取到，最新价供参考）`,
+    };
+  }
   return null;
 }

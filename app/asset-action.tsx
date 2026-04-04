@@ -1,8 +1,8 @@
 /**
  * 资产详情：
  * - 场内证券：加减仓 + 编辑信息（流水改份额、单价）
- * - 黄金：按克 + CNY/克，无证券代码；加减仓与编辑信息同流水模型
- * - 现金类：加减余额 + 编辑信息（流水仅金额）
+ * - 贵金属：按克 + CNY/克，无证券代码；加减仓与编辑信息同流水模型
+ * - 类现金：加减余额 + 编辑信息（流水仅金额）
  */
 
 import { FormRow } from '@/components/add-asset/form-row';
@@ -33,7 +33,12 @@ import {
 } from '@/lib/cash-ledger';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
-import { formatExchangeSymbol } from '@/lib/eastmoney-suggest';
+import {
+  formatExchangeSymbol,
+  searchSgeSecuritiesMerged,
+} from '@/lib/eastmoney-suggest';
+import type { UnifiedSuggestItem } from '@/lib/instrument-search';
+import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
 import { FINANCE_DOWN, FINANCE_UP } from '@/lib/finance-colors';
 import { createInsightsStyles } from '@/lib/insights-styles';
@@ -48,8 +53,11 @@ import {
   CATEGORY_LABEL_ZH,
   getListedUnitPrice,
   isListedAssetCategory,
+  PRECIOUS_METAL_LABEL_ZH,
+  PRECIOUS_METAL_SPOT_ORDER,
   type AssetCategory,
   type CashLedgerEntry,
+  type PreciousMetalSpot,
   type SimpleAsset,
   type TradeLedgerEntry,
 } from '@/types/asset';
@@ -177,9 +185,17 @@ export default function AssetActionScreen() {
   const [listedMetaPurposeExpanded, setListedMetaPurposeExpanded] =
     useState(false);
   const [listedMetaSaving, setListedMetaSaving] = useState(false);
+  const [listedPreciousMetal, setListedPreciousMetal] =
+    useState<PreciousMetalSpot>('XAU');
+  const [goldSearchText, setGoldSearchText] = useState('');
+  const [goldSuggestions, setGoldSuggestions] = useState<UnifiedSuggestItem[]>(
+    []
+  );
+  const [goldSuggestLoading, setGoldSuggestLoading] = useState(false);
+  const [goldInstrumentPick, setGoldInstrumentPick] =
+    useState<UnifiedSuggestItem | null>(null);
 
   const [cashName, setCashName] = useState('');
-  const [cashCostBasis, setCashCostBasis] = useState('');
   const [cashCategory, setCashCategory] = useState<AssetCategory>('Cash');
   const [cashAccount, setCashAccount] = useState('');
   const [cashPurpose, setCashPurpose] = useState('');
@@ -200,7 +216,6 @@ export default function AssetActionScreen() {
   const [fbPurpose, setFbPurpose] = useState('');
   const [fbPurposeTarget, setFbPurposeTarget] = useState('');
   const [fbPurposeExpanded, setFbPurposeExpanded] = useState(false);
-  const [fbCostBasis, setFbCostBasis] = useState('');
   const [fbCurrency, setFbCurrency] = useState('CNY');
   const [fbCurrencyModal, setFbCurrencyModal] = useState(false);
   const [fbSaving, setFbSaving] = useState(false);
@@ -238,6 +253,23 @@ export default function AssetActionScreen() {
     if (isHeldChineseAsset(asset)) {
       if (asset.category === 'Gold') {
         setListedMetaCategory('Gold');
+        setListedPreciousMetal(asset.preciousMetalSpot ?? 'XAU');
+        const sid =
+          typeof asset.emSecid === 'string' ? asset.emSecid.trim() : '';
+        const sym =
+          typeof asset.symbol === 'string' ? asset.symbol.trim() : '';
+        if (sid && /^\d+\.\d+$/.test(sid) && sym) {
+          setGoldInstrumentPick({
+            code: sym,
+            name: asset.name,
+            exchange: 'SGE',
+            quoteId: sid,
+          });
+          setGoldSearchText(formatExchangeSymbol('SGE', sym));
+        } else {
+          setGoldInstrumentPick(null);
+          setGoldSearchText('');
+        }
       } else {
         const cat = asset.category as AssetCategory;
         setListedMetaCategory(
@@ -261,11 +293,6 @@ export default function AssetActionScreen() {
       );
     } else if (usesCashAmountLedger(asset)) {
       setCashName(asset.name);
-      setCashCostBasis(
-        typeof asset.costBasis === 'number' && !Number.isNaN(asset.costBasis)
-          ? String(asset.costBasis)
-          : ''
-      );
       setCashCategory(asset.category as AssetCategory);
       setCashAccount(typeof asset.account === 'string' ? asset.account : '');
       setCashPurpose(asset.purpose ?? '');
@@ -298,14 +325,59 @@ export default function AssetActionScreen() {
           (typeof asset.purposeTarget === 'number' && asset.purposeTarget > 0)
         )
       );
-      setFbCostBasis(
-        typeof asset.costBasis === 'number' && !Number.isNaN(asset.costBasis)
-          ? String(asset.costBasis)
-          : ''
-      );
       setFbCurrency(normalizeAssetCurrency(asset.currency));
     }
   }, [asset]);
+
+  useEffect(() => {
+    if (!asset || asset.category !== 'Gold') {
+      setGoldSuggestions([]);
+      setGoldSuggestLoading(false);
+      return;
+    }
+    const q = goldSearchText.trim();
+    if (q.length < 1) {
+      setGoldSuggestions([]);
+      setGoldSuggestLoading(false);
+      return;
+    }
+    const ac = new AbortController();
+    const t = setTimeout(() => {
+      setGoldSuggestLoading(true);
+      searchSgeSecuritiesMerged(q, ac.signal)
+        .then((list) => {
+          if (!ac.signal.aborted) {
+            setGoldSuggestions(
+              list.map((x) => ({
+                code: x.code,
+                name: x.name,
+                exchange: x.exchange,
+                quoteId: x.quoteId,
+              }))
+            );
+          }
+        })
+        .catch(() => {
+          if (!ac.signal.aborted) setGoldSuggestions([]);
+        })
+        .finally(() => {
+          if (!ac.signal.aborted) setGoldSuggestLoading(false);
+        });
+    }, 320);
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
+  }, [goldSearchText, asset]);
+
+  const onPickGoldInstrument = useCallback((item: UnifiedSuggestItem) => {
+    if (item.exchange !== 'SGE' || !item.quoteId) return;
+    setGoldInstrumentPick(item);
+    setGoldSearchText(formatExchangeSymbol('SGE', item.code));
+    setGoldSuggestions([]);
+    const spot = preciousMetalSpotFromSgeContractCode(item.code);
+    if (spot) setListedPreciousMetal(spot);
+  }, []);
 
   const { trades, tradesAreSynthetic } = useMemo(() => {
     if (!asset) {
@@ -598,7 +670,7 @@ export default function AssetActionScreen() {
     if (!asset || !isHeldChineseAsset(asset)) return;
     if (asset.category === 'Gold') {
       if (listedMetaCategory !== 'Gold') {
-        Alert.alert('无法保存', '行情型黄金类别须为「黄金」。');
+        Alert.alert('无法保存', '行情型贵金属类别须为「贵金属」。');
         return;
       }
     } else if (!isListedAssetCategory(listedMetaCategory)) {
@@ -614,6 +686,21 @@ export default function AssetActionScreen() {
         category: listedMetaCategory,
         ...pf,
       };
+      if (asset.category === 'Gold' || listedMetaCategory === 'Gold') {
+        next.preciousMetalSpot = listedPreciousMetal;
+        if (
+          goldInstrumentPick?.exchange === 'SGE' &&
+          goldInstrumentPick.quoteId
+        ) {
+          next.emSecid = goldInstrumentPick.quoteId.trim();
+          next.symbol = goldInstrumentPick.code.trim();
+          next.exchange = 'SGE';
+        } else {
+          delete next.emSecid;
+          delete next.symbol;
+          delete next.exchange;
+        }
+      }
       if (accountTrim.length > 0) next.account = accountTrim;
       else delete next.account;
       if (!('purpose' in pf)) delete next.purpose;
@@ -674,9 +761,6 @@ export default function AssetActionScreen() {
     }
     setCashSaving(true);
     try {
-      const cbTrim = cashCostBasis.trim();
-      const costBasisNum =
-        cbTrim !== '' ? parseFloat(cashCostBasis) : undefined;
       const accountTrim = cashAccount.trim();
       const pf = buildPurposeFields(cashPurpose, cashPurposeTarget);
       const next: SimpleAsset = {
@@ -690,15 +774,6 @@ export default function AssetActionScreen() {
       else delete next.account;
       if (!('purpose' in pf)) delete next.purpose;
       if (!('purposeTarget' in pf)) delete next.purposeTarget;
-      if (
-        costBasisNum !== undefined &&
-        !Number.isNaN(costBasisNum) &&
-        costBasisNum >= 0
-      ) {
-        next.costBasis = costBasisNum;
-      } else {
-        delete next.costBasis;
-      }
       await updateAsset(next);
       await load();
       Alert.alert('已保存');
@@ -722,8 +797,6 @@ export default function AssetActionScreen() {
     }
     setFbSaving(true);
     try {
-      const cbTrim = fbCostBasis.trim();
-      const costBasisNum = cbTrim !== '' ? parseFloat(fbCostBasis) : undefined;
       const accountTrim = fbAccount.trim();
       const pf = buildPurposeFields(fbPurpose, fbPurposeTarget);
       const next: SimpleAsset = {
@@ -738,15 +811,6 @@ export default function AssetActionScreen() {
       else delete next.account;
       if (!('purpose' in pf)) delete next.purpose;
       if (!('purposeTarget' in pf)) delete next.purposeTarget;
-      if (
-        costBasisNum !== undefined &&
-        !Number.isNaN(costBasisNum) &&
-        costBasisNum >= 0
-      ) {
-        next.costBasis = costBasisNum;
-      } else {
-        delete next.costBasis;
-      }
       await updateAsset(next);
       await load();
       Alert.alert('已保存');
@@ -1216,6 +1280,147 @@ export default function AssetActionScreen() {
                     </View>
                   </View>
 
+                  {useGram ? (
+                    <View style={styles.categoryRowWrap}>
+                      <View style={styles.formRowIconColumn}>
+                        <View style={styles.formRowIconLabelSpacer} />
+                        <View style={styles.formRowIconWrap}>
+                          <Ionicons
+                            name="diamond-outline"
+                            size={20}
+                            color={iconMuted}
+                          />
+                        </View>
+                      </View>
+                      <View style={styles.categoryChipsWrap}>
+                        <Text style={styles.formRowLabel}>贵金属品种</Text>
+                        <View style={[styles.categoryRowOneLine, { flexWrap: 'wrap' }]}>
+                          {PRECIOUS_METAL_SPOT_ORDER.map((spot) => (
+                            <Pressable
+                              key={spot}
+                              style={[
+                                styles.optionMini,
+                                listedPreciousMetal === spot &&
+                                  styles.optionSelected,
+                              ]}
+                              onPress={() => setListedPreciousMetal(spot)}
+                            >
+                              <Text
+                                style={[
+                                  styles.optionTextMini,
+                                  listedPreciousMetal === spot &&
+                                    styles.optionTextSelected,
+                                ]}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.75}
+                              >
+                                {PRECIOUS_METAL_LABEL_ZH[spot]}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                  ) : null}
+
+                  {useGram ? (
+                    <>
+                      <View style={styles.categoryBlock}>
+                        <View style={styles.formRowIconColumn}>
+                          <View style={styles.formRowIconLabelSpacer} />
+                          <View style={styles.formRowIconWrap}>
+                            <Ionicons
+                              name="search-outline"
+                              size={18}
+                              color={iconMuted}
+                            />
+                          </View>
+                        </View>
+                        <View style={styles.categoryChipsWrap}>
+                          <Text style={styles.formRowLabel}>
+                            上金现货代码（选填）
+                          </Text>
+                          <TextInput
+                            placeholder="代码或简称，支持小写、模糊"
+                            placeholderTextColor={placeholderColor}
+                            style={styles.input}
+                            value={goldSearchText}
+                            onChangeText={(t) => {
+                              setGoldSearchText(t);
+                              if (goldInstrumentPick && t.trim().length > 0) {
+                                setGoldInstrumentPick(null);
+                              }
+                            }}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                          />
+                        </View>
+                      </View>
+                      {goldSuggestLoading && (
+                        <View style={styles.suggestLoadingRow}>
+                          <ActivityIndicator
+                            size="small"
+                            color={theme.primary}
+                          />
+                          <Text style={styles.suggestLoadingText}>
+                            搜索中…
+                          </Text>
+                        </View>
+                      )}
+                      {!goldSuggestLoading && goldSuggestions.length > 0 && (
+                        <View style={styles.suggestBox}>
+                          {goldSuggestions.map((item) => (
+                            <Pressable
+                              key={`${item.exchange}-${item.code}-${
+                                item.quoteId ?? ''
+                              }`}
+                              style={({ pressed }) => [
+                                styles.suggestRow,
+                                pressed && styles.suggestRowPressed,
+                              ]}
+                              onPress={() => onPickGoldInstrument(item)}
+                            >
+                              <Text style={styles.suggestCode}>
+                                {formatExchangeSymbol(item.exchange, item.code)}
+                              </Text>
+                              <Text style={styles.suggestName} numberOfLines={2}>
+                                {item.name}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
+                      {!goldSuggestLoading &&
+                        goldSearchText.trim().length > 0 &&
+                        goldSuggestions.length === 0 && (
+                          <Text style={styles.suggestEmpty}>无匹配结果</Text>
+                        )}
+                      {goldInstrumentPick?.exchange === 'SGE' && (
+                        <View style={styles.selectedCard}>
+                          <Text style={styles.selectedLabel}>
+                            已选行情代码
+                          </Text>
+                          <Text style={styles.selectedMain}>
+                            {formatExchangeSymbol(
+                              'SGE',
+                              goldInstrumentPick.code
+                            )}{' '}
+                            · {goldInstrumentPick.name}
+                          </Text>
+                          <Pressable
+                            onPress={() => {
+                              setGoldInstrumentPick(null);
+                              setGoldSearchText('');
+                            }}
+                          >
+                            <Text style={styles.changeLink}>清除</Text>
+                          </Pressable>
+                        </View>
+                      )}
+                    </>
+                  ) : null}
+
                   <FormRow
                     styles={styles}
                     iconMuted={iconMuted}
@@ -1452,6 +1657,11 @@ export default function AssetActionScreen() {
                       style={styles.input}
                       value={cashName}
                       onChangeText={setCashName}
+                      placeholder={
+                        cashCategory === 'Custom'
+                          ? '如：数字货币、期货、保险等'
+                          : '如：招行朝朝宝、余额宝、车贷专户'
+                      }
                       placeholderTextColor={placeholderColor}
                     />
                   </FormRow>
@@ -1471,20 +1681,6 @@ export default function AssetActionScreen() {
                       <Text style={styles.currencyChevron}>▼</Text>
                     </Pressable>
                   </FormRow>
-                  <FormRow
-                    styles={styles}
-                    iconMuted={iconMuted}
-                    icon="trending-up-outline"
-                    label="本金（选填）"
-                  >
-                    <TextInput
-                      style={styles.input}
-                      value={cashCostBasis}
-                      onChangeText={setCashCostBasis}
-                      keyboardType="decimal-pad"
-                      placeholderTextColor={placeholderColor}
-                    />
-                  </FormRow>
                   <View style={styles.categoryRowWrap}>
                     <View style={styles.formRowIconColumn}>
                       <View style={styles.formRowIconLabelSpacer} />
@@ -1498,30 +1694,41 @@ export default function AssetActionScreen() {
                     </View>
                     <View style={styles.categoryChipsWrap}>
                       <Text style={styles.formRowLabel}>资产类别</Text>
-                      <View style={styles.categoryRowOneLine}>
-                        {ASSET_CATEGORY_ORDER.map((opt) => (
-                          <Pressable
-                            key={opt}
-                            style={[
-                              styles.optionMini,
-                              cashCategory === opt && styles.optionSelected,
-                            ]}
-                            onPress={() => setCashCategory(opt)}
-                          >
-                            <Text
-                              style={[
-                                styles.optionTextMini,
-                                cashCategory === opt && styles.optionTextSelected,
-                              ]}
-                              numberOfLines={1}
-                              adjustsFontSizeToFit
-                              minimumFontScale={0.88}
-                            >
-                              {CATEGORY_LABEL_ZH[opt]}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
+                      {[0, 1].map((row) => (
+                        <View
+                          key={row}
+                          style={[
+                            styles.categoryRowOneLine,
+                            row === 1 ? { marginTop: 4 } : null,
+                          ]}
+                        >
+                          {ASSET_CATEGORY_ORDER.slice(row * 3, row * 3 + 3).map(
+                            (opt) => (
+                              <Pressable
+                                key={opt}
+                                style={[
+                                  styles.optionMini,
+                                  cashCategory === opt && styles.optionSelected,
+                                ]}
+                                onPress={() => setCashCategory(opt)}
+                              >
+                                <Text
+                                  style={[
+                                    styles.optionTextMini,
+                                    cashCategory === opt &&
+                                      styles.optionTextSelected,
+                                  ]}
+                                  numberOfLines={1}
+                                  adjustsFontSizeToFit
+                                  minimumFontScale={0.88}
+                                >
+                                  {CATEGORY_LABEL_ZH[opt]}
+                                </Text>
+                              </Pressable>
+                            )
+                          )}
+                        </View>
+                      ))}
                     </View>
                   </View>
                   <FormRow
@@ -1611,6 +1818,11 @@ export default function AssetActionScreen() {
                   style={styles.input}
                   value={fbName}
                   onChangeText={setFbName}
+                  placeholder={
+                    fbCategory === 'Custom'
+                      ? '如：数字货币、期货、保险等'
+                      : '如：招行朝朝宝、余额宝、车贷专户'
+                  }
                   placeholderTextColor={placeholderColor}
                 />
               </FormRow>
@@ -1639,20 +1851,6 @@ export default function AssetActionScreen() {
                   />
                 </View>
               </FormRow>
-              <FormRow
-                styles={styles}
-                iconMuted={iconMuted}
-                icon="trending-up-outline"
-                label="本金（选填）"
-              >
-                <TextInput
-                  style={styles.input}
-                  value={fbCostBasis}
-                  onChangeText={setFbCostBasis}
-                  keyboardType="decimal-pad"
-                  placeholderTextColor={placeholderColor}
-                />
-              </FormRow>
               <View style={styles.categoryRowWrap}>
                 <View style={styles.formRowIconColumn}>
                   <View style={styles.formRowIconLabelSpacer} />
@@ -1662,30 +1860,40 @@ export default function AssetActionScreen() {
                 </View>
                 <View style={styles.categoryChipsWrap}>
                   <Text style={styles.formRowLabel}>资产类别</Text>
-                  <View style={styles.categoryRowOneLine}>
-                    {ASSET_CATEGORY_ORDER.map((opt) => (
-                      <Pressable
-                        key={opt}
-                        style={[
-                          styles.optionMini,
-                          fbCategory === opt && styles.optionSelected,
-                        ]}
-                        onPress={() => setFbCategory(opt)}
-                      >
-                        <Text
-                          style={[
-                            styles.optionTextMini,
-                            fbCategory === opt && styles.optionTextSelected,
-                          ]}
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
-                          minimumFontScale={0.88}
-                        >
-                          {CATEGORY_LABEL_ZH[opt]}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  {[0, 1].map((row) => (
+                    <View
+                      key={row}
+                      style={[
+                        styles.categoryRowOneLine,
+                        row === 1 ? { marginTop: 4 } : null,
+                      ]}
+                    >
+                      {ASSET_CATEGORY_ORDER.slice(row * 3, row * 3 + 3).map(
+                        (opt) => (
+                          <Pressable
+                            key={opt}
+                            style={[
+                              styles.optionMini,
+                              fbCategory === opt && styles.optionSelected,
+                            ]}
+                            onPress={() => setFbCategory(opt)}
+                          >
+                            <Text
+                              style={[
+                                styles.optionTextMini,
+                                fbCategory === opt && styles.optionTextSelected,
+                              ]}
+                              numberOfLines={1}
+                              adjustsFontSizeToFit
+                              minimumFontScale={0.88}
+                            >
+                              {CATEGORY_LABEL_ZH[opt]}
+                            </Text>
+                          </Pressable>
+                        )
+                      )}
+                    </View>
+                  ))}
                 </View>
               </View>
               <FormRow

@@ -1,20 +1,22 @@
 /**
- * 行情刷新：A 股东财 push2 + 日 K；场外基金 F10；美股/港股 Stooq；黄金参考价。
+ * 行情刷新：A 股东财 push2 + 日 K；场外基金 F10；美股/港股 Stooq；贵金属参考价（按品种）。
  */
 
 import { isInternationalListedAsset } from '@/lib/asset-value';
+import { ensureFxUsdRatesForToday } from '@/lib/fx-rates';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { fetchDailySettlementClose } from '@/lib/eastmoney-kline';
 import { fetchOtcFundLatestNav } from '@/lib/eastmoney-fund-nav';
 import { fetchPush2LastPrice } from '@/lib/eastmoney-push';
 import { toEastMoneySecid } from '@/lib/eastmoney-secid';
-import { fetchGoldReferenceCnyPerGram } from '@/lib/gold-quote';
+import { fetchPreciousMetalCnyPerGram } from '@/lib/precious-metal-quote';
 import { fetchStooqQuote } from '@/lib/stooq-quote';
 import { getAssets, saveAssets } from '@/lib/asset-storage';
 import {
   getListedUnitPrice,
   isListedAssetCategory,
   type ChinaExchange,
+  type PreciousMetalSpot,
   type SimpleAsset,
 } from '@/types/asset';
 
@@ -234,17 +236,73 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
     return a;
   });
 
-  const spot = await withTimeout(8000, (signal) =>
-    fetchGoldReferenceCnyPerGram(signal)
+  const goldHeld = next.filter(
+    (a) =>
+      a.category === 'Gold' &&
+      typeof a.shares === 'number' &&
+      a.shares > 0
   );
-  if (spot != null && spot.price > 0) {
+
+  const secidKeys = [
+    ...new Set(
+      goldHeld
+        .map((a) =>
+          typeof a.emSecid === 'string' ? a.emSecid.trim() : ''
+        )
+        .filter((s) => /^\d+\.\d+$/.test(s))
+    ),
+  ];
+  const priceBySecid = new Map<string, number>();
+  await Promise.all(
+    secidKeys.map(async (secid) => {
+      const push = await withTimeout(8000, (signal) =>
+        fetchPush2LastPrice(secid, signal)
+      );
+      if (push && push.price > 0) priceBySecid.set(secid, push.price);
+    })
+  );
+
+  const metalsNeedingRef = new Set<PreciousMetalSpot>();
+  for (const a of goldHeld) {
+    const sid =
+      typeof a.emSecid === 'string' ? a.emSecid.trim() : '';
+    if (sid && priceBySecid.has(sid)) continue;
+    metalsNeedingRef.add((a.preciousMetalSpot ?? 'XAU') as PreciousMetalSpot);
+  }
+
+  const needsUsdCny = [...metalsNeedingRef].some((m) => m !== 'XAU');
+  let cnyPerUsd: number | null = null;
+  if (needsUsdCny) {
+    const fx = await ensureFxUsdRatesForToday();
+    cnyPerUsd = fx.rates?.rates.CNY ?? null;
+  }
+
+  const priceByMetal = new Map<PreciousMetalSpot, number>();
+  await Promise.all(
+    [...metalsNeedingRef].map(async (m) => {
+      const r = await withTimeout(8000, (signal) =>
+        fetchPreciousMetalCnyPerGram(m, cnyPerUsd, signal)
+      );
+      if (r && r.price > 0) priceByMetal.set(m, r.price);
+    })
+  );
+
+  const hasGoldPrices = priceBySecid.size > 0 || priceByMetal.size > 0;
+  if (hasGoldPrices) {
     const today = getShanghaiDateString();
     next = next.map((a) => {
       if (a.category !== 'Gold') return a;
       if (typeof a.shares !== 'number' || !(a.shares > 0)) return a;
+      const sid =
+        typeof a.emSecid === 'string' ? a.emSecid.trim() : '';
+      const m = (a.preciousMetalSpot ?? 'XAU') as PreciousMetalSpot;
+      let p: number | undefined;
+      if (sid && priceBySecid.has(sid)) p = priceBySecid.get(sid);
+      else p = priceByMetal.get(m);
+      if (p === undefined) return a;
       const merged: SimpleAsset = {
         ...a,
-        markPrice: spot.price,
+        markPrice: p,
         markPriceDate: today,
       };
       const unit = getListedUnitPrice(merged);

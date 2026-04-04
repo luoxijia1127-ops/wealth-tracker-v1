@@ -95,7 +95,7 @@ export function tryApplyListedAdjustTrade(
     return {
       ok: false,
       message: isGold
-        ? '暂无 CNY/克 参考价：请在详情中填写参考市价，或配置金价接口后从 Dashboard 同步。'
+        ? '暂无 CNY/克 参考价：请在详情中填写参考市价，或同步 Dashboard 行情（贵金属按品种拉取参考价）。'
         : '暂无行情收盘价：请先在 Dashboard 同步，或确保持仓已有成本均价。',
     };
   }

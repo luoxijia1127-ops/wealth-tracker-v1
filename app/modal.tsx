@@ -5,27 +5,26 @@
  * 股票/基金/ETF：同一套表单，支持 A 股（东财）与美股/港股（OpenFIGI 联想）；收盘价仅由 Dashboard 同步写入。
  */
 
-import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { FormRow } from '@/components/add-asset/form-row';
-import { formatYmdChineseLine, YmdDateFields } from '@/components/ymd-date-fields';
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { InlineSelect } from '@/components/add-asset/inline-select';
 import { GlassSurface } from '@/components/glass-surface';
+import { formatYmdChineseLine, YmdDateFields } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import {
-    buildCashLikeAsset,
-    buildGoldAsset,
-    buildListedAsset,
-    buildPurposeFields,
-    validateCashLikeForm,
-    validateGoldForm,
-    validateListedForm,
+  buildCashLikeAsset,
+  buildGoldAsset,
+  buildListedAsset,
+  buildPurposeFields,
+  validateCashLikeForm,
+  validateGoldForm,
+  validateListedForm,
 } from '@/lib/add-asset-form';
+import { fetchAddAssetReferencePrice } from '@/lib/add-asset-reference-price';
 import {
-    ASSET_CURRENCY_OPTIONS,
-    assetCurrencySymbol,
-    normalizeAssetCurrency,
+  ASSET_CURRENCY_OPTIONS,
+  assetCurrencySymbol,
+  normalizeAssetCurrency,
 } from '@/lib/asset-currency';
 import { saveAssets } from '@/lib/asset-storage';
 import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
@@ -35,24 +34,32 @@ import {
   getShanghaiDateString,
   shanghaiYmdToLocalNoon,
 } from '@/lib/date-shanghai';
-import { formatExchangeSymbol } from '@/lib/eastmoney-suggest';
-import { fetchAddAssetReferencePrice } from '@/lib/add-asset-reference-price';
+import {
+  formatExchangeSymbol,
+  searchSgeSecuritiesMerged,
+} from '@/lib/eastmoney-suggest';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
 import {
-    searchUnifiedInstruments,
-    type UnifiedSuggestItem,
+  searchUnifiedInstruments,
+  type UnifiedSuggestItem,
 } from '@/lib/instrument-search';
 import { createAddModalStyles } from '@/lib/modal-styles';
 import { assetRepository } from '@/lib/repositories/asset-repository';
+import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
 import {
-    ASSET_CATEGORY_ORDER,
-    CATEGORY_LABEL_ZH,
-    generateAssetId,
-    isListedAssetCategory,
-    type AssetCategory,
-    type ListingExchange,
-    type SimpleAsset,
+  ASSET_CATEGORY_ORDER,
+  CATEGORY_LABEL_ZH,
+  generateAssetId,
+  isListedAssetCategory,
+  PRECIOUS_METAL_LABEL_ZH,
+  PRECIOUS_METAL_SPOT_ORDER,
+  type AssetCategory,
+  type ListingExchange,
+  type PreciousMetalSpot,
+  type SimpleAsset,
 } from '@/types/asset';
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRouter } from 'expo-router';
 import {
   useCallback,
@@ -62,16 +69,16 @@ import {
   useState,
 } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -111,15 +118,25 @@ export default function AddModal() {
   const [assetCurrency, setAssetCurrency] = useState('CNY');
   /** 内联下拉互斥：ccy | fund */
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
-  const [quoteLoading, setQuoteLoading] = useState(false);
-  const [quoteHint, setQuoteHint] = useState<string | null>(null);
+  const [listedQuoteLoading, setListedQuoteLoading] = useState(false);
+  const [listedQuoteHint, setListedQuoteHint] = useState<string | null>(null);
+  const [goldQuoteLoading, setGoldQuoteLoading] = useState(false);
+  const [goldQuoteHint, setGoldQuoteHint] = useState<string | null>(null);
   const [purposeExpanded, setPurposeExpanded] = useState(false);
 
   const [account, setAccount] = useState('');
   const [costPrice, setCostPrice] = useState('');
-  const [costBasis, setCostBasis] = useState('');
   const [fundingOptions, setFundingOptions] = useState<SimpleAsset[]>([]);
   const [fundingSourceId, setFundingSourceId] = useState('');
+  const [preciousMetalSpot, setPreciousMetalSpot] =
+    useState<PreciousMetalSpot>('XAU');
+  const [goldSearchText, setGoldSearchText] = useState('');
+  const [goldSuggestions, setGoldSuggestions] = useState<UnifiedSuggestItem[]>(
+    []
+  );
+  const [goldSuggestLoading, setGoldSuggestLoading] = useState(false);
+  const [goldInstrumentPick, setGoldInstrumentPick] =
+    useState<UnifiedSuggestItem | null>(null);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -137,7 +154,7 @@ export default function AddModal() {
   const isListedCategory = isListedAssetCategory(category);
   const showGoldForm = category === 'Gold';
   const showListedSecuritiesForm = isListedCategory;
-  /** 用途目标与 A 股/黄金同为人民币展示；美股/港股标的与报价币种一致 */
+  /** 用途目标与 A 股/贵金属同为人民币展示；美股/港股标的与报价币种一致 */
   const purposeYuan =
     showGoldForm ||
     (showListedSecuritiesForm && !instrumentPick?.intlQuoteSymbol);
@@ -202,34 +219,120 @@ export default function AddModal() {
   }, [searchText, showListedSecuritiesForm]);
 
   useEffect(() => {
-    if (!showListedSecuritiesForm || !instrumentPick) {
-      setQuoteHint(null);
-      setQuoteLoading(false);
+    if (!showGoldForm) {
+      setGoldSuggestions([]);
+      setGoldSuggestLoading(false);
+      return;
+    }
+    const q = goldSearchText.trim();
+    if (q.length < 1) {
+      setGoldSuggestions([]);
+      setGoldSuggestLoading(false);
+      return;
+    }
+    const ac = new AbortController();
+    const t = setTimeout(() => {
+      setGoldSuggestLoading(true);
+      searchSgeSecuritiesMerged(q, ac.signal)
+        .then((list) => {
+          if (!ac.signal.aborted) {
+            setGoldSuggestions(
+              list.map((x) => ({
+                code: x.code,
+                name: x.name,
+                exchange: x.exchange,
+                quoteId: x.quoteId,
+              }))
+            );
+          }
+        })
+        .catch(() => {
+          if (!ac.signal.aborted) setGoldSuggestions([]);
+        })
+        .finally(() => {
+          if (!ac.signal.aborted) setGoldSuggestLoading(false);
+        });
+    }, 320);
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
+  }, [goldSearchText, showGoldForm]);
+
+  useEffect(() => {
+    if (!showListedSecuritiesForm) {
+      setListedQuoteHint(null);
+      setListedQuoteLoading(false);
+      return;
+    }
+    if (!instrumentPick) {
+      setListedQuoteHint(null);
+      setListedQuoteLoading(false);
       return;
     }
     let cancelled = false;
-    setQuoteLoading(true);
-    setQuoteHint(null);
+    setListedQuoteLoading(true);
+    setListedQuoteHint(null);
     fetchAddAssetReferencePrice(instrumentPick, tradeDate)
       .then((r) => {
         if (cancelled || !r) return;
         setCostPrice(String(r.price));
-        setQuoteHint(r.hint);
+        setListedQuoteHint(r.hint);
       })
       .catch(() => {})
       .finally(() => {
-        if (!cancelled) setQuoteLoading(false);
+        if (!cancelled) setListedQuoteLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [
-    showListedSecuritiesForm,
-    tradeDate,
-    instrumentPick?.code,
-    instrumentPick?.quoteId,
-    instrumentPick?.intlQuoteSymbol,
-  ]);
+  }, [showListedSecuritiesForm, tradeDate, instrumentPick]);
+
+  useEffect(() => {
+    if (!showGoldForm) {
+      setGoldQuoteHint(null);
+      setGoldQuoteLoading(false);
+      return;
+    }
+    if (!goldInstrumentPick?.quoteId) {
+      setGoldQuoteHint(null);
+      setGoldQuoteLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setGoldQuoteLoading(true);
+    setGoldQuoteHint(null);
+    fetchAddAssetReferencePrice(goldInstrumentPick, tradeDate)
+      .then((r) => {
+        if (cancelled) return;
+        if (r) {
+          setCostPrice(String(r.price));
+          setGoldQuoteHint(r.hint);
+        } else {
+          setGoldQuoteHint('参考价暂不可用，请手填单价');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGoldQuoteHint('参考价获取失败，请手填单价');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setGoldQuoteLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showGoldForm, tradeDate, goldInstrumentPick]);
+
+  /** 类现金等表单不展示证券/上金参考价 */
+  useEffect(() => {
+    if (showGoldForm || showListedSecuritiesForm) return;
+    setListedQuoteLoading(false);
+    setListedQuoteHint(null);
+    setGoldQuoteLoading(false);
+    setGoldQuoteHint(null);
+  }, [showGoldForm, showListedSecuritiesForm]);
 
   const amountDisplay = useMemo(() => {
     const s = parseFloat(shares);
@@ -257,6 +360,14 @@ export default function AddModal() {
 
   const handleCategoryChange = useCallback((cat: AssetCategory) => {
     setCategory(cat);
+    if (cat === 'Gold') {
+      setPreciousMetalSpot('XAU');
+    }
+    if (cat !== 'Gold') {
+      setGoldInstrumentPick(null);
+      setGoldSearchText('');
+      setGoldSuggestions([]);
+    }
     if (!isListedAssetCategory(cat)) {
       setInstrumentPick(null);
       setSearchText('');
@@ -278,6 +389,15 @@ export default function AddModal() {
     setName('');
     setSearchText('');
     setSuggestions([]);
+  }, []);
+
+  const onPickGoldInstrument = useCallback((item: UnifiedSuggestItem) => {
+    if (item.exchange !== 'SGE' || !item.quoteId) return;
+    setGoldInstrumentPick(item);
+    setGoldSearchText(formatExchangeSymbol('SGE', item.code));
+    setGoldSuggestions([]);
+    const spot = preciousMetalSpotFromSgeContractCode(item.code);
+    if (spot) setPreciousMetalSpot(spot);
   }, []);
 
   const onPickInstrument = useCallback((item: UnifiedSuggestItem) => {
@@ -315,8 +435,9 @@ export default function AddModal() {
           : undefined;
 
       if (showGoldForm) {
+        const quoteName = goldInstrumentPick?.name?.trim() ?? '';
         const err = validateGoldForm({
-          name,
+          name: quoteName,
           shares,
           costPrice,
           purpose,
@@ -326,15 +447,27 @@ export default function AddModal() {
           Alert.alert('无法保存', err);
           return;
         }
+        if (!goldInstrumentPick?.quoteId) {
+          Alert.alert('无法保存', '请搜索并选择上金现货代码。');
+          return;
+        }
         const grams = parseFloat(shares);
         const costNum = parseFloat(costPrice);
         const src = fundingOptions.find((x) => x.id === fundingSourceId);
         assetToSave = buildGoldAsset({
           id,
-          name,
+          name: quoteName,
           shares: grams,
           avgCost: costNum,
           tradeDate: tradeDay,
+          preciousMetalSpot,
+          emSecid: goldInstrumentPick?.quoteId,
+          symbol:
+            goldInstrumentPick?.exchange === 'SGE'
+              ? goldInstrumentPick.code
+              : undefined,
+          exchange:
+            goldInstrumentPick?.exchange === 'SGE' ? 'SGE' : undefined,
           purposeFields,
           account: accountTrim || undefined,
           fundingSourceAssetId: src?.id,
@@ -392,15 +525,11 @@ export default function AddModal() {
           category,
           purpose,
           purposeTarget,
-          costBasis,
         });
         if (err) {
           Alert.alert('无法保存', err);
           return;
         }
-        const cbTrim = costBasis.trim();
-        const costBasisNum =
-          cbTrim !== '' ? parseFloat(costBasis) : undefined;
         assetToSave = buildCashLikeAsset({
           id,
           name,
@@ -409,15 +538,7 @@ export default function AddModal() {
           currency: normalizeAssetCurrency(assetCurrency),
           purposeFields,
           account: accountTrim || undefined,
-          ...(costBasisNum !== undefined &&
-          !Number.isNaN(costBasisNum) &&
-          costBasisNum >= 0
-            ? { costBasis: costBasisNum }
-            : {}),
         });
-        if (costBasis.trim() === '') {
-          delete assetToSave.costBasis;
-        }
       }
 
       if (!accountTrim) {
@@ -433,7 +554,7 @@ export default function AddModal() {
         }
         const src = all[srcIdx]!;
         if (!usesCashAmountLedger(src)) {
-          Alert.alert('无法保存', '所选资金来源不是可扣减余额的现金类资产。');
+          Alert.alert('无法保存', '所选资金来源不是可扣减余额的类现金资产。');
           return;
         }
         const rawCost =
@@ -463,8 +584,8 @@ export default function AddModal() {
               relatedAssetName: assetToSave.name,
               note:
                 listingCur === 'CNY'
-                  ? `买入${assetToSave.category === 'Gold' ? '黄金' : '资产'}资金划转`
-                  : `买入${assetToSave.category === 'Gold' ? '黄金' : '资产'}（${listingCur} ${rawCost.toFixed(2)} 折人民币扣款）`,
+                  ? `买入${assetToSave.category === 'Gold' ? '贵金属' : '资产'}资金划转`
+                  : `买入${assetToSave.category === 'Gold' ? '贵金属' : '资产'}（${listingCur} ${rawCost.toFixed(2)} 折人民币扣款）`,
               transferId,
             }
           );
@@ -546,30 +667,40 @@ export default function AddModal() {
           </View>
           <View style={styles.categoryChipsWrap}>
             <Text style={styles.formRowLabel}>资产类别</Text>
-            <View style={styles.categoryRowOneLine}>
-              {ASSET_CATEGORY_ORDER.map((opt) => (
-                <Pressable
-                  key={opt}
-                  style={[
-                    styles.optionMini,
-                    category === opt && styles.optionSelected,
-                  ]}
-                  onPress={() => handleCategoryChange(opt)}
-                >
-                  <Text
-                    style={[
-                      styles.optionTextMini,
-                      category === opt && styles.optionTextSelected,
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.88}
-                  >
-                    {CATEGORY_LABEL_ZH[opt]}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            {[0, 1].map((row) => (
+              <View
+                key={row}
+                style={[
+                  styles.categoryRowOneLine,
+                  row === 1 ? { marginTop: 4 } : null,
+                ]}
+              >
+                {ASSET_CATEGORY_ORDER.slice(row * 3, row * 3 + 3).map(
+                  (opt) => (
+                    <Pressable
+                      key={opt}
+                      style={[
+                        styles.optionMini,
+                        category === opt && styles.optionSelected,
+                      ]}
+                      onPress={() => handleCategoryChange(opt)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionTextMini,
+                          category === opt && styles.optionTextSelected,
+                        ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.88}
+                      >
+                        {CATEGORY_LABEL_ZH[opt]}
+                      </Text>
+                    </Pressable>
+                  )
+                )}
+              </View>
+            ))}
           </View>
         </View>
 
@@ -577,7 +708,7 @@ export default function AddModal() {
           styles={styles}
           iconMuted={iconMuted}
           icon="calendar-outline"
-          label="交易时间（年 · 月 · 日）"
+          label="交易时间"
           right={
             Platform.OS !== 'web' ? (
               <Ionicons name="chevron-forward" size={18} color={iconMuted} />
@@ -611,65 +742,159 @@ export default function AddModal() {
             <FormRow
               styles={styles}
               iconMuted={iconMuted}
-              icon="text-outline"
-              label="名称"
+              icon="diamond-outline"
+              label="贵金属品种"
             >
-              <TextInput
-                placeholder="如：工行如意金、实物金条"
-                placeholderTextColor={placeholderColor}
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-              />
+              <View style={styles.optionsRow}>
+                {PRECIOUS_METAL_SPOT_ORDER.map((spot) => (
+                  <Pressable
+                    key={spot}
+                    style={[
+                      styles.option,
+                      preciousMetalSpot === spot && styles.optionSelected,
+                    ]}
+                    onPress={() => setPreciousMetalSpot(spot)}
+                  >
+                    <Text
+                      style={[
+                        styles.optionText,
+                        preciousMetalSpot === spot && styles.optionTextSelected,
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.82}
+                    >
+                      {PRECIOUS_METAL_LABEL_ZH[spot]}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </FormRow>
-            <FormRow
-              styles={styles}
-              iconMuted={iconMuted}
-              icon="fitness-outline"
-              label="数量"
-              right={
-                <View style={styles.unitPill}>
-                  <Text style={styles.formRowRightText}>克</Text>
+            <View style={styles.categoryBlock}>
+              <View style={styles.formRowIconColumn}>
+                <View style={styles.formRowIconLabelSpacer} />
+                <View style={styles.formRowIconWrap}>
+                  <Ionicons name="search-outline" size={18} color={iconMuted} />
                 </View>
-              }
-            >
-              <TextInput
-                placeholder="克数"
-                placeholderTextColor={placeholderColor}
-                style={styles.input}
-                value={shares}
-                onChangeText={setShares}
-                keyboardType="decimal-pad"
-              />
-            </FormRow>
-            <FormRow
-              styles={styles}
-              iconMuted={iconMuted}
-              icon="pricetag-outline"
-              label="购买单价（CNY/克）"
-            >
-              <View style={styles.inputCurrencyShell}>
+              </View>
+              <View style={styles.categoryChipsWrap}>
+                <Text style={styles.formRowLabel}>上金现货代码</Text>
                 <TextInput
-                  placeholder="单价"
+                  placeholder="代码或简称，支持小写、模糊（如 au99、白银）"
                   placeholderTextColor={placeholderColor}
-                  style={styles.inputCurrencyField}
-                  value={costPrice}
-                  onChangeText={setCostPrice}
-                  keyboardType="decimal-pad"
-                />
-                <View style={styles.inputCurrencyDivider} />
-                <InlineSelect
-                  menuKey="ccy"
-                  openKey={menuOpen}
-                  setOpenKey={setMenuOpen}
-                  value={assetCurrency}
-                  options={currencySelectOptions}
-                  onChange={(v) => setAssetCurrency(v)}
-                  embedded
-                  primaryColor={theme.primary}
-                  mutedColor={iconMuted}
+                  style={styles.input}
+                  value={goldSearchText}
+                  onChangeText={(t) => {
+                    setGoldSearchText(t);
+                    if (goldInstrumentPick && t.trim().length > 0) {
+                      setGoldInstrumentPick(null);
+                    }
+                  }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
               </View>
+            </View>
+            {goldSuggestLoading && (
+              <View style={styles.suggestLoadingRow}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <Text style={styles.suggestLoadingText}>搜索中…</Text>
+              </View>
+            )}
+            {!goldSuggestLoading && goldSuggestions.length > 0 && (
+              <View style={styles.suggestBox}>
+                {goldSuggestions.map((item) => (
+                  <Pressable
+                    key={`${item.exchange}-${item.code}-${item.quoteId ?? ''}`}
+                    style={({ pressed }) => [
+                      styles.suggestRow,
+                      pressed && styles.suggestRowPressed,
+                    ]}
+                    onPress={() => onPickGoldInstrument(item)}
+                  >
+                    <Text style={styles.suggestCode}>
+                      {formatExchangeSymbol(item.exchange, item.code)}
+                    </Text>
+                    <Text style={styles.suggestName} numberOfLines={2}>
+                      {item.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            {!goldSuggestLoading &&
+              goldSearchText.trim().length > 0 &&
+              goldSuggestions.length === 0 && (
+                <Text style={styles.suggestEmpty}>无匹配结果</Text>
+              )}
+            {goldInstrumentPick?.exchange === 'SGE' && (
+              <View style={styles.selectedCard}>
+                <Text style={styles.selectedLabel}>资产名称（行情）</Text>
+                <Text style={styles.selectedMain}>
+                  {goldInstrumentPick.name}
+                </Text>
+                <Text style={[styles.selectedMain, { marginTop: 6, opacity: 0.85 }]}>
+                  {formatExchangeSymbol('SGE', goldInstrumentPick.code)}
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    setGoldInstrumentPick(null);
+                    setGoldSearchText('');
+                  }}
+                >
+                  <Text style={styles.changeLink}>清除</Text>
+                </Pressable>
+              </View>
+            )}
+            <FormRow styles={styles} iconMuted={iconMuted} icon="pie-chart-outline">
+              <View style={[styles.listedTwoCol, { alignItems: 'flex-start' }]}>
+                <View style={[styles.listedColFlex, { maxWidth: '36%' }]}>
+                  <Text style={styles.formRowLabel}>数量（克）</Text>
+                  <TextInput
+                    placeholder="克"
+                    placeholderTextColor={placeholderColor}
+                    style={styles.inputCompact}
+                    value={shares}
+                    onChangeText={setShares}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                <View style={[styles.listedColFlex, { flex: 1.4, minWidth: 0 }]}>
+                  <Text style={styles.formRowLabel}>单价（CNY/克）</Text>
+                  <View style={styles.inputCurrencyShell}>
+                    <TextInput
+                      placeholder="单价"
+                      placeholderTextColor={placeholderColor}
+                      style={styles.inputCurrencyField}
+                      value={costPrice}
+                      onChangeText={setCostPrice}
+                      keyboardType="decimal-pad"
+                    />
+                    <View style={styles.inputCurrencyDivider} />
+                    <InlineSelect
+                      menuKey="ccy"
+                      openKey={menuOpen}
+                      setOpenKey={setMenuOpen}
+                      value={assetCurrency}
+                      options={currencySelectOptions}
+                      onChange={(v) => setAssetCurrency(v)}
+                      embedded
+                      primaryColor={theme.primary}
+                      mutedColor={iconMuted}
+                    />
+                  </View>
+                </View>
+              </View>
+              {goldQuoteLoading && goldInstrumentPick?.quoteId ? (
+                <View style={styles.suggestLoadingRow}>
+                  <ActivityIndicator size="small" color={theme.primary} />
+                  <Text style={styles.suggestLoadingText}>
+                    同步参考价…
+                  </Text>
+                </View>
+              ) : goldQuoteHint && goldInstrumentPick?.quoteId ? (
+                <Text style={styles.hint}>参考：{goldQuoteHint}</Text>
+              ) : null}
             </FormRow>
             <View style={[styles.formRow, { zIndex: 25 }]}>
               <View style={styles.formRowIconColumn}>
@@ -818,13 +1043,13 @@ export default function AddModal() {
                   </View>
                 </View>
               </View>
-              {quoteLoading ? (
+              {listedQuoteLoading ? (
                 <View style={styles.suggestLoadingRow}>
                   <ActivityIndicator size="small" color={theme.primary} />
                   <Text style={styles.suggestLoadingText}>同步参考价…</Text>
                 </View>
-              ) : quoteHint ? (
-                <Text style={styles.hint}>参考：{quoteHint}</Text>
+              ) : listedQuoteHint ? (
+                <Text style={styles.hint}>参考：{listedQuoteHint}</Text>
               ) : null}
             </FormRow>
 
@@ -882,7 +1107,11 @@ export default function AddModal() {
               label="资产名称"
             >
               <TextInput
-                placeholder="如：招行朝朝宝、余额宝、车贷专户"
+                placeholder={
+                  category === 'Custom'
+                    ? '如：数字货币、期货、保险等'
+                    : '如：招行朝朝宝、余额宝、车贷专户'
+                }
                 placeholderTextColor={placeholderColor}
                 style={styles.input}
                 value={name}
@@ -917,21 +1146,6 @@ export default function AddModal() {
                   mutedColor={iconMuted}
                 />
               </View>
-            </FormRow>
-            <FormRow
-              styles={styles}
-              iconMuted={iconMuted}
-              icon="trending-up-outline"
-              label="本金（选填）"
-            >
-              <TextInput
-                placeholder="不填则仅记录当前金额"
-                placeholderTextColor={placeholderColor}
-                style={styles.input}
-                value={costBasis}
-                onChangeText={setCostBasis}
-                keyboardType="decimal-pad"
-              />
             </FormRow>
           </>
         )}

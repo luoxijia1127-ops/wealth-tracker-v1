@@ -5,7 +5,7 @@
  *
  * Structure:
  * 1. Net Worth (large, centered)
- * 2. Grouped assets: 类别（股票/基金/ETF/现金类/黄金）→ 资产列表
+ * 2. Grouped assets: 类别（股票/基金/ETF/类现金/贵金属）→ 资产列表
  *
  * 场内标的：份额 ×（markPrice 现价优先，否则 lastClose 日 K 结算）；同步后写快照供 Insights。
  * 其他资产：使用 value。顶部 Net Worth 以折合人民币为主（Frankfurter/ECB 口径中间价串联）；分行展示原币种市值。
@@ -71,6 +71,7 @@ const CATEGORY_ROW_ICONS: Record<
   ETF: 'bar-chart',
   Cash: 'account-balance-wallet',
   Gold: 'star',
+  Custom: 'widgets',
 };
 
 /** 按扁平类别分组 */
@@ -151,7 +152,7 @@ function AssetPrimaryValue({
   );
 }
 
-/** 列表展示用：场内或行情型黄金，有持仓+六位代码即可显示（不强制行情已同步） */
+/** 列表展示用：场内或行情型贵金属，有持仓+六位代码即可显示（不强制行情已同步） */
 function hasHeldHoldingsForDisplay(asset: SimpleAsset): boolean {
   return isHeldChineseAsset(asset);
 }

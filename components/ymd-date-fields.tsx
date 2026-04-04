@@ -91,7 +91,7 @@ export function YmdDateFields({
         flexDirection: 'row',
         alignItems: 'center',
         width: '100%',
-        gap: 8,
+        gap: 4,
       }}
     >
       <TextInput

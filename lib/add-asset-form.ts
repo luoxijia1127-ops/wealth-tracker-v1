@@ -4,7 +4,12 @@
  */
 
 import { getShanghaiDateString } from '@/lib/date-shanghai';
-import { generateAssetId, type AssetCategory, type SimpleAsset } from '@/types/asset';
+import {
+  generateAssetId,
+  type AssetCategory,
+  type PreciousMetalSpot,
+  type SimpleAsset,
+} from '@/types/asset';
 
 /** 校验结果：null 表示通过，否则为错误提示文案 */
 export type FormValidationError = string | null;
@@ -31,8 +36,6 @@ export type CashLikeFormInput = {
   category: AssetCategory;
   purpose: string;
   purposeTarget: string;
-  /** 可选本金 */
-  costBasis: string;
 };
 
 /**
@@ -80,16 +83,12 @@ export function validateListedForm(input: ListedFormInput): FormValidationError 
   return null;
 }
 
-/** 校验「现金类 / 黄金」等只填总额的资产 */
+/** 校验「类现金 / 贵金属」等只填总额的资产 */
 export function validateCashLikeForm(input: CashLikeFormInput): FormValidationError {
   if (!input.name.trim()) return '请填写资产名称。';
   const valueNum = parseFloat(input.value);
   if (Number.isNaN(valueNum) || valueNum < 0) {
     return '请输入有效的当前金额。';
-  }
-  if (input.costBasis.trim() !== '') {
-    const c = parseFloat(input.costBasis);
-    if (Number.isNaN(c) || c < 0) return '本金须为有效非负数。';
   }
   return null;
 }
@@ -209,9 +208,9 @@ export type GoldFormInput = {
   purposeTarget: string;
 };
 
-/** 校验黄金：名称、克数、购买单价 */
+/** 校验贵金属：名称（来自上金联想）、克数、购买单价 */
 export function validateGoldForm(input: GoldFormInput): FormValidationError {
-  if (!input.name.trim()) return '请填写资产名称。';
+  if (!input.name.trim()) return '请搜索并选择上金现货代码（名称将使用行情名称）。';
   const grams = parseFloat(input.shares);
   if (Number.isNaN(grams) || grams <= 0) {
     return '请填写有效的持有克数。';
@@ -230,6 +229,13 @@ export type BuildGoldParams = {
   avgCost: number;
   /** 首笔买入交易日 YYYY-MM-DD */
   tradeDate?: string;
+  /** 现货品种，默认 XAU */
+  preciousMetalSpot?: PreciousMetalSpot;
+  /** 联想选中的上金现货 secid（如 118.AU9999），与 symbol、exchange 成套写入 */
+  emSecid?: string;
+  /** 合约代码，如 AU9999 */
+  symbol?: string;
+  exchange?: 'SGE';
   purposeFields: Pick<SimpleAsset, 'purpose' | 'purposeTarget'>;
   account?: string;
   fundingSourceAssetId?: string;
@@ -237,7 +243,7 @@ export type BuildGoldParams = {
   fundingTransferId?: string;
 };
 
-/** 组装黄金资产（无证券代码） */
+/** 组装贵金属资产（无证券代码） */
 export function buildGoldAsset(p: BuildGoldParams): SimpleAsset {
   // 新增时先按购买价估算，后续由行情同步写入 markPrice/lastClose 更新净值。
   const value = p.shares * p.avgCost;
@@ -247,6 +253,15 @@ export function buildGoldAsset(p: BuildGoldParams): SimpleAsset {
     typeof p.tradeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.tradeDate.trim())
       ? p.tradeDate.trim()
       : getShanghaiDateString();
+  const em =
+    typeof p.emSecid === 'string' && /^\d+\.\d+$/.test(p.emSecid.trim())
+      ? p.emSecid.trim()
+      : undefined;
+  const sym =
+    typeof p.symbol === 'string' && p.symbol.trim().length > 0
+      ? p.symbol.trim()
+      : undefined;
+
   const out: SimpleAsset = {
     id: p.id,
     name: p.name.trim(),
@@ -254,6 +269,7 @@ export function buildGoldAsset(p: BuildGoldParams): SimpleAsset {
     category: 'Gold',
     shares: p.shares,
     avgCost: p.avgCost,
+    ...(p.preciousMetalSpot ? { preciousMetalSpot: p.preciousMetalSpot } : {}),
     tradeHistory: [
       {
         id: `baseline-${p.id}`,
@@ -274,10 +290,13 @@ export function buildGoldAsset(p: BuildGoldParams): SimpleAsset {
     ...p.purposeFields,
   };
   if (accountRaw.length > 0) out.account = accountRaw;
+  if (em) out.emSecid = em;
+  if (sym) out.symbol = sym;
+  if (p.exchange === 'SGE' && em) out.exchange = 'SGE';
   return out;
 }
 
-/** 组装现金类等只记总额的资产 */
+/** 组装类现金等只记总额的资产 */
 export function buildCashLikeAsset(p: BuildCashLikeParams): SimpleAsset {
   const cur =
     typeof p.currency === 'string' && /^[A-Z]{3}$/.test(p.currency)

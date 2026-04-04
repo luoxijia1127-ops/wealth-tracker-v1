@@ -231,7 +231,7 @@ export async function searchOpenFigiIntl(
 export type UnifiedSuggestItem = {
   code: string;
   name: string;
-  exchange: ChinaExchange | 'US' | 'HK';
+  exchange: ChinaExchange | 'US' | 'HK' | 'SGE';
   quoteId?: string;
   intlQuoteSymbol?: string;
 };

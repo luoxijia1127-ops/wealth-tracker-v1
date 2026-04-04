@@ -41,13 +41,13 @@ export function isInternationalListedAsset(a: SimpleAsset): boolean {
 }
 
 /**
- * 黄金（账户金/实物记账）：按克持仓 + CNY/克 参考价，不依赖证券代码。
+ * 贵金属（账户金/银等实物记账）：按克持仓 + CNY/克 参考价，不依赖证券代码。
  */
 export function isGoldChineseAsset(a: SimpleAsset): boolean {
   return a.category === 'Gold' && typeof a.shares === 'number' && a.shares > 0;
 }
 
-/** A 股/港股美股场内、或黄金（含流水与行情估值口径） */
+/** A 股/港股美股场内、或贵金属（含流水与行情估值口径） */
 export function isHeldChineseAsset(a: SimpleAsset): boolean {
   return (
     isListedChineseAsset(a) ||
@@ -57,11 +57,11 @@ export function isHeldChineseAsset(a: SimpleAsset): boolean {
 }
 
 /**
- * Dashboard 首屏：已清仓的场内/黄金（份额≤0）与余额为 0 的现金类不展示。
+ * Dashboard 首屏：已清仓的场内/贵金属（份额≤0）与余额为 0 的类现金不展示。
  */
 export function filterAssetsForDashboard(assets: SimpleAsset[]): SimpleAsset[] {
   return assets.filter((a) => {
-    if (a.category === 'Cash') {
+    if (a.category === 'Cash' || a.category === 'Custom') {
       const v =
         typeof a.value === 'number' && !Number.isNaN(a.value) ? a.value : 0;
       return v > 0;
@@ -74,7 +74,7 @@ export function filterAssetsForDashboard(assets: SimpleAsset[]): SimpleAsset[] {
   });
 }
 
-/** 主列表不展示：现金余额为 0、场内/黄金份额≤0 等（清仓后仍可能留在存储中） */
+/** 主列表不展示：现金余额为 0、场内/贵金属份额≤0 等（清仓后仍可能留在存储中） */
 export function isAssetHiddenFromDashboard(a: SimpleAsset): boolean {
   return filterAssetsForDashboard([a]).length === 0;
 }

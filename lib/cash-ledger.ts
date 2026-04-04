@@ -1,5 +1,5 @@
 /**
- * 现金类的增加、减少流水（无单价），按时间回放得到当前余额 value。
+ * 类现金的增加、减少流水（无单价），按时间回放得到当前余额 value。
  */
 
 import { getShanghaiDateString } from '@/lib/date-shanghai';
@@ -9,9 +9,9 @@ export function generateCashLedgerId(): string {
   return `cl-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/** 仅现金类使用余额流水；黄金与股票/基金一致，走持仓与 tradeHistory */
+/** 仅类现金使用余额流水；贵金属与股票/基金一致，走持仓与 tradeHistory */
 export function usesCashAmountLedger(asset: SimpleAsset): boolean {
-  return asset.category === 'Cash';
+  return asset.category === 'Cash' || asset.category === 'Custom';
 }
 
 export function ensureCashBaselineLedger(asset: SimpleAsset): CashLedgerEntry[] {

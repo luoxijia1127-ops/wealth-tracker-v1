@@ -71,10 +71,11 @@ const CATEGORY_ORDER: AssetCategory[] = [
   'ETF',
   'Cash',
   'Gold',
+  'Custom',
 ];
 
 function accentsFromSwatches(
-  swatches: readonly [string, string, string, string, string]
+  swatches: readonly string[]
 ): Record<AssetCategory, string> {
   const m = {} as Record<AssetCategory, string>;
   CATEGORY_ORDER.forEach((cat, i) => {
@@ -99,6 +100,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
       ETF: '#1DB5A6',
       Cash: '#F2C94C',
       Gold: '#D4A843',
+      Custom: '#9B8FD9',
     },
     folderListBg: 'rgba(255, 253, 248, 0.9)',
     purposeAccent: '#E07A7E',
@@ -136,6 +138,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
       ETF: '#88C7D6',
       Cash: '#A8D667',
       Gold: '#F0C94E',
+      Custom: '#8B9FE8',
     },
     folderListBg: 'rgba(255, 255, 255, 0.82)',
     purposeAccent: '#F08BB4',
@@ -170,6 +173,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
       '#8CD1C7',
       '#C7DA78',
       '#F3D46A',
+      '#B8A9D4',
     ]),
     folderListBg: 'rgba(255, 255, 255, 0.84)',
     purposeAccent: '#F08CB5',
@@ -204,6 +208,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
       '#A39CA5',
       '#C9B8A2',
       '#D8C06E',
+      '#9AA5B8',
     ]),
     folderListBg: 'rgba(255, 255, 255, 0.86)',
     purposeAccent: '#7FA7A6',
@@ -238,6 +243,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
       '#89AFDC',
       '#A3C89D',
       '#E3BB63',
+      '#A896C8',
     ]),
     folderListBg: 'rgba(255, 255, 255, 0.84)',
     purposeAccent: '#C586A5',
@@ -272,6 +278,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
       '#B8D05F',
       '#C49FE2',
       '#F0CB60',
+      '#B89FD4',
     ]),
     folderListBg: 'rgba(255, 255, 255, 0.84)',
     purposeAccent: '#D96B9C',
@@ -306,6 +313,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
       '#94BFE6',
       '#8ED7C8',
       '#F0CB67',
+      '#A89FD8',
     ]),
     folderListBg: 'rgba(255, 255, 255, 0.86)',
     purposeAccent: '#8E72D4',

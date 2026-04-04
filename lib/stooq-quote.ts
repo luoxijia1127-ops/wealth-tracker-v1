@@ -5,6 +5,9 @@
 
 import { buildStooqCsvUrl } from '@/lib/config/endpoints';
 
+const STOOQ_UA =
+  'Mozilla/5.0 (compatible; WealthTracker/1.0; +https://stooq.com)';
+
 export type StooqQuoteRow = {
   close: number;
   /** YYYY-MM-DD */
@@ -36,6 +39,40 @@ export async function fetchStooqQuote(
     const lines = text.trim().split(/\r?\n/);
     if (lines.length < 2) return null;
     return parseStooqCsvLine(lines[1]!);
+  } catch {
+    return null;
+  }
+}
+
+/** Stooq q/l 单行：外汇/贵金属即期（如 xauusd、xagusd），Close 为 USD/金衡盎司 */
+function parseStooqSpotLine(line: string): StooqQuoteRow | null {
+  return parseStooqCsvLine(line);
+}
+
+/**
+ * Stooq 延迟外汇/贵金属即期（小写符号）：如 `xauusd`、`xagusd`、`xptusd`、`xpdusd`。
+ * 贵金属报价为美元/金衡盎司。
+ */
+export async function fetchStooqForexSpotLatest(
+  stooqSymbol: string,
+  signal?: AbortSignal
+): Promise<StooqQuoteRow | null> {
+  const sym = stooqSymbol.trim().toLowerCase();
+  if (!/^[a-z]{6,12}$/.test(sym)) return null;
+  const url = buildStooqCsvUrl(sym);
+  try {
+    const res = await fetch(url, {
+      signal,
+      headers: {
+        Accept: 'text/csv,*/*',
+        'User-Agent': STOOQ_UA,
+      },
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const lines = text.trim().split(/\r?\n/).filter((l) => l.length > 0);
+    if (lines.length < 2) return null;
+    return parseStooqSpotLine(lines[1]!);
   } catch {
     return null;
   }

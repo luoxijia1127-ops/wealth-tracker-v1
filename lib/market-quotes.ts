@@ -84,7 +84,8 @@ export const MARKET_SECTIONS: MarketSectionDef[] = [
     items: [
       { id: 'btc', name: '比特币', symbol: 'btcusd', flag: '₿' },
       { id: 'eth', name: '以太坊', symbol: 'ethusd', flag: 'Ξ' },
-      { id: 'xau', name: '黄金', symbol: 'xauusd', flag: '🥇' },
+      { id: 'xau', name: '贵金属·金', symbol: 'xauusd', flag: '🥇' },
+      { id: 'xag', name: '贵金属·银', symbol: 'xagusd', flag: '🥈' },
     ],
   },
 ];
