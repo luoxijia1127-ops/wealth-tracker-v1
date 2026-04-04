@@ -57,15 +57,24 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Insights() {
-  const { theme } = useAppPalette();
-  const styles = useMemo(() => createInsightsStyles(theme), [theme]);
+  const { theme, appearance } = useAppPalette();
+  const styles = useMemo(
+    () => createInsightsStyles(theme, appearance),
+    [theme, appearance]
+  );
   const textSecondary = useMemo(
-    () => rgbaFromHex(theme.primary, 0.65),
-    [theme.primary]
+    () =>
+      appearance === 'dark'
+        ? 'rgba(255,255,255,0.74)'
+        : rgbaFromHex(theme.primary, 0.65),
+    [appearance, theme.primary]
   );
   const textMuted = useMemo(
-    () => rgbaFromHex(theme.primary, 0.5),
-    [theme.primary]
+    () =>
+      appearance === 'dark'
+        ? 'rgba(255,255,255,0.48)'
+        : rgbaFromHex(theme.primary, 0.5),
+    [appearance, theme.primary]
   );
   const ringTrackColor = useMemo(
     () => rgbaFromHex(theme.primary, 0.14),

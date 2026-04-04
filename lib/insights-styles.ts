@@ -3,10 +3,21 @@
  */
 
 import type { AppPaletteTheme } from '@/lib/app-palette';
-import { rgbaFromHex } from '@/lib/color-utils';
+import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { StyleSheet } from 'react-native';
 
-export function createInsightsStyles(t: AppPaletteTheme) {
+/**
+ * @param appearance 与系统浅色/深色一致；深色下选项键、区间 chip 等用饱和色块 + 可读文字。
+ */
+export function createInsightsStyles(
+  t: AppPaletteTheme,
+  appearance: 'light' | 'dark' = 'light'
+) {
+  const isDark = appearance === 'dark';
+  /** Tab/区间选中底：浅色用 primary（多为深字色），深色用 chartLine（多为饱和色，配 pickTextOnAccent） */
+  const accentFill = isDark ? t.chartLine : t.primary;
+  const onAccentLabel = pickTextOnAccent(accentFill);
+
   const p = t.primary;
   const p06 = rgbaFromHex(p, 0.06);
   const p07 = rgbaFromHex(p, 0.07);
@@ -137,14 +148,14 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     goalCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: 'rgba(255,255,255,0.92)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.92)',
       borderRadius: 20,
       paddingVertical: 14,
       paddingHorizontal: 14,
       marginBottom: 12,
       gap: 12,
       borderWidth: 1,
-      borderColor: p10,
+      borderColor: isDark ? 'rgba(255,255,255,0.1)' : p10,
     },
     goalCardPressed: {
       opacity: 0.92,
@@ -197,13 +208,13 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(255,255,255,0.38)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.38)',
       borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.42)',
+      borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.42)',
     },
     tabChipActive: {
-      backgroundColor: t.primary,
-      borderColor: t.primary,
+      backgroundColor: accentFill,
+      borderColor: accentFill,
     },
     tabChipPressed: {
       opacity: 0.88,
@@ -214,21 +225,21 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     tabChipText: {
       fontSize: 14,
       fontWeight: '700',
-      color: rgbaFromHex(p, 0.65),
+      color: isDark ? 'rgba(255,255,255,0.88)' : rgbaFromHex(p, 0.65),
     },
     tabChipTextActive: {
-      color: '#FFFFFF',
+      color: onAccentLabel,
     },
     tabChipTextDisabled: {
-      color: rgbaFromHex(p, 0.5),
+      color: isDark ? 'rgba(255,255,255,0.35)' : rgbaFromHex(p, 0.5),
     },
     /** 已落在外层 GlassSurface 内，仅轻量衬底以区分图表区 */
     chartSurface: {
       borderRadius: 24,
       overflow: 'hidden',
-      backgroundColor: 'rgba(255,255,255,0.2)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.2)',
       borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.32)',
+      borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.32)',
     },
     /** 五个区间等分整行，视觉居中对称 */
     timeframeRow: {
@@ -247,8 +258,8 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       paddingHorizontal: 4,
       borderRadius: 12,
       borderWidth: 1.5,
-      borderColor: p14,
-      backgroundColor: 'rgba(255,255,255,0.82)',
+      borderColor: isDark ? 'rgba(255,255,255,0.2)' : p14,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.82)',
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -256,21 +267,21 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       borderColor: t.primary,
       backgroundColor: p08,
     },
-    /** 净值曲线区间：选中为当前主题主色 + 白字 */
+    /** 净值曲线区间选中（与 tab 共用 accentFill + onAccentLabel） */
     timeframeChipActiveDark: {
-      borderColor: t.primary,
-      backgroundColor: t.primary,
+      borderColor: accentFill,
+      backgroundColor: accentFill,
     },
     timeframeChipText: {
       fontSize: 12,
       fontWeight: '700',
-      color: rgbaFromHex(p, 0.55),
+      color: isDark ? 'rgba(255,255,255,0.78)' : rgbaFromHex(p, 0.55),
     },
     timeframeChipTextActive: {
       color: t.primary,
     },
     timeframeChipTextActiveDark: {
-      color: '#FFFFFF',
+      color: onAccentLabel,
     },
     inlineLegendRow: {
       flexDirection: 'row',
@@ -367,7 +378,7 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     },
     breakdownCard: {
       borderRadius: 18,
-      backgroundColor: 'rgba(255,255,255,0.76)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.76)',
       paddingHorizontal: 12,
       paddingTop: 12,
       paddingBottom: 10,
@@ -375,7 +386,7 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       width: '100%',
       alignSelf: 'stretch',
       borderWidth: 1,
-      borderColor: p10,
+      borderColor: isDark ? 'rgba(255,255,255,0.1)' : p10,
     },
     breakdownTitle: {
       fontSize: 13,
@@ -449,12 +460,12 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       borderRadius: 24,
       paddingVertical: 18,
       paddingHorizontal: 16,
-      backgroundColor: 'rgba(255,255,255,0.92)',
+      backgroundColor: isDark ? t.surfaceWhite : 'rgba(255,255,255,0.92)',
       borderWidth: 1,
-      borderColor: p14,
+      borderColor: isDark ? 'rgba(255,255,255,0.12)' : p14,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.06,
+      shadowOpacity: isDark ? 0.35 : 0.06,
       shadowRadius: 18,
       elevation: 3,
     },
@@ -486,15 +497,15 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       paddingHorizontal: 14,
       fontSize: 14,
       fontWeight: '500',
-      backgroundColor: 'rgba(255,255,255,0.92)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.92)',
       borderWidth: 1,
-      borderColor: p10,
+      borderColor: isDark ? 'rgba(255,255,255,0.14)' : p10,
     },
     returnChip: {
       paddingVertical: 8,
       paddingHorizontal: 12,
       borderRadius: 999,
-      backgroundColor: p08,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : p08,
     },
     returnChipText: {
       fontSize: 12,
@@ -543,9 +554,9 @@ export function createInsightsStyles(t: AppPaletteTheme) {
     returnTableScroll: {
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: p14,
+      borderColor: isDark ? 'rgba(255,255,255,0.12)' : p14,
       overflow: 'hidden',
-      backgroundColor: 'rgba(255,255,255,0.88)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.88)',
     },
     /** 表体默认约 4 行可见高度，其余纵向滚动查看 */
     returnTableBodyScroll: {
@@ -558,7 +569,7 @@ export function createInsightsStyles(t: AppPaletteTheme) {
       paddingHorizontal: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: p14,
-      backgroundColor: rgbaFromHex(p, 0.05),
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : rgbaFromHex(p, 0.05),
       minWidth: 720,
     },
     returnTableRow: {

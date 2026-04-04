@@ -372,7 +372,7 @@ function DashboardHeader({
 }
 
 export default function Dashboard() {
-  const { theme } = useAppPalette();
+  const { theme, appearance } = useAppPalette();
   const styles = useMemo(() => createDashboardStyles(theme), [theme]);
   const chevronMuted = useMemo(
     () => rgbaFromHex(theme.primary, 0.38),
@@ -431,9 +431,11 @@ export default function Dashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      ExpoStatusBar.setStatusBarStyle('dark');
+      ExpoStatusBar.setStatusBarStyle(
+        appearance === 'dark' ? 'light' : 'dark'
+      );
       return () => ExpoStatusBar.setStatusBarStyle('auto');
-    }, [])
+    }, [appearance])
   );
 
   useFocusEffect(

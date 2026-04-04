@@ -29,6 +29,7 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack
           screenOptions={{
+            headerShown: false,
             headerTitleStyle: {
               fontFamily: AppFont.bold,
               fontSize: 17,
@@ -36,10 +37,18 @@ export default function RootLayout() {
             },
           }}
         >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+              headerBackTitle: '返回',
+            }}
+          />
           <Stack.Screen
             name="modal"
             options={{
+              headerShown: true,
+              headerBackTitle: '返回',
               presentation: 'modal',
               title: 'Add Asset',
               gestureEnabled: true,
@@ -49,6 +58,8 @@ export default function RootLayout() {
           <Stack.Screen
             name="asset-action"
             options={{
+              headerShown: true,
+              headerBackTitle: '返回',
               presentation: 'modal',
               title: '资产',
               gestureEnabled: true,
@@ -58,6 +69,8 @@ export default function RootLayout() {
           <Stack.Screen
             name="trade-edit"
             options={{
+              headerShown: true,
+              headerBackTitle: '返回',
               presentation: 'modal',
               gestureEnabled: true,
               headerShadowVisible: false,
@@ -66,6 +79,8 @@ export default function RootLayout() {
           <Stack.Screen
             name="cash-ledger-edit"
             options={{
+              headerShown: true,
+              headerBackTitle: '返回',
               presentation: 'modal',
               gestureEnabled: true,
               headerShadowVisible: false,
@@ -74,6 +89,8 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-palette"
             options={{
+              headerShown: true,
+              headerBackTitle: '返回',
               title: '应用配色',
               headerShadowVisible: false,
             }}
@@ -81,53 +98,110 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-attribution"
             options={{
+              headerShown: true,
+              headerBackTitle: '返回',
               title: '净值变动归因',
               headerShadowVisible: false,
             }}
           />
           <Stack.Screen
             name="settings-fx"
-            options={{ title: '汇率信息', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '汇率信息',
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="settings-export"
-            options={{ title: '数据与导出', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '数据与导出',
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="settings-help"
-            options={{ title: '帮助与反馈', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '帮助与反馈',
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="settings-about"
-            options={{ title: '关于应用', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '关于应用',
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="settings-privacy"
-            options={{ title: '隐私说明', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '隐私说明',
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="settings-display-currency"
-            options={{ title: '默认货币', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '默认货币',
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="settings-language"
-            options={{ title: '语言设置', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '语言设置',
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="settings-cashflow-colors"
-            options={{ title: '应用配色', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '应用配色',
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="settings-archived"
-            options={{ title: '已归档', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '已归档',
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="settings-trash"
-            options={{ title: '最近删除', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '最近删除',
+              headerShadowVisible: false,
+            }}
           />
           <Stack.Screen
             name="market"
-            options={{ title: '市场', headerShadowVisible: false }}
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '市场',
+              headerShadowVisible: false,
+            }}
           />
         </Stack>
         <StatusBar style="auto" />

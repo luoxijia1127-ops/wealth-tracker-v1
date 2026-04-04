@@ -20,6 +20,7 @@ const CATEGORY_GOAL_ICONS: Record<
   ETF: 'bar-chart',
   Cash: 'account-balance-wallet',
   Gold: 'star',
+  Custom: 'widgets',
 };
 
 function GoalProgressRing({

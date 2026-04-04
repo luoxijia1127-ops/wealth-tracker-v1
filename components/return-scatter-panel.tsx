@@ -2,6 +2,7 @@
  * Insights · 投资回报：累计收益率 × 持有天数散点图 + 筛选/排序表
  */
 
+import { useAppPalette } from '@/contexts/app-palette-context';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { formatMoney } from '@/lib/asset-value';
 import { FINANCE_UP } from '@/lib/finance-colors';
@@ -14,7 +15,7 @@ import {
   isPlottableMetric,
 } from '@/lib/investment-return-metrics';
 import type { InsightsStyles } from '@/lib/insights-styles';
-import { rgbaFromHex } from '@/lib/color-utils';
+import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import {
   ASSET_CATEGORY_ORDER,
   CATEGORY_LABEL_ZH,
@@ -178,7 +179,14 @@ export function ReturnScatterPanel({
   textSecondary: string;
   textMuted: string;
 }) {
+  const { appearance } = useAppPalette();
   const { width: windowWidth } = useWindowDimensions();
+  const scatterPointStroke =
+    appearance === 'dark' ? 'rgba(255,255,255,0.5)' : '#FFFFFF';
+  const placeholderMuted =
+    appearance === 'dark'
+      ? 'rgba(255,255,255,0.38)'
+      : rgbaFromHex(theme.primary, 0.38);
   const chartTotalW = Math.max(288, Math.min(548, windowWidth - 48 - 40));
   const yLabelCol = 26;
   const chartW = chartTotalW - yLabelCol;
@@ -323,7 +331,7 @@ export function ReturnScatterPanel({
         <TextInput
           style={[styles.returnSearchInput, { color: theme.primary }]}
           placeholder="搜索资产名称"
-          placeholderTextColor={rgbaFromHex(theme.primary, 0.38)}
+          placeholderTextColor={placeholderMuted}
           value={search}
           onChangeText={setSearch}
         />
@@ -370,7 +378,9 @@ export function ReturnScatterPanel({
                 <Text
                   style={[
                     styles.returnChipText,
-                    { color: active ? '#FFFFFF' : textSecondary },
+                    {
+                      color: active ? pickTextOnAccent(accent) : textSecondary,
+                    },
                   ]}
                 >
                   {CATEGORY_LABEL_ZH[c]}
@@ -388,8 +398,13 @@ export function ReturnScatterPanel({
         <Switch
           value={hideInvalid}
           onValueChange={setHideInvalid}
-          trackColor={{ false: rgbaFromHex(theme.primary, 0.2), true: rgbaFromHex(theme.primary, 0.45) }}
-          thumbColor="#FFFFFF"
+          trackColor={{
+            false: rgbaFromHex(theme.primary, 0.2),
+            true: rgbaFromHex(theme.primary, 0.45),
+          }}
+          thumbColor={
+            appearance === 'dark' ? rgbaFromHex(theme.primary, 0.95) : '#FFFFFF'
+          }
         />
       </View>
 
@@ -552,7 +567,7 @@ export function ReturnScatterPanel({
                   r={p.r}
                   fill={p.color}
                   fillOpacity={0.88}
-                  stroke="#FFFFFF"
+                  stroke={scatterPointStroke}
                   strokeWidth={1.5}
                   onPress={() => {
                     setTipId((id) => (id === p.id ? null : p.id));

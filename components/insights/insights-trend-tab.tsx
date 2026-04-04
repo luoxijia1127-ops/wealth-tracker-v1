@@ -3,6 +3,7 @@
  */
 
 import { InsightsNetWorthAreaChart } from '@/components/insights/insights-networth-area-chart';
+import { useAppPalette } from '@/contexts/app-palette-context';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { formatMoney } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
@@ -132,10 +133,15 @@ export function InsightsTrendChart({
         ? draftEnd
         : draftStart;
 
+  const { appearance } = useAppPalette();
   const trendAxisLabelColor = useMemo(
-    () => rgbaFromHex(theme.primary, 0.38),
-    [theme.primary]
+    () =>
+      appearance === 'dark'
+        ? 'rgba(255,255,255,0.42)'
+        : rgbaFromHex(theme.primary, 0.38),
+    [appearance, theme.primary]
   );
+  const trendLineStrokeWidth = appearance === 'dark' ? 3 : 2.25;
 
   return (
     <>
@@ -200,6 +206,8 @@ export function InsightsTrendChart({
             axisLabelColor={trendAxisLabelColor}
             axisLabelOpacity={0.66}
             displayCurrency={displayCurrency}
+            lineStrokeWidth={trendLineStrokeWidth}
+            ghostAreaFill={appearance === 'dark'}
             onPointPress={({ index, x, y }) => {
               onDataPointClick({ index, x, y });
             }}

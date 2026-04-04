@@ -41,6 +41,13 @@ type Props = {
   formatYAxisValue?: (value: number) => string;
   /** 与 `formatYAxisValue` 一致时传默认货币代码（用于非 CNY 的千元刻度） */
   displayCurrency?: string;
+  /** 折线宽度；深色模式下可略加粗以突出走势 */
+  lineStrokeWidth?: number;
+  /**
+   * 浅色：fillTop → fillBottom 渐变。
+   * 深色：用折线色做极淡多段渐变，近线处略有色、向下快速透明，避免大面积着色。
+   */
+  ghostAreaFill?: boolean;
 };
 
 const PAD_L = 52;
@@ -151,6 +158,8 @@ export function InsightsNetWorthAreaChart({
   onPointPress,
   formatYAxisValue,
   displayCurrency = 'CNY',
+  lineStrokeWidth = 2.25,
+  ghostAreaFill = false,
 }: Props) {
   const yAxisFmt = useMemo(() => {
     if (formatYAxisValue) return formatYAxisValue;
@@ -223,8 +232,41 @@ export function InsightsNetWorthAreaChart({
       <Svg width={width} height={height}>
         <Defs>
           <LinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={fillTop} stopOpacity="1" />
-            <Stop offset="1" stopColor={fillBottom} stopOpacity="1" />
+            {ghostAreaFill
+              ? [
+                  <Stop
+                    key="g0"
+                    offset="0"
+                    stopColor={lineColor}
+                    stopOpacity="0.045"
+                  />,
+                  <Stop
+                    key="g1"
+                    offset="0.26"
+                    stopColor={lineColor}
+                    stopOpacity="0.006"
+                  />,
+                  <Stop
+                    key="g2"
+                    offset="1"
+                    stopColor={lineColor}
+                    stopOpacity="0"
+                  />,
+                ]
+              : [
+                  <Stop
+                    key="n0"
+                    offset="0"
+                    stopColor={fillTop}
+                    stopOpacity="1"
+                  />,
+                  <Stop
+                    key="n1"
+                    offset="1"
+                    stopColor={fillBottom}
+                    stopOpacity="1"
+                  />,
+                ]}
           </LinearGradient>
         </Defs>
         <G>
@@ -249,7 +291,7 @@ export function InsightsNetWorthAreaChart({
             d={linePath}
             fill="none"
             stroke={lineColor}
-            strokeWidth={2.25}
+            strokeWidth={lineStrokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
           />

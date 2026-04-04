@@ -1,9 +1,12 @@
 import {
-  APP_PALETTE_THEMES,
   DEFAULT_PALETTE_ID,
   type AppPaletteId,
   type AppPaletteTheme,
 } from '@/lib/app-palette';
+import {
+  appearanceFromColorScheme,
+  resolvePaletteTheme,
+} from '@/lib/palette-resolve';
 import { loadPaletteId, savePaletteId } from '@/lib/palette-preference';
 import React, {
   createContext,
@@ -13,10 +16,13 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { useColorScheme } from 'react-native';
 
 type AppPaletteContextValue = {
   theme: AppPaletteTheme;
   paletteId: AppPaletteId;
+  /** 当前解析后的浅色 / 深色（跟随系统） */
+  appearance: 'light' | 'dark';
   setPaletteId: (id: AppPaletteId) => Promise<void>;
   ready: boolean;
 };
@@ -28,6 +34,12 @@ export function AppPaletteProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const systemScheme = useColorScheme();
+  const appearance = useMemo(
+    () => appearanceFromColorScheme(systemScheme),
+    [systemScheme]
+  );
+
   const [paletteId, setPaletteIdState] =
     useState<AppPaletteId>(DEFAULT_PALETTE_ID);
   const [ready, setReady] = useState(false);
@@ -51,18 +63,19 @@ export function AppPaletteProvider({
   }, []);
 
   const theme = useMemo(
-    () => APP_PALETTE_THEMES[paletteId] ?? APP_PALETTE_THEMES.sea,
-    [paletteId]
+    () => resolvePaletteTheme(paletteId, appearance),
+    [paletteId, appearance]
   );
 
   const value = useMemo(
     () => ({
       theme,
       paletteId,
+      appearance,
       setPaletteId,
       ready,
     }),
-    [theme, paletteId, setPaletteId, ready]
+    [theme, paletteId, appearance, setPaletteId, ready]
   );
 
   return (

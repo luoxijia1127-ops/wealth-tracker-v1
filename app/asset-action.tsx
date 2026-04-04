@@ -151,9 +151,12 @@ export default function AssetActionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useGlobalSearchParams<{ id?: string }>();
-  const { theme } = useAppPalette();
+  const { theme, appearance } = useAppPalette();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
-  const tabStyles = useMemo(() => createInsightsStyles(theme), [theme]);
+  const tabStyles = useMemo(
+    () => createInsightsStyles(theme, appearance),
+    [theme, appearance]
+  );
   const placeholderColor = useMemo(
     () => rgbaFromHex(theme.primary, 0.42),
     [theme.primary]
