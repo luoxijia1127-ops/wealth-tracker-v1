@@ -1,7 +1,8 @@
 /**
- * 最近删除：从主列表删除的资产快照（含流水），可恢复。
+ * 最近删除：从主列表删除的资产快照（含流水），表格展示，可恢复并回补净值相关快照。
  */
 
+import { RecycleRecordsTable } from '@/components/recycle-records-table';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import {
   formatRecycleTransactionSummary,
@@ -10,25 +11,10 @@ import {
   type AssetRecycleRecord,
 } from '@/lib/asset-recycle';
 import { rgbaFromHex } from '@/lib/color-utils';
-import { formatMoney, getAssetCurrency, getAssetDisplayValue } from '@/lib/asset-value';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-function formatAt(iso: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
 
 export default function SettingsTrashScreen() {
   const insets = useSafeAreaInsets();
@@ -55,9 +41,10 @@ export default function SettingsTrashScreen() {
   );
 
   const onRestore = (rec: AssetRecycleRecord) => {
+    const detail = formatRecycleTransactionSummary(rec.asset);
     Alert.alert(
       '恢复资产',
-      `将「${rec.asset.name}」恢复到主列表；若 id 冲突将分配新编号。`,
+      `将「${rec.asset.name}」恢复到主列表；若 id 冲突将分配新编号。\n\n恢复后，自删除日当日起的历史净值快照与逐资产日快照将按快照市值回补（今日会再同步行情）。\n\n${detail}`,
       [
         { text: '取消', style: 'cancel' },
         {
@@ -93,63 +80,20 @@ export default function SettingsTrashScreen() {
       }}
     >
       <Text style={{ fontSize: 14, lineHeight: 21, color: muted, marginBottom: 16 }}>
-        在 Dashboard 长按删除的资产会暂存于此（最多保留最近若干条），含交易与余额流水快照。
+        在 Dashboard 删除的资产暂存于此（最近若干条）。表格与资产交易明细一致横向滑动；点「恢复」回到主列表，并自删除日起回补净值与逐资产日快照，随后同步当日行情。
       </Text>
       {loading ? (
         <ActivityIndicator color={p} style={{ marginTop: 24 }} />
       ) : rows.length === 0 ? (
         <Text style={{ fontSize: 15, color: muted, marginTop: 12 }}>暂无删除记录</Text>
       ) : (
-        <View style={{ gap: 12 }}>
-          {rows.map((rec) => {
-            const a = rec.asset;
-            const cur = getAssetCurrency(a);
-            const val = getAssetDisplayValue(a);
-            const sum = formatRecycleTransactionSummary(a);
-            const isBusy = busyId === rec.recordId;
-            return (
-              <View
-                key={rec.recordId}
-                style={{
-                  borderRadius: 16,
-                  padding: 14,
-                  backgroundColor: 'rgba(255,255,255,0.92)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(0,0,0,0.06)',
-                }}
-              >
-                <Text style={{ fontSize: 17, fontWeight: '800', color: p }} numberOfLines={2}>
-                  {a.name}
-                </Text>
-                <Text style={{ fontSize: 12, color: muted, marginTop: 6 }}>
-                  删除时间 {formatAt(rec.at)}
-                </Text>
-                <Text style={{ fontSize: 13, color: rgbaFromHex(p, 0.72), marginTop: 8 }}>
-                  {sum}
-                </Text>
-                <Text style={{ fontSize: 13, color: muted, marginTop: 4 }}>
-                  快照市值 {formatMoney(val, cur)}
-                </Text>
-                <Pressable
-                  onPress={() => onRestore(rec)}
-                  disabled={isBusy}
-                  style={({ pressed }) => ({
-                    marginTop: 12,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    backgroundColor: rgbaFromHex(p, 0.12),
-                    alignItems: 'center',
-                    opacity: pressed || isBusy ? 0.85 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: p }}>
-                    {isBusy ? '恢复中…' : '恢复到主列表'}
-                  </Text>
-                </Pressable>
-              </View>
-            );
-          })}
-        </View>
+        <RecycleRecordsTable
+          rows={rows}
+          busyId={busyId}
+          nameHeader="资产"
+          dateHeader="删除日期"
+          onRestore={onRestore}
+        />
       )}
     </ScrollView>
   );

@@ -56,3 +56,17 @@ export async function saveAssetDailySnapshot(
   await AsyncStorage.setItem(ASSET_DAILY_SNAPSHOTS_KEY, JSON.stringify(trimmed));
 }
 
+/** 全量写回（如恢复资产后合并历史日逐资产行） */
+export async function replaceAllAssetDailySnapshots(
+  snaps: AssetDailySnapshot[]
+): Promise<void> {
+  const sorted = [...snaps].sort((a, b) => a.date.localeCompare(b.date));
+  const MAX_DAYS = 730;
+  const trimmed =
+    sorted.length > MAX_DAYS ? sorted.slice(sorted.length - MAX_DAYS) : sorted;
+  await AsyncStorage.setItem(
+    ASSET_DAILY_SNAPSHOTS_KEY,
+    JSON.stringify(trimmed)
+  );
+}
+

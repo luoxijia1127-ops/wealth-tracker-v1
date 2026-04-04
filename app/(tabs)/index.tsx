@@ -8,7 +8,7 @@
  * 2. Grouped assets: 类别（股票/基金/ETF/类现金/贵金属）→ 资产列表
  *
  * 场内标的：份额 ×（markPrice 现价优先，否则 lastClose 日 K 结算）；同步后写快照供 Insights。
- * 其他资产：使用 value。顶部 Net Worth 以折合人民币为主（Frankfurter/ECB 口径中间价串联）；分行展示原币种市值。
+ * 其他资产：使用 value。顶部 Net Worth 以设置中的默认货币汇总（Frankfurter/ECB 口径 USD 串联）；副标题分行展示原币种市值。
  *
  * 浅色「文件夹」交互：大类默认只显示合计 + 资产名摘要；点击展开明细；展开时头部用类别色条填充。
  */
@@ -24,12 +24,14 @@ import {
   formatNetWorthSummary,
   getAssetCurrency,
   getAssetDisplayValue,
+  hasMultipleCurrencies,
   isAssetHiddenFromDashboard,
   isHeldChineseAsset,
-  sumDisplayValuesInCny,
+  sumDisplayValuesInCurrency,
   sumDisplayValuesNaive,
 } from '@/lib/asset-value';
-import { getCachedFxUsdRates } from '@/lib/fx-rates';
+import { loadDisplayCurrency } from '@/lib/display-currency-preference';
+import { getCachedFxUsdRates, type FxUsdMidRates } from '@/lib/fx-rates';
 import { rgbaFromHex } from '@/lib/color-utils';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
@@ -392,8 +394,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   /** 后台拉行情时不挡整页，只作轻提示 */
   const [syncingQuotes, setSyncingQuotes] = useState(false);
-  /** 折合人民币净值；无汇率且含外币时为 null */
-  const [netWorthCny, setNetWorthCny] = useState<number | null>(null);
+  /** 默认货币口径净值；无汇率且无法安全折算时为 null */
+  const [netWorthDisplay, setNetWorthDisplay] = useState<number | null>(null);
+  const [displayCurrency, setDisplayCurrency] = useState<string>('CNY');
+  const [fxUsdRates, setFxUsdRates] = useState<FxUsdMidRates['rates'] | null>(
+    null
+  );
   const focusLoadGen = useRef(0);
 
   /** 默认全部折叠，只显示各类合计与名称摘要 */
@@ -444,19 +450,25 @@ export default function Dashboard() {
           const updated = await syncNetWorthFromMarket();
           if (!cancelled && gen === focusLoadGen.current) {
             setAssets(updated.assets);
+            const dc = await loadDisplayCurrency();
+            setDisplayCurrency(dc);
             const dash = filterAssetsForDashboard(updated.assets);
             const needsFxDash = dash.some(
-              (a) => getAssetCurrency(a) !== 'CNY'
+              (a) => getAssetCurrency(a) !== dc
             );
             const cachedAfterSync = await getCachedFxUsdRates();
-            if (cachedAfterSync) {
-              setNetWorthCny(
-                sumDisplayValuesInCny(dash, cachedAfterSync.rates)
-              );
+            setFxUsdRates(cachedAfterSync?.rates ?? null);
+            const unified = sumDisplayValuesInCurrency(
+              dash,
+              dc,
+              cachedAfterSync?.rates ?? null
+            );
+            if (unified !== null) {
+              setNetWorthDisplay(unified);
             } else if (!needsFxDash) {
-              setNetWorthCny(sumDisplayValuesNaive(dash));
+              setNetWorthDisplay(sumDisplayValuesNaive(dash));
             } else {
-              setNetWorthCny(null);
+              setNetWorthDisplay(null);
             }
           }
         } catch {
@@ -474,15 +486,23 @@ export default function Dashboard() {
           if (!cancelled && gen === focusLoadGen.current) {
             setAssets(local);
             setLoading(false);
+            const dc = await loadDisplayCurrency();
+            setDisplayCurrency(dc);
             const dash = filterAssetsForDashboard(local);
-            const needsFx = dash.some((a) => getAssetCurrency(a) !== 'CNY');
+            const needsFx = dash.some((a) => getAssetCurrency(a) !== dc);
             const cached = await getCachedFxUsdRates();
-            if (cached) {
-              setNetWorthCny(sumDisplayValuesInCny(dash, cached.rates));
+            setFxUsdRates(cached?.rates ?? null);
+            const unified = sumDisplayValuesInCurrency(
+              dash,
+              dc,
+              cached?.rates ?? null
+            );
+            if (unified !== null) {
+              setNetWorthDisplay(unified);
             } else if (!needsFx) {
-              setNetWorthCny(sumDisplayValuesNaive(dash));
+              setNetWorthDisplay(sumDisplayValuesNaive(dash));
             } else {
-              setNetWorthCny(null);
+              setNetWorthDisplay(null);
             }
           }
         } catch {
@@ -622,11 +642,11 @@ export default function Dashboard() {
       <GlassSurface borderRadius={32} intensity={52}>
       <View style={styles.netWorthSection}>
         <Text style={styles.netWorthLabel}>Net Worth</Text>
-        {netWorthCny !== null && Number.isFinite(netWorthCny) ? (
+        {netWorthDisplay !== null && Number.isFinite(netWorthDisplay) ? (
           <>
             <AssetPrimaryValue
-              amount={netWorthCny}
-              currency="CNY"
+              amount={netWorthDisplay}
+              currency={displayCurrency}
               accentColor={BALANCE_INK}
               styles={styles}
               hero
@@ -676,7 +696,18 @@ export default function Dashboard() {
               if (!list || list.length === 0) return null;
 
               const isCategoryExpanded = expandedCategories.has(category);
-              const categoryNetWorth = formatNetWorthSummary(list);
+              const catUnified = sumDisplayValuesInCurrency(
+                list,
+                displayCurrency,
+                fxUsdRates
+              );
+              const categoryNetWorth =
+                catUnified !== null && Number.isFinite(catUnified)
+                  ? {
+                      lines: formatMoney(catUnified, displayCurrency),
+                      hasMultiple: hasMultipleCurrencies(list),
+                    }
+                  : formatNetWorthSummary(list);
               const accent =
                 theme.categoryAccents[category as AssetCategory] ??
                 theme.primary;

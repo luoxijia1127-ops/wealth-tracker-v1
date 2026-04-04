@@ -45,6 +45,35 @@ export function convertDisplayValueToCny(
   return usd * cnyPerUsd;
 }
 
+/**
+ * 任意 ISO 币种 → 目标币种（经 USD 串联，与 Frankfurter `rates` 语义一致）。
+ * 缺少有效汇率时返回 NaN。
+ */
+export function convertDisplayValueToCurrency(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+  usdRates: FxUsdMidRates['rates']
+): number {
+  if (!Number.isFinite(amount)) return NaN;
+  const from = /^[A-Z]{3}$/.test(fromCurrency) ? fromCurrency : 'CNY';
+  const to = /^[A-Z]{3}$/.test(toCurrency) ? toCurrency : 'CNY';
+  if (from === to) return amount;
+  if (!(usdRates.CNY > 0)) return NaN;
+  let usd: number;
+  if (from === 'USD') {
+    usd = amount;
+  } else {
+    const rFrom = usdRates[from];
+    if (!(rFrom > 0)) return NaN;
+    usd = amount / rFrom;
+  }
+  if (to === 'USD') return usd;
+  const rTo = usdRates[to];
+  if (!(rTo > 0)) return NaN;
+  return usd * rTo;
+}
+
 export async function getCachedFxUsdRates(): Promise<FxUsdMidRates | null> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);

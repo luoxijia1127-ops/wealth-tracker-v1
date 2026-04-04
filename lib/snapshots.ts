@@ -72,3 +72,9 @@ export async function saveSnapshot(
   snapshots.sort((a, b) => a.date.localeCompare(b.date));
   await AsyncStorage.setItem(SNAPSHOTS_STORAGE_KEY, JSON.stringify(snapshots));
 }
+
+/** 批量写回（如恢复资产后回补历史日净值） */
+export async function saveSnapshotsList(snapshots: Snapshot[]): Promise<void> {
+  const sorted = [...snapshots].sort((a, b) => a.date.localeCompare(b.date));
+  await AsyncStorage.setItem(SNAPSHOTS_STORAGE_KEY, JSON.stringify(sorted));
+}

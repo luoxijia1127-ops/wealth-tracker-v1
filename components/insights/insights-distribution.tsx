@@ -8,7 +8,7 @@ import {
   getAssetDisplayValue,
 } from '@/lib/asset-value';
 import {
-  convertDisplayValueToCny,
+  convertDisplayValueToCurrency,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import {
@@ -107,16 +107,19 @@ export function DistributionBreakdown({
   primary,
   textSecondary,
   usdRates,
+  displayCurrency = 'CNY',
 }: {
   category: AssetCategory;
   assets: SimpleAsset[];
   styles: InsightsStyles;
   primary: string;
   textSecondary: string;
-  /** 有缓存汇率时明细行显示折合人民币，与环形图口径一致 */
+  /** 有缓存汇率时明细行折至默认货币，与环形图口径一致 */
   usdRates?: FxUsdMidRates['rates'] | null;
+  displayCurrency?: string;
 }) {
   const useFx = usdRates != null && usdRates.CNY > 0;
+  const target = /^[A-Z]{3}$/.test(displayCurrency) ? displayCurrency : 'CNY';
 
   const items = useMemo(() => {
     return assets
@@ -127,19 +130,21 @@ export function DistributionBreakdown({
         if (!useFx || !usdRates) {
           return getAssetDisplayValue(b) - getAssetDisplayValue(a);
         }
-        const ca = convertDisplayValueToCny(
+        const ca = convertDisplayValueToCurrency(
           getAssetDisplayValue(a),
           getAssetCurrency(a),
+          target,
           usdRates
         );
-        const cb = convertDisplayValueToCny(
+        const cb = convertDisplayValueToCurrency(
           getAssetDisplayValue(b),
           getAssetCurrency(b),
+          target,
           usdRates
         );
         return cb - ca;
       });
-  }, [assets, category, useFx, usdRates]);
+  }, [assets, category, useFx, usdRates, target]);
 
   return (
     <View style={styles.breakdownCard}>
@@ -149,7 +154,7 @@ export function DistributionBreakdown({
         ellipsizeMode="tail"
       >
         {CATEGORY_LABEL_ZH[category]} · 明细
-        {useFx ? '（折合 CNY）' : ''}
+        {useFx ? `（折合 ${target}）` : ''}
       </Text>
       <ScrollView
         nestedScrollEnabled
@@ -163,8 +168,8 @@ export function DistributionBreakdown({
           const display =
             useFx && usdRates
               ? formatMoney(
-                  convertDisplayValueToCny(v, cur, usdRates),
-                  'CNY'
+                  convertDisplayValueToCurrency(v, cur, target, usdRates),
+                  target
                 )
               : formatMoney(v, cur);
           return (

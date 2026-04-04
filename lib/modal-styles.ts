@@ -689,6 +689,57 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       marginTop: 10,
       textAlign: 'center',
     },
+    /** 已归档 / 最近删除：全宽 flex，避免横向滚动 */
+    recycleTableOuter: {
+      width: '100%',
+      alignSelf: 'stretch',
+      paddingBottom: 4,
+    },
+    recycleNameCol: {
+      flex: 1,
+      minWidth: 0,
+      paddingRight: 4,
+    },
+    recycleYmdCol: {
+      width: 50,
+      alignItems: 'center',
+    },
+    recycleValueCol: {
+      flexGrow: 0,
+      flexShrink: 1,
+      minWidth: 72,
+      maxWidth: 102,
+      alignItems: 'flex-end',
+    },
+    recycleLedgerCol: {
+      width: 40,
+      alignItems: 'flex-end',
+    },
+    recycleRestoreCol: {
+      width: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    recycleTdName: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: p,
+    },
+    recycleTdDate: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: p,
+    },
+    recycleTdValue: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: p,
+    },
+    recycleRestoreBtn: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: p,
+    },
   });
 }
 

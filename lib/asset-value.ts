@@ -7,6 +7,7 @@ import { toEastMoneySecid } from '@/lib/eastmoney-secid';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
   convertDisplayValueToCny,
+  convertDisplayValueToCurrency,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import {
@@ -165,22 +166,41 @@ export function sumDisplayValuesNaive(assets: SimpleAsset[]): number {
   return assets.reduce((s, a) => s + getAssetDisplayValue(a), 0);
 }
 
+/**
+ * 按 USD 基准中间价折到目标币种；无有效汇率且存在与目标币种不一致的资产时为 null。
+ * 无汇率且全部资产已为目标币种时，回退为未折算直接加总（数值与 naive 一致）。
+ */
+export function sumDisplayValuesInCurrency(
+  assets: SimpleAsset[],
+  targetCurrency: string,
+  usdRates: FxUsdMidRates['rates'] | null | undefined
+): number | null {
+  const target = /^[A-Z]{3}$/.test(targetCurrency) ? targetCurrency : 'CNY';
+  const allInTarget =
+    assets.length === 0 ||
+    assets.every((a) => getAssetCurrency(a) === target);
+  if (!usdRates || !(usdRates.CNY > 0)) {
+    return allInTarget ? sumDisplayValuesNaive(assets) : null;
+  }
+  let sum = 0;
+  for (const a of assets) {
+    const v = convertDisplayValueToCurrency(
+      getAssetDisplayValue(a),
+      getAssetCurrency(a),
+      target,
+      usdRates
+    );
+    if (!Number.isFinite(v)) return null;
+    sum += v;
+  }
+  return sum;
+}
+
 /** 按 USD 基准中间价串联折人民币；rates 缺失时回退为未折算直接加总 */
 export function sumDisplayValuesInCny(
   assets: SimpleAsset[],
   usdRates: FxUsdMidRates['rates'] | null | undefined
 ): number {
-  if (!usdRates || !(usdRates.CNY > 0)) {
-    return sumDisplayValuesNaive(assets);
-  }
-  return assets.reduce(
-    (s, a) =>
-      s +
-      convertDisplayValueToCny(
-        getAssetDisplayValue(a),
-        getAssetCurrency(a),
-        usdRates
-      ),
-    0
-  );
+  const unified = sumDisplayValuesInCurrency(assets, 'CNY', usdRates);
+  return unified !== null ? unified : sumDisplayValuesNaive(assets);
 }

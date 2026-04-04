@@ -14,6 +14,7 @@ import { useAppPalette } from '@/contexts/app-palette-context';
 import { BALANCE_INK, financeDeltaColor } from '@/lib/finance-colors';
 import { formatMoney } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { loadDisplayCurrency } from '@/lib/display-currency-preference';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
   getCachedFxUsdRates,
@@ -28,8 +29,9 @@ import {
   filterSnapshotsByTimeframe,
   formatInsightsPnlParts,
   getCentroidForCategory,
-  getDailyChange,
+  getDailyChangeInDisplay,
   INSIGHTS_CHART_TABS,
+  snapshotDisplayTotalInDisplay,
   toTrendChartModel,
   type InsightsChartTab,
   type TrendCustomRange,
@@ -38,11 +40,7 @@ import {
 import { createInsightsStyles } from '@/lib/insights-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { assetRepository } from '@/lib/repositories/asset-repository';
-import {
-  getSnapshots,
-  snapshotDisplayTotal,
-  type Snapshot,
-} from '@/lib/snapshots';
+import { getSnapshots, type Snapshot } from '@/lib/snapshots';
 import type { AssetCategory, SimpleAsset } from '@/types/asset';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -88,6 +86,7 @@ export default function Insights() {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [assets, setAssets] = useState<SimpleAsset[]>([]);
   const [fxRates, setFxRates] = useState<FxUsdMidRates | null>(null);
+  const [displayCurrency, setDisplayCurrency] = useState<string>('CNY');
   const [loading, setLoading] = useState(true);
   const [chartTab, setChartTab] = useState<InsightsChartTab>('trend');
   const [chartTabSeeded, setChartTabSeeded] = useState(false);
@@ -147,23 +146,29 @@ export default function Insights() {
     );
   }, [orderedSnapshots, trendTimeframe, trendCustomRange]);
   const trendModel = useMemo(
-    () => toTrendChartModel(trendRangeSnapshots),
-    [trendRangeSnapshots]
+    () =>
+      toTrendChartModel(trendRangeSnapshots, {
+        displayCurrency,
+        usdRates: fxRates?.rates ?? null,
+      }),
+    [trendRangeSnapshots, displayCurrency, fxRates]
   );
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       (async () => {
         try {
-          const [localSnaps, localAssets, cachedFx] = await Promise.all([
+          const [localSnaps, localAssets, cachedFx, dc] = await Promise.all([
             getSnapshots(),
             assetRepository.getAll(),
             getCachedFxUsdRates(),
+            loadDisplayCurrency(),
           ]);
           if (!cancelled) {
             setSnapshots(localSnaps);
             setAssets(localAssets);
             setFxRates(cachedFx);
+            setDisplayCurrency(dc);
             setLoading(false);
           }
         } catch {
@@ -177,15 +182,17 @@ export default function Insights() {
         if (cancelled) return;
         try {
           await syncNetWorthFromMarket();
-          const [snaps, ass, cachedFx] = await Promise.all([
+          const [snaps, ass, cachedFx, dc] = await Promise.all([
             getSnapshots(),
             assetRepository.getAll(),
             getCachedFxUsdRates(),
+            loadDisplayCurrency(),
           ]);
           if (!cancelled) {
             setSnapshots(snaps);
             setAssets(ass);
             setFxRates(cachedFx);
+            setDisplayCurrency(dc);
           }
         } catch {
           /* 保留已显示 */
@@ -205,9 +212,10 @@ export default function Insights() {
       buildDonutSlices(
         assets,
         theme.categoryAccents,
-        fxRates?.rates ?? null
+        fxRates?.rates ?? null,
+        displayCurrency
       ),
-    [assets, theme.categoryAccents, fxRates]
+    [assets, theme.categoryAccents, fxRates, displayCurrency]
   );
   const distributionUsesFx =
     fxRates != null && fxRates.rates.CNY > 0;
@@ -248,7 +256,15 @@ export default function Insights() {
     orderedSnapshots.length > 0
       ? orderedSnapshots[orderedSnapshots.length - 1]
       : null;
-  const dailyChange = getDailyChange(orderedSnapshots);
+  const dailyChange = useMemo(
+    () =>
+      getDailyChangeInDisplay(
+        orderedSnapshots,
+        displayCurrency,
+        fxRates?.rates ?? null
+      ),
+    [orderedSnapshots, displayCurrency, fxRates]
+  );
 
   const showChartChrome = hasAnySnapshots || hasAssets;
   const chartBlockMinHeight = chartHeight + 24;
@@ -338,7 +354,7 @@ export default function Insights() {
           <View style={styles.heroCardInner}>
           <Text style={[styles.cardKicker, { color: textSecondary }]}>
             {latest && typeof latest.totalValueCny === 'number'
-              ? '折合人民币（快照）'
+              ? `净值快照（${displayCurrency}）`
               : '净值快照'}
           </Text>
           {loading ? (
@@ -356,14 +372,23 @@ export default function Insights() {
             <>
               <Text style={[styles.currentValue, { color: BALANCE_INK }]}>
                 {latest
-                  ? formatMoney(snapshotDisplayTotal(latest), 'CNY')
+                  ? formatMoney(
+                      snapshotDisplayTotalInDisplay(
+                        latest,
+                        displayCurrency,
+                        fxRates?.rates ?? null
+                      ),
+                      displayCurrency
+                    )
                   : ''}
               </Text>
               <Text style={[styles.unconvertedHint, { color: textMuted }]}>
                 {latest && typeof latest.totalValueCny === 'number'
                   ? typeof latest.fxRateDate === 'string'
-                    ? `汇率基准日 ${latest.fxRateDate}`
-                    : '已按中间价折算为人民币'
+                    ? `汇率基准日 ${latest.fxRateDate}；展示为 ${displayCurrency}`
+                    : displayCurrency === 'CNY'
+                      ? '已按中间价折算为人民币'
+                      : `已按中间价折算为 ${displayCurrency}`
                   : '历史或未同步汇率时为各币种数值直接相加'}
               </Text>
               {dailyChange && latest ? (
@@ -386,7 +411,8 @@ export default function Insights() {
                       {(() => {
                         const pnl = formatInsightsPnlParts(
                           dailyChange.diff,
-                          dailyChange.pct
+                          dailyChange.pct,
+                          displayCurrency
                         );
                         const deltaC = financeDeltaColor(
                           dailyChange.diff,
@@ -489,6 +515,8 @@ export default function Insights() {
                             : '暂无走势数据'
                         }
                         emptyHintColor={textMuted}
+                        displayCurrency={displayCurrency}
+                        usdRatesForTooltip={fxRates?.rates ?? null}
                         onDataPointClick={({ index, x, y }) => {
                           setTrendTip({ index, x, y });
                         }}
@@ -520,6 +548,7 @@ export default function Insights() {
                                 primary={theme.primary}
                                 textSecondary={textSecondary}
                                 usdRates={fxRates?.rates ?? null}
+                                displayCurrency={displayCurrency}
                               />
                             ) : null}
                           </View>
@@ -559,6 +588,7 @@ export default function Insights() {
                                 primary={theme.primary}
                                 textSecondary={textSecondary}
                                 usdRates={fxRates?.rates ?? null}
+                                displayCurrency={displayCurrency}
                               />
                             ) : null}
                           </View>

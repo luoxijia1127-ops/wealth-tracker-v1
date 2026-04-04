@@ -37,13 +37,13 @@ import {
   formatExchangeSymbol,
   searchSgeSecuritiesMerged,
 } from '@/lib/eastmoney-suggest';
-import type { UnifiedSuggestItem } from '@/lib/instrument-search';
-import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
-import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
 import { FINANCE_DOWN, FINANCE_UP } from '@/lib/finance-colors';
+import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
 import { createInsightsStyles } from '@/lib/insights-styles';
+import type { UnifiedSuggestItem } from '@/lib/instrument-search';
 import { tryApplyListedAdjustTrade } from '@/lib/listed-adjust-trade';
 import { createAddModalStyles } from '@/lib/modal-styles';
+import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
 import {
   computeSellRealizedPnlByTradeId,
   ensureBaselineLedger,
@@ -979,12 +979,10 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="calculator-outline"
-                    label={`成交金额（${getAssetCurrency(
-                      asset
-                    )}，≈|变动|×单价）`}
+                    label={`成交金额`}
                   >
                     <TextInput
-                      placeholder="可与份额、单价交叉推算"
+                      placeholder="可通过填写金额交叉推算份额"
                       placeholderTextColor={placeholderColor}
                       style={styles.input}
                       value={tradeAmount}

@@ -8,7 +8,7 @@ import {
   getAssetDisplayValue,
 } from '@/lib/asset-value';
 import {
-  convertDisplayValueToCny,
+  convertDisplayValueToCurrency,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import {
@@ -22,6 +22,23 @@ import {
   snapshotDisplayTotal,
   type Snapshot,
 } from '@/lib/snapshots';
+
+/** 快照净值：有人民币折算字段时折到默认展示货币，否则沿用 snapshotDisplayTotal */
+export function snapshotDisplayTotalInDisplay(
+  s: Snapshot,
+  displayCurrency: string,
+  usdRates: FxUsdMidRates['rates'] | null
+): number {
+  const cny =
+    typeof s.totalValueCny === 'number' && Number.isFinite(s.totalValueCny)
+      ? s.totalValueCny
+      : null;
+  const dc = /^[A-Z]{3}$/.test(displayCurrency) ? displayCurrency : 'CNY';
+  if (cny === null) return snapshotDisplayTotal(s);
+  if (!usdRates || !(usdRates.CNY > 0) || dc === 'CNY') return cny;
+  const v = convertDisplayValueToCurrency(cny, 'CNY', dc, usdRates);
+  return Number.isFinite(v) ? v : cny;
+}
 
 export type InsightsChartTab = 'trend' | 'distribution' | 'returns';
 
@@ -116,6 +133,20 @@ export function formatTrendYAxisThousandsCny(value: number): string {
   return `${sign}¥${Math.abs(k).toFixed(1)}K`;
 }
 
+/** 纵轴刻度：千元量级 + 币种代码（非 CNY 时不用 ¥ 前缀） */
+export function formatTrendYAxisThousandsDisplay(
+  value: number,
+  displayCurrency: string
+): string {
+  if (displayCurrency === 'CNY') return formatTrendYAxisThousandsCny(value);
+  if (!Number.isFinite(value)) return '';
+  const k = value / 1000;
+  const sign = k < 0 ? '−' : '';
+  const abs = Math.abs(k);
+  const body = abs >= 100 ? abs.toFixed(0) : abs.toFixed(1);
+  return `${sign}${body}k ${displayCurrency}`;
+}
+
 /** Y 轴刻度：紧凑人民币读数（万 / 亿），占宽尽量小 */
 export function formatTrendAxisCny(value: number): string {
   if (!Number.isFinite(value)) return '';
@@ -179,23 +210,54 @@ export function formatChange(diff: number, pct: number): string {
 /**
  * Insights 顶部「今日盈亏」分行：金额（含 ±¥）与百分比（四位小数），便于与参考图一致排版。
  */
-export function formatInsightsPnlParts(diff: number, pct: number): {
+export function formatInsightsPnlParts(
+  diff: number,
+  pct: number,
+  currency: string = 'CNY'
+): {
   amountText: string;
   pctText: string;
 } {
   const sign = diff >= 0 ? '+' : '−';
-  const body = formatMoney(Math.abs(diff), 'CNY');
+  const code = /^[A-Z]{3}$/.test(currency) ? currency : 'CNY';
+  const body = formatMoney(Math.abs(diff), code);
   const amountText = `${sign}${body}`;
   const signPct = pct >= 0 ? '+' : '−';
   const pctText = `${signPct}${Math.abs(pct).toFixed(4)}%`;
   return { amountText, pctText };
 }
 
-export function toTrendChartModel(snapshots: Snapshot[]): TrendChartModel {
-  const series: TrendPoint[] = snapshots.map((s) => ({
-    date: s.date,
-    valueCny: snapshotDisplayTotal(s),
-  }));
+export type TrendChartModelOptions = {
+  /** 展示用默认货币（快照存 CNY 时按当前汇率线性换算到该币种） */
+  displayCurrency?: string;
+  usdRates?: FxUsdMidRates['rates'] | null;
+};
+
+export function toTrendChartModel(
+  snapshots: Snapshot[],
+  opts?: TrendChartModelOptions
+): TrendChartModel {
+  const displayCurrency = opts?.displayCurrency ?? 'CNY';
+  const usdRates = opts?.usdRates;
+  const series: TrendPoint[] = snapshots.map((s) => {
+    let valueCny = snapshotDisplayTotal(s);
+    if (
+      usdRates &&
+      usdRates.CNY > 0 &&
+      displayCurrency !== 'CNY' &&
+      typeof s.totalValueCny === 'number' &&
+      Number.isFinite(s.totalValueCny)
+    ) {
+      const v = convertDisplayValueToCurrency(
+        s.totalValueCny,
+        'CNY',
+        displayCurrency,
+        usdRates
+      );
+      if (Number.isFinite(v)) valueCny = v;
+    }
+    return { date: s.date, valueCny };
+  });
   const dates = series.map((s) => s.date);
   const labels = dates.map((d, i) =>
     dates.length === 1
@@ -225,7 +287,9 @@ export function toTrendChartModel(snapshots: Snapshot[]): TrendChartModel {
       const n = parseFloat(v);
       if (Number.isNaN(n)) return '';
       const actual = yMin + (n / 100) * span;
-      return formatTrendYAxisThousandsCny(actual);
+      return displayCurrency === 'CNY'
+        ? formatTrendYAxisThousandsCny(actual)
+        : formatTrendYAxisThousandsDisplay(actual, displayCurrency);
     },
     series,
     yMin,
@@ -248,11 +312,29 @@ export function getDailyChange(
 }
 
 /**
- * 各大类市值合计。传入有效 `usdRates`（含 CNY>0）时按 Frankfurter/USD 串联折人民币，否则为各币种展示值直接相加（不推荐）。
+ * 在默认货币展示下，将「快照口径」的日涨跌换算到该货币（对 CNY 快照为线性缩放，百分比不变）。
+ */
+export function getDailyChangeInDisplay(
+  snapshots: Snapshot[],
+  displayCurrency: string,
+  usdRates: FxUsdMidRates['rates'] | null
+): { diff: number; pct: number } | null {
+  const base = getDailyChange(snapshots);
+  if (!base) return null;
+  const dc = /^[A-Z]{3}$/.test(displayCurrency) ? displayCurrency : 'CNY';
+  if (dc === 'CNY' || !usdRates || !(usdRates.CNY > 0)) return base;
+  const k = convertDisplayValueToCurrency(1, 'CNY', dc, usdRates);
+  if (!Number.isFinite(k)) return base;
+  return { diff: base.diff * k, pct: base.pct };
+}
+
+/**
+ * 各大类市值合计。传入有效 `usdRates`（含 CNY>0）时按 Frankfurter/USD 串联折到 `displayCurrency`，否则为各币种展示值直接相加（不推荐）。
  */
 export function aggregateByCategory(
   assets: SimpleAsset[],
-  usdRates?: FxUsdMidRates['rates'] | null
+  usdRates?: FxUsdMidRates['rates'] | null,
+  displayCurrency: string = 'CNY'
 ): Record<AssetCategory, number> {
   const m: Record<AssetCategory, number> = {
     Stock: 0,
@@ -263,13 +345,23 @@ export function aggregateByCategory(
     Custom: 0,
   };
   const useFx = usdRates != null && usdRates.CNY > 0;
+  const target = /^[A-Z]{3}$/.test(displayCurrency) ? displayCurrency : 'CNY';
   for (const a of assets) {
     const c = a.category;
     if (!(c in m)) continue;
     const raw = getAssetDisplayValue(a);
-    const add = useFx
-      ? convertDisplayValueToCny(raw, getAssetCurrency(a), usdRates!)
-      : raw;
+    let add: number;
+    if (useFx) {
+      add = convertDisplayValueToCurrency(
+        raw,
+        getAssetCurrency(a),
+        target,
+        usdRates!
+      );
+      if (!Number.isFinite(add)) add = 0;
+    } else {
+      add = raw;
+    }
     m[c] += add;
   }
   return m;
@@ -278,9 +370,10 @@ export function aggregateByCategory(
 export function buildDonutSlices(
   assets: SimpleAsset[],
   categoryAccents: Record<AssetCategory, string>,
-  usdRates?: FxUsdMidRates['rates'] | null
+  usdRates?: FxUsdMidRates['rates'] | null,
+  displayCurrency: string = 'CNY'
 ): DonutSlice[] {
-  const sums = aggregateByCategory(assets, usdRates);
+  const sums = aggregateByCategory(assets, usdRates, displayCurrency);
   const out: DonutSlice[] = [];
   for (const cat of ASSET_CATEGORY_ORDER) {
     const v = sums[cat];

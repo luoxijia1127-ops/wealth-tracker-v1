@@ -4,6 +4,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAsset, deleteAsset, getAssets } from '@/lib/asset-storage';
+import { applyRestoredAssetSnapshotAdjustments } from '@/lib/snapshot-restore-adjust';
 import { ensureAsset, generateAssetId, type SimpleAsset } from '@/types/asset';
 
 const ARCHIVED_KEY = '@wealth-tracker/archived-assets-v1';
@@ -90,14 +91,15 @@ export async function moveAssetToTrash(id: string): Promise<void> {
   await deleteAsset(id);
 }
 
-/** 将快照恢复到主资产列表；若 id 已存在则分配新 id */
-export async function restoreAssetToMain(asset: SimpleAsset): Promise<void> {
+/** 将快照恢复到主资产列表；若 id 已存在则分配新 id；返回实际落库的资产 */
+export async function restoreAssetToMain(asset: SimpleAsset): Promise<SimpleAsset> {
   let next = ensureAsset(asset);
   const all = await getAssets();
   if (all.some((x) => x.id === next.id)) {
     next = { ...next, id: generateAssetId() };
   }
   await addAsset(next);
+  return next;
 }
 
 export async function restoreFromArchived(recordId: string): Promise<void> {
@@ -106,7 +108,8 @@ export async function restoreFromArchived(recordId: string): Promise<void> {
   if (idx < 0) throw new Error('记录不存在');
   const [rec] = list.splice(idx, 1);
   await writeList(ARCHIVED_KEY, list);
-  await restoreAssetToMain(rec.asset);
+  const restored = await restoreAssetToMain(rec.asset);
+  await applyRestoredAssetSnapshotAdjustments(restored, rec.at);
 }
 
 export async function restoreFromTrash(recordId: string): Promise<void> {
@@ -115,7 +118,8 @@ export async function restoreFromTrash(recordId: string): Promise<void> {
   if (idx < 0) throw new Error('记录不存在');
   const [rec] = list.splice(idx, 1);
   await writeList(TRASH_KEY, list);
-  await restoreAssetToMain(rec.asset);
+  const restored = await restoreAssetToMain(rec.asset);
+  await applyRestoredAssetSnapshotAdjustments(restored, rec.at);
 }
 
 /** 从归档或回收站永久移除（不恢复） */
@@ -137,4 +141,12 @@ export function formatRecycleTransactionSummary(a: SimpleAsset): string {
   if (nC > 0) parts.push(`余额流水 ${nC} 条`);
   if (parts.length === 0) return '无流水记录';
   return parts.join(' · ');
+}
+
+/** 表格窄列：交易/余额条数 */
+export function formatRecycleTransactionSummaryShort(a: SimpleAsset): string {
+  const nT = a.tradeHistory?.length ?? 0;
+  const nC = a.cashLedger?.length ?? 0;
+  if (nT === 0 && nC === 0) return '—';
+  return `${nT}交/${nC}余`;
 }

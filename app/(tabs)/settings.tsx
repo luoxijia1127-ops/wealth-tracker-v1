@@ -85,10 +85,10 @@ export default function SettingsScreen() {
         onPress: () => router.push('/settings-language'),
       },
       {
-        id: 'cashflow',
-        label: '主题颜色',
+        id: 'palette',
+        label: '应用配色',
         icon: 'invert-colors-on',
-        onPress: () => router.push('/settings-cashflow-colors'),
+        onPress: () => router.push('/settings-palette'),
       },
     ],
     [router]

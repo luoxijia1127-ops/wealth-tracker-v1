@@ -115,7 +115,7 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="settings-cashflow-colors"
-            options={{ title: '收支颜色', headerShadowVisible: false }}
+            options={{ title: '应用配色', headerShadowVisible: false }}
           />
           <Stack.Screen
             name="settings-archived"

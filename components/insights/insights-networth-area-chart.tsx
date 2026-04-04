@@ -4,6 +4,7 @@
 
 import {
   formatTrendYAxisThousandsCny,
+  formatTrendYAxisThousandsDisplay,
   formatYmdChinese,
   type TrendPoint,
 } from '@/lib/insights-model';
@@ -36,6 +37,10 @@ type Props = {
   axisLabelColor: string;
   axisLabelOpacity?: number;
   onPointPress?: (payload: { index: number; x: number; y: number }) => void;
+  /** 左侧纵轴刻度；默认千元人民币 */
+  formatYAxisValue?: (value: number) => string;
+  /** 与 `formatYAxisValue` 一致时传默认货币代码（用于非 CNY 的千元刻度） */
+  displayCurrency?: string;
 };
 
 const PAD_L = 52;
@@ -144,7 +149,17 @@ export function InsightsNetWorthAreaChart({
   axisLabelColor,
   axisLabelOpacity = 0.62,
   onPointPress,
+  formatYAxisValue,
+  displayCurrency = 'CNY',
 }: Props) {
+  const yAxisFmt = useMemo(() => {
+    if (formatYAxisValue) return formatYAxisValue;
+    return (v: number) =>
+      displayCurrency === 'CNY'
+        ? formatTrendYAxisThousandsCny(v)
+        : formatTrendYAxisThousandsDisplay(v, displayCurrency);
+  }, [formatYAxisValue, displayCurrency]);
+
   const gid = useMemo(
     () => `nwfill-${Math.random().toString(36).slice(2, 10)}`,
     []
@@ -250,7 +265,7 @@ export function InsightsNetWorthAreaChart({
               textAnchor="end"
               fontWeight="500"
             >
-              {formatTrendYAxisThousandsCny(val)}
+              {yAxisFmt(val)}
             </SvgText>
           ))}
         </G>

@@ -8,6 +8,7 @@ import { formatMoney } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
 import {
   addCalendarDaysYmd,
+  snapshotDisplayTotalInDisplay,
   TREND_TIMEFRAME_OPTIONS,
   type TrendChartModel,
   type TrendCustomRange,
@@ -19,7 +20,8 @@ import {
   getShanghaiDateString,
   shanghaiYmdToLocalNoon,
 } from '@/lib/date-shanghai';
-import { snapshotDisplayTotal, type Snapshot } from '@/lib/snapshots';
+import type { FxUsdMidRates } from '@/lib/fx-rates';
+import type { Snapshot } from '@/lib/snapshots';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   Modal,
@@ -50,6 +52,8 @@ export function InsightsTrendChart({
   emptyHint,
   emptyHintColor,
   onDataPointClick,
+  displayCurrency = 'CNY',
+  usdRatesForTooltip,
 }: {
   trendModel: TrendChartModel;
   chartWidth: number;
@@ -68,6 +72,8 @@ export function InsightsTrendChart({
   emptyHint: string;
   emptyHintColor: string;
   onDataPointClick: (p: { index: number; x: number; y: number }) => void;
+  displayCurrency?: string;
+  usdRatesForTooltip?: FxUsdMidRates['rates'] | null;
 }) {
   const insets = useSafeAreaInsets();
   const [customModalOpen, setCustomModalOpen] = useState(false);
@@ -193,6 +199,7 @@ export function InsightsTrendChart({
             gridStroke={theme.chartGridStroke}
             axisLabelColor={trendAxisLabelColor}
             axisLabelOpacity={0.66}
+            displayCurrency={displayCurrency}
             onPointPress={({ index, x, y }) => {
               onDataPointClick({ index, x, y });
             }}
@@ -217,8 +224,12 @@ export function InsightsTrendChart({
               </Text>
               <Text style={styles.trendTooltipValue}>
                 {formatMoney(
-                  snapshotDisplayTotal(orderedSnapshots[trendTip.index]!),
-                  'CNY'
+                  snapshotDisplayTotalInDisplay(
+                    orderedSnapshots[trendTip.index]!,
+                    displayCurrency,
+                    usdRatesForTooltip ?? null
+                  ),
+                  displayCurrency
                 )}
               </Text>
             </View>
