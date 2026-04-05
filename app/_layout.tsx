@@ -9,6 +9,7 @@ import { AppPaletteProvider } from '@/contexts/app-palette-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppFont } from '@/lib/app-fonts';
 import { purgeLegacyTestSnapshotDatesOnce } from '@/lib/legacy-test-snapshot-purge';
+import { migrateNestStorageFromWealthTrackerOnce } from '@/lib/nest-storage-migration';
 
 // Anchor keeps (tabs) in the background when /modal is presented, so the tab context
 // is preserved and the modal can be dismissed back to it.
@@ -20,7 +21,10 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    void purgeLegacyTestSnapshotDatesOnce();
+    void (async () => {
+      await migrateNestStorageFromWealthTrackerOnce();
+      await purgeLegacyTestSnapshotDatesOnce();
+    })();
   }, []);
 
   return (
@@ -145,7 +149,7 @@ export default function RootLayout() {
             options={{
               headerShown: true,
               headerBackTitle: '返回',
-              title: '隐私说明',
+              title: '隐私政策',
               headerShadowVisible: false,
             }}
           />

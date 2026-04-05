@@ -25,7 +25,7 @@ export default function SettingsAboutScreen() {
       }}
     >
       <Text style={{ fontSize: 22, fontWeight: '800', color: theme.primary, marginBottom: 8 }}>
-        Wealth Tracker
+        Nest
       </Text>
       <Text style={{ fontSize: 14, color: secondary, marginBottom: 20 }}>个人资产与净值记录</Text>
       <View

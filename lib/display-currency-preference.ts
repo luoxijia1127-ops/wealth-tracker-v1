@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const KEY = '@wealth-tracker/display-currency';
+const KEY = '@nest/display-currency';
 
 /** ISO 4217，默认 CNY */
 export async function loadDisplayCurrency(): Promise<string> {

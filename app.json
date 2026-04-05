@@ -1,15 +1,17 @@
 {
   "expo": {
-    "name": "wealth-tracker",
-    "slug": "wealth-tracker",
+    "name": "Nest",
+    "slug": "nest",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "wealthtracker",
+    "scheme": "nest",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.xiga.nest",
+      "buildNumber": "1"
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",

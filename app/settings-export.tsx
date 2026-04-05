@@ -110,7 +110,7 @@ export default function SettingsExportScreen() {
     }
     const csv = manualTransactionsToCsv(rows);
     const fileSafe = `${startDate}_${endDate}`.replace(/[^\d_-]/g, '');
-    const filename = `wealth-tracker-手动交易-${fileSafe}.csv`;
+    const filename = `nest-手动交易-${fileSafe}.csv`;
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       try {

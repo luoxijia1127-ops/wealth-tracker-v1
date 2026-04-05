@@ -132,8 +132,8 @@ export default function SettingsScreen() {
   const onShareApp = async () => {
     try {
       await Share.share({
-        message: '推荐 Wealth Tracker：本地资产与净值记账。',
-        title: 'Wealth Tracker',
+        message: '推荐 Nest：本地资产与净值记账。',
+        title: 'Nest',
       });
     } catch {
       Alert.alert('分享失败', '请重试。');
@@ -141,6 +141,12 @@ export default function SettingsScreen() {
   };
 
   const supportTiles: Tile[] = [
+    {
+      id: 'privacy',
+      label: '隐私政策',
+      icon: 'privacy-tip',
+      onPress: () => router.push('/settings-privacy'),
+    },
     { id: 'feedback', label: '意见反馈', icon: 'feedback', onPress: onFeedback },
     { id: 'rate', label: '好评鼓励', icon: 'star-outline', onPress: onRate },
     {

@@ -102,7 +102,7 @@ export type MarketQuoteResult = {
 };
 
 const STOOQ_UA =
-  'Mozilla/5.0 (compatible; WealthTracker/1.0; +https://stooq.com)';
+  'Mozilla/5.0 (compatible; Nest/1.0; +https://stooq.com)';
 
 /** Stooq q/l：Symbol,Date,Time,Open,High,Low,Close,Volume */
 function parseStooqIntradayLine(line: string): {

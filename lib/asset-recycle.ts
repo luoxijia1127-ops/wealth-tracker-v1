@@ -7,8 +7,8 @@ import { addAsset, deleteAsset, getAssets } from '@/lib/asset-storage';
 import { applyRestoredAssetSnapshotAdjustments } from '@/lib/snapshot-restore-adjust';
 import { ensureAsset, generateAssetId, type SimpleAsset } from '@/types/asset';
 
-const ARCHIVED_KEY = '@wealth-tracker/archived-assets-v1';
-const TRASH_KEY = '@wealth-tracker/deleted-assets-v1';
+const ARCHIVED_KEY = '@nest/archived-assets-v1';
+const TRASH_KEY = '@nest/deleted-assets-v1';
 const MAX_ARCHIVED = 80;
 const MAX_TRASH = 50;
 

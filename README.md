@@ -2,7 +2,7 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-## 资产与行情 — 唯一数据源说明（wealth-tracker）
+## 资产与行情 — 唯一数据源说明（Nest）
 
 | 用途 | 位置 |
 |------|------|

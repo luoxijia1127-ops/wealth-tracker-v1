@@ -6,7 +6,7 @@
 import { buildStooqCsvUrl } from '@/lib/config/endpoints';
 
 const STOOQ_UA =
-  'Mozilla/5.0 (compatible; WealthTracker/1.0; +https://stooq.com)';
+  'Mozilla/5.0 (compatible; Nest/1.0; +https://stooq.com)';
 
 export type StooqQuoteRow = {
   close: number;
