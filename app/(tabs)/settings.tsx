@@ -1,10 +1,12 @@
 /**
- * 「More」：账号卡 + 工具 / 设置 / 数据 / 支持 分区网格。
+ * 「更多」：账号卡 + 工具 / 设置 / 数据 / 支持 分区网格。
  */
 
 import { GlassSurface } from '@/components/glass-surface';
 import { SettingsGridTile } from '@/components/settings-grid-tile';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { usePurchasesEntitlement } from '@/contexts/purchases-context';
+import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -25,6 +27,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme } = useAppPalette();
+  const { ready: purchasesReady, isPro } = usePurchasesEntitlement();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
 
   const decorColors = useMemo(
@@ -37,7 +40,7 @@ export default function SettingsScreen() {
   );
 
   const openMembership = () => {
-    Alert.alert('会员 / 付费', '更多高级能力将在后续版本开放。');
+    router.push('/paywall');
   };
 
   const toolTiles: Tile[] = useMemo(
@@ -125,7 +128,7 @@ export default function SettingsScreen() {
   const onRate = () => {
     Alert.alert(
       '好评鼓励',
-      '若喜欢本应用，请前往 App Store 或本机应用商店搜索并评分（上架后可用）。'
+      '若喜欢 Nest，可在 App Store 搜索应用名并留下评价，感谢支持。'
     );
   };
 
@@ -146,6 +149,12 @@ export default function SettingsScreen() {
       label: '隐私政策',
       icon: 'privacy-tip',
       onPress: () => router.push('/settings-privacy'),
+    },
+    {
+      id: 'terms',
+      label: '用户协议',
+      icon: 'description',
+      onPress: () => router.push('/settings-terms'),
     },
     { id: 'feedback', label: '意见反馈', icon: 'feedback', onPress: onFeedback },
     { id: 'rate', label: '好评鼓励', icon: 'star-outline', onPress: onRate },
@@ -226,7 +235,7 @@ export default function SettingsScreen() {
       >
         <View style={[styles.headerRow, { paddingHorizontal: 12 }]}>
           <View style={{ width: 46 }} />
-          <Text style={styles.headerTitle}>More</Text>
+          <Text style={styles.headerTitle}>更多</Text>
           <View style={{ width: 46 }} />
         </View>
 
@@ -238,8 +247,13 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.profileNameBlock}>
                 <Text style={styles.profileName}>本地账本</Text>
-                <Text style={styles.profileSub} numberOfLines={2}>
+                <Text style={styles.profileSub} numberOfLines={3}>
                   本地账户 · 数据仅保存在本机，不上传服务器。
+                  {purchasesReady
+                    ? isPro
+                      ? '\n会员：主列表资产数量不限。'
+                      : `\n免费版：主列表最多 ${FREE_ASSET_LIMIT} 条资产；订阅后可无限添加。`
+                    : ''}
                 </Text>
               </View>
               <Pressable

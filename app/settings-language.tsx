@@ -39,7 +39,7 @@ export default function SettingsLanguageScreen() {
         </Text>
       </Pressable>
       <Text style={{ fontSize: 14, color: rgbaFromHex(p, 0.55), marginTop: 20, lineHeight: 20 }}>
-        English 等多语言将在后续版本提供。
+        当前界面仅提供简体中文。
       </Text>
     </ScrollView>
   );

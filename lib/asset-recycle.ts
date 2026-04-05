@@ -3,7 +3,9 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { canAddAnotherAsset } from '@/lib/asset-limit';
 import { addAsset, deleteAsset, getAssets } from '@/lib/asset-storage';
+import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import { applyRestoredAssetSnapshotAdjustments } from '@/lib/snapshot-restore-adjust';
 import { ensureAsset, generateAssetId, type SimpleAsset } from '@/types/asset';
 
@@ -93,6 +95,12 @@ export async function moveAssetToTrash(id: string): Promise<void> {
 
 /** 将快照恢复到主资产列表；若 id 已存在则分配新 id；返回实际落库的资产 */
 export async function restoreAssetToMain(asset: SimpleAsset): Promise<SimpleAsset> {
+  const gate = await canAddAnotherAsset();
+  if (!gate.allowed) {
+    throw new Error(
+      `免费版主列表最多 ${FREE_ASSET_LIMIT} 个资产。请先订阅或删除部分资产后再恢复。`
+    );
+  }
   let next = ensureAsset(asset);
   const all = await getAssets();
   if (all.some((x) => x.id === next.id)) {

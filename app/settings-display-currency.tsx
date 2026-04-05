@@ -66,7 +66,7 @@ export default function SettingsDisplayCurrencyScreen() {
           lineHeight: 20,
         }}
       >
-        用于 Dashboard / Insights 净值汇总与分布分析；各资产仍以各自币种记录，多持仓按中间价折为该货币。
+        用于总览与洞察中的净值汇总与分布分析；各资产仍以各自币种记录，多持仓按中间价折为该货币。
       </Text>
       {loading ? (
         <ActivityIndicator color={p} />

@@ -375,7 +375,7 @@ export default function Insights() {
             </View>
           ) : !hasSnapshotTrend && !hasAssets ? (
             <Text style={[styles.emptyText, { color: textSecondary }]}>
-              暂无快照与持仓。在 Dashboard 添加资产并同步行情后会显示走势与分布。
+              暂无快照与持仓。请先在总览添加资产并同步行情，之后将显示走势与分布。
             </Text>
           ) : hasSnapshotTrend ? (
             <>
@@ -450,7 +450,7 @@ export default function Insights() {
             </>
           ) : (
             <Text style={[styles.snapshotFallback, { color: textSecondary }]}>
-              暂无净值快照。在 Dashboard 同步行情后可查看资产变动曲线；下方可查看当前持仓分布。
+              暂无净值快照。在总览同步行情后可查看资产变动曲线；下方可查看当前持仓分布。
             </Text>
           )}
           </View>

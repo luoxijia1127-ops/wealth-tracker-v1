@@ -97,7 +97,7 @@ export default function SettingsPaletteScreen() {
           paddingHorizontal: 4,
         }}
       >
-        选择一套配色，Dashboard 与 Insights 会同步应用。
+        选择一套配色，总览与洞察会同步应用。
       </Text>
 
       <View style={{ gap: 7 }}>

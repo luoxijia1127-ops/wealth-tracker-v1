@@ -1,7 +1,7 @@
 /**
  * TAB LAYOUT — Expo Router
  *
- * Renders a bottom tab bar for Dashboard and Insights.
+ * Renders a bottom tab bar for 总览 / 洞察 / 更多。
  * Uses Tabs (not Stack) so users can switch between screens.
  * Uses @expo/vector-icons directly (IconSymbol lacks mappings for our icon names).
  */
@@ -38,7 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: '总览',
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="pie-chart" size={24} color={color} />
           ),
@@ -47,7 +47,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="insights"
         options={{
-          title: 'Insights',
+          title: '洞察',
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="lightbulb-outline" size={24} color={color} />
           ),
@@ -56,7 +56,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'More',
+          title: '更多',
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="widgets" size={24} color={color} />
           ),

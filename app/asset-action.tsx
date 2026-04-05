@@ -1228,9 +1228,9 @@ export default function AssetActionScreen() {
                   <View style={[styles.headerCard, { marginBottom: 16 }]}>
                     <Text style={styles.headerName}>{asset.name}</Text>
                     <Text style={[styles.headerMeta, { marginTop: 6 }]}>
-                      持仓 {asset.shares ?? 0} {useGram ? '克' : '份'} · 摊薄成本
+                      持仓 {asset.shares ?? 0} {useGram ? '克' : '份'} · 平均成本
                       ¥{avgDisp}
-                      {useGram ? '/克' : '/份'} · 日 K 收盘 ¥{closeDisp}
+                      {useGram ? '/克' : '/份'} · 最新收盘 ¥{closeDisp}
                       {refPrice !== null
                         ? ` · 估值 ¥${refPrice.toFixed(4)}${useGram ? '/克' : '/份'}`
                         : ''}
@@ -1977,7 +1977,7 @@ export default function AssetActionScreen() {
             onPress={() => {
               Alert.alert(
                 '归档清仓记录',
-                '将从主列表移除本资产，完整交易/余额流水可在「More → 已归档」查看并恢复。',
+                '将从主列表移除本资产，完整交易/余额流水可在「更多 → 已归档」查看并恢复。',
                 [
                   { text: '取消', style: 'cancel' },
                   {

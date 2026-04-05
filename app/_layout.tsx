@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 
 import { FontRoot } from '@/components/font-root';
 import { AppPaletteProvider } from '@/contexts/app-palette-context';
+import { PurchasesProvider } from '@/contexts/purchases-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppFont } from '@/lib/app-fonts';
 import { purgeLegacyTestSnapshotDatesOnce } from '@/lib/legacy-test-snapshot-purge';
@@ -29,6 +30,7 @@ export default function RootLayout() {
 
   return (
     <AppPaletteProvider>
+      <PurchasesProvider>
       <FontRoot>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack
@@ -54,7 +56,7 @@ export default function RootLayout() {
               headerShown: true,
               headerBackTitle: '返回',
               presentation: 'modal',
-              title: 'Add Asset',
+              title: '添加资产',
               gestureEnabled: true,
               headerShadowVisible: false,
             }}
@@ -154,6 +156,15 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="settings-terms"
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '用户协议',
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
             name="settings-display-currency"
             options={{
               headerShown: true,
@@ -207,10 +218,20 @@ export default function RootLayout() {
               headerShadowVisible: false,
             }}
           />
+          <Stack.Screen
+            name="paywall"
+            options={{
+              headerShown: true,
+              headerBackTitle: '返回',
+              title: '订阅',
+              headerShadowVisible: false,
+            }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
       </FontRoot>
+      </PurchasesProvider>
     </AppPaletteProvider>
   );
 }

@@ -16,6 +16,7 @@
 import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { BALANCE_INK } from '@/lib/finance-colors';
+import { canAddAnotherAsset } from '@/lib/asset-limit';
 import { moveAssetToTrash } from '@/lib/asset-recycle';
 import { getAssets } from '@/lib/asset-storage';
 import {
@@ -36,6 +37,7 @@ import { rgbaFromHex } from '@/lib/color-utils';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
+import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import {
     ASSET_CATEGORY_ORDER,
     CATEGORY_LABEL_ZH,
@@ -231,10 +233,10 @@ function AssetRow({
   onDelete: (id: string) => void;
 }) {
   const handleLongPress = useCallback(() => {
-    Alert.alert('Delete Asset', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert('删除资产', '确定要删除该资产吗？此操作无法撤销。', [
+      { text: '取消', style: 'cancel' },
       {
-        text: 'Delete',
+        text: '删除',
         style: 'destructive',
         onPress: () => onDelete(asset.id),
       },
@@ -336,22 +338,22 @@ function DashboardHeader({
   insets,
   styles,
   theme,
+  onPressAdd,
 }: {
   insets: { top: number; right: number; left: number };
   styles: DashboardStyles;
   theme: AppPaletteTheme;
+  onPressAdd: () => void | Promise<void>;
 }) {
   return (
     <View style={[styles.header, { paddingTop: insets.top }]}>
-      <Text style={styles.headerTitle}>Dashboard</Text>
+      <Text style={styles.headerTitle}>总览</Text>
       <Pressable
         style={({ pressed }) => [
           styles.headerAddFab,
           pressed && styles.headerAddFabPressed,
         ]}
-        onPress={() => {
-          router.push({ pathname: '/modal', params: {} });
-        }}
+        onPress={() => void onPressAdd()}
         accessibilityLabel="添加资产"
       >
         <GlassSurface
@@ -378,6 +380,22 @@ export default function Dashboard() {
     () => rgbaFromHex(theme.primary, 0.38),
     [theme.primary]
   );
+
+  const handlePressAdd = useCallback(async () => {
+    const gate = await canAddAnotherAsset();
+    if (!gate.allowed) {
+      Alert.alert(
+        '已达免费上限',
+        `免费版最多添加 ${FREE_ASSET_LIMIT} 个资产。订阅后可继续添加。`,
+        [
+          { text: '取消', style: 'cancel' },
+          { text: '了解订阅', onPress: () => router.push('/paywall') },
+        ]
+      );
+      return;
+    }
+    router.push({ pathname: '/modal', params: {} });
+  }, []);
 
   const decorColors = useMemo(
     () => [
@@ -578,7 +596,12 @@ export default function Dashboard() {
             ]}
           />
         </View>
-        <DashboardHeader insets={insets} styles={styles} theme={theme} />
+        <DashboardHeader
+          insets={insets}
+          styles={styles}
+          theme={theme}
+          onPressAdd={handlePressAdd}
+        />
         <View style={[styles.container, styles.centered]}>
           <ActivityIndicator size="large" color={theme.primary} />
         </View>
@@ -627,7 +650,12 @@ export default function Dashboard() {
           ]}
         />
       </View>
-      <DashboardHeader insets={insets} styles={styles} theme={theme} />
+      <DashboardHeader
+        insets={insets}
+        styles={styles}
+        theme={theme}
+        onPressAdd={handlePressAdd}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={[
@@ -643,7 +671,7 @@ export default function Dashboard() {
       {/* 1. Net Worth — large, centered (below header) */}
       <GlassSurface borderRadius={32} intensity={52}>
       <View style={styles.netWorthSection}>
-        <Text style={styles.netWorthLabel}>Net Worth</Text>
+        <Text style={styles.netWorthLabel}>净资产</Text>
         {netWorthDisplay !== null && Number.isFinite(netWorthDisplay) ? (
           <>
             <AssetPrimaryValue
@@ -688,7 +716,9 @@ export default function Dashboard() {
         {dashboardAssets.length === 0 && hiddenFromDashboardAssets.length === 0 ? (
           <GlassSurface borderRadius={28} intensity={44}>
             <View style={styles.emptyCardInner}>
-              <Text style={styles.emptyText}>Add assets from the Add tab</Text>
+              <Text style={styles.emptyText}>
+                暂无资产。点右上角「+」添加第一条资产。
+              </Text>
             </View>
           </GlassSurface>
         ) : (
@@ -828,7 +858,7 @@ export default function Dashboard() {
                           已清仓 / 零余额
                         </Text>
                         <Text style={styles.folderSubtitle} numberOfLines={2}>
-                          不计入上方净值汇总；可进入详情后归档交易明细至「More - 已归档」
+                          不计入上方净值汇总；可进入详情后归档交易明细至「更多 → 已归档」
                         </Text>
                       </View>
                     </View>

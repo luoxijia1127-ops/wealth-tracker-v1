@@ -80,7 +80,7 @@ export default function SettingsTrashScreen() {
       }}
     >
       <Text style={{ fontSize: 14, lineHeight: 21, color: muted, marginBottom: 16 }}>
-        在 Dashboard 删除的资产暂存于此（最近若干条）。表格与资产交易明细一致横向滑动；点「恢复」回到主列表，并自删除日起回补净值与逐资产日快照，随后同步当日行情。
+        在总览删除的资产暂存于此（最近若干条）。表格与资产交易明细一致横向滑动；点「恢复」回到主列表，并自删除日起回补净值与逐资产日快照，随后同步当日行情。
       </Text>
       {loading ? (
         <ActivityIndicator color={p} style={{ marginTop: 24 }} />

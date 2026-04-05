@@ -524,7 +524,7 @@ export default function SettingsAttributionScreen() {
           lineHeight: 18,
         }}
       >
-        按日对照「总净值快照」变化（折人民币时与 Dashboard 一致）。点击某日可查看各资产市值贡献与外部流水；红涨绿跌为 A
+        按日对照「总净值快照」变化（折人民币时与总览一致）。点击某日可查看各资产市值贡献与外部流水；红涨绿跌为 A
         股习惯展示。
       </Text>
 

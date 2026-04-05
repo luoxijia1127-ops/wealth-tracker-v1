@@ -321,7 +321,7 @@ export function ReturnScatterPanel({
   return (
     <View style={styles.returnPanelCard}>
       <Text style={[styles.returnKicker, { color: textMuted }]}>
-        Return analytics
+        收益分析
       </Text>
       <Text style={[styles.returnTitle, { color: theme.primary }]}>
         投资回报

@@ -58,7 +58,7 @@ export default function SettingsFxScreen() {
       {loading ? (
         <ActivityIndicator color={theme.primary} />
       ) : !fx ? (
-        <Text style={{ color: muted }}>暂无汇率缓存。在 Dashboard 同步行情或触发折算后会自动拉取。</Text>
+        <Text style={{ color: muted }}>暂无汇率缓存。在总览同步行情或触发折算后会自动拉取。</Text>
       ) : (
         <View
           style={{

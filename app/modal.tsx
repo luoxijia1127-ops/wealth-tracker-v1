@@ -26,6 +26,7 @@ import {
   assetCurrencySymbol,
   normalizeAssetCurrency,
 } from '@/lib/asset-currency';
+import { canAddAnotherAsset } from '@/lib/asset-limit';
 import { saveAssets } from '@/lib/asset-storage';
 import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
 import { rgbaFromHex } from '@/lib/color-utils';
@@ -46,6 +47,9 @@ import {
 import { createAddModalStyles } from '@/lib/modal-styles';
 import { assetRepository } from '@/lib/repositories/asset-repository';
 import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
+import {
+  FREE_ASSET_LIMIT,
+} from '@/lib/subscription-constants';
 import {
   ASSET_CATEGORY_ORDER,
   CATEGORY_LABEL_ZH,
@@ -421,6 +425,19 @@ export default function AddModal() {
 
     setSaving(true);
     try {
+      const gate = await canAddAnotherAsset();
+      if (!gate.allowed) {
+        Alert.alert(
+          '已达免费上限',
+          `免费版最多添加 ${FREE_ASSET_LIMIT} 个资产。订阅后可继续添加。`,
+          [
+            { text: '取消', style: 'cancel' },
+            { text: '了解订阅', onPress: () => router.push('/paywall') },
+          ]
+        );
+        return;
+      }
+
       const tradeDay = tradeDate.trim();
       if (!/^\d{4}-\d{2}-\d{2}$/.test(tradeDay)) {
         Alert.alert('无法保存', '请选择有效的交易日期。');
