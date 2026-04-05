@@ -507,9 +507,32 @@ export function createInsightsStyles(
       borderRadius: 999,
       backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : p08,
     },
+    /** 投资回报：六类同一行均分 */
+    returnCategoryRow: {
+      flexDirection: 'row',
+      width: '100%',
+      gap: 4,
+      alignItems: 'stretch',
+      marginBottom: 10,
+    },
+    returnChipInRow: {
+      flex: 1,
+      minWidth: 0,
+      paddingVertical: 7,
+      paddingHorizontal: 2,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     returnChipText: {
       fontSize: 12,
       fontWeight: '700',
+    },
+    returnChipTextInRow: {
+      fontSize: 11,
+      fontWeight: '700',
+      textAlign: 'center',
+      width: '100%',
     },
     returnToggleRow: {
       flexDirection: 'row',

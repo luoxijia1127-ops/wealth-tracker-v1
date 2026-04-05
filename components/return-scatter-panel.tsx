@@ -336,59 +336,46 @@ export function ReturnScatterPanel({
           onChangeText={setSearch}
         />
       </View>
-      <View
-        style={{
-          width: '100%',
-          alignItems: 'center',
-          marginBottom: 10,
-        }}
-      >
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 8,
-            maxWidth: '100%',
-          }}
-        >
-          {ASSET_CATEGORY_ORDER.map((c) => {
-            const active = !catFilter || catFilter.has(c);
-            const accent = theme.categoryAccents[c];
-            return (
-              <Pressable
-                key={c}
-                onPress={() => toggleCategory(c)}
-                style={[
-                  styles.returnChip,
-                  active
-                    ? {
-                        backgroundColor: accent,
-                        borderWidth: 0,
-                      }
-                    : {
-                        backgroundColor: rgbaFromHex(accent, 0.14),
-                        borderWidth: 1.5,
-                        borderColor: rgbaFromHex(accent, 0.42),
-                        opacity: 0.92,
-                      },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.returnChipText,
-                    {
-                      color: active ? pickTextOnAccent(accent) : textSecondary,
+      <View style={styles.returnCategoryRow}>
+        {ASSET_CATEGORY_ORDER.map((c) => {
+          const active = !catFilter || catFilter.has(c);
+          const accent = theme.categoryAccents[c];
+          return (
+            <Pressable
+              key={c}
+              onPress={() => toggleCategory(c)}
+              style={({ pressed }) => [
+                styles.returnChipInRow,
+                active
+                  ? {
+                      backgroundColor: accent,
+                      borderWidth: 0,
+                    }
+                  : {
+                      backgroundColor: rgbaFromHex(accent, 0.14),
+                      borderWidth: 1.5,
+                      borderColor: rgbaFromHex(accent, 0.42),
+                      opacity: 0.92,
                     },
-                  ]}
-                >
-                  {CATEGORY_LABEL_ZH[c]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                pressed && { opacity: 0.88 },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.returnChipTextInRow,
+                  {
+                    color: active ? pickTextOnAccent(accent) : textSecondary,
+                  },
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.82}
+              >
+                {CATEGORY_LABEL_ZH[c]}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <View style={styles.returnToggleRow}>
