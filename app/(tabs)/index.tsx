@@ -7,7 +7,7 @@
  * 1. Net Worth (large, centered)
  * 2. Grouped assets: 类别（股票/基金/ETF/类现金/贵金属）→ 资产列表
  *
- * 场内标的：份额 ×（markPrice 现价优先，否则 lastClose 日 K 结算）；同步后写快照供 Insights。
+ * 场内标的：份额 ×（markPrice 现价优先，否则 lastClose 日 K 结算）；下拉刷新拉行情并写快照；新增资产保存时会同步。
  * 其他资产：使用 value。顶部 Net Worth 以设置中的默认货币汇总（Frankfurter/ECB 口径 USD 串联）；副标题分行展示原币种市值。
  *
  * 浅色「文件夹」交互：大类默认只显示合计 + 资产名摘要；点击展开明细；展开时头部用类别色条填充。
@@ -15,7 +15,7 @@
 
 import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
-import { BALANCE_INK } from '@/lib/finance-colors';
+import type { AppPaletteTheme } from '@/lib/app-palette';
 import { canAddAnotherAsset } from '@/lib/asset-limit';
 import { moveAssetToTrash } from '@/lib/asset-recycle';
 import { getAssets } from '@/lib/asset-storage';
@@ -31,19 +31,19 @@ import {
   sumDisplayValuesInCurrency,
   sumDisplayValuesNaive,
 } from '@/lib/asset-value';
-import { loadDisplayCurrency } from '@/lib/display-currency-preference';
-import { getCachedFxUsdRates, type FxUsdMidRates } from '@/lib/fx-rates';
 import { rgbaFromHex } from '@/lib/color-utils';
-import type { AppPaletteTheme } from '@/lib/app-palette';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
+import { loadDisplayCurrency } from '@/lib/display-currency-preference';
+import { BALANCE_INK } from '@/lib/finance-colors';
+import { getCachedFxUsdRates, type FxUsdMidRates } from '@/lib/fx-rates';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import {
-    ASSET_CATEGORY_ORDER,
-    CATEGORY_LABEL_ZH,
-    getListedUnitPrice,
-    type AssetCategory,
-    type SimpleAsset,
+  ASSET_CATEGORY_ORDER,
+  CATEGORY_LABEL_ZH,
+  getListedUnitPrice,
+  type AssetCategory,
+  type SimpleAsset,
 } from '@/types/asset';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -54,6 +54,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   View,
@@ -447,6 +448,37 @@ export default function Dashboard() {
     router.push({ pathname: '/asset-action', params: { id: asset.id } });
   }, []);
 
+  /** 下拉刷新：拉行情、写净值快照；进入页面不再自动轮询 */
+  const refreshMarketData = useCallback(async () => {
+    setSyncingQuotes(true);
+    try {
+      const updated = await syncNetWorthFromMarket();
+      setAssets(updated.assets);
+      const dc = await loadDisplayCurrency();
+      setDisplayCurrency(dc);
+      const dash = filterAssetsForDashboard(updated.assets);
+      const needsFxDash = dash.some((a) => getAssetCurrency(a) !== dc);
+      const cachedAfterSync = await getCachedFxUsdRates();
+      setFxUsdRates(cachedAfterSync?.rates ?? null);
+      const unified = sumDisplayValuesInCurrency(
+        dash,
+        dc,
+        cachedAfterSync?.rates ?? null
+      );
+      if (unified !== null) {
+        setNetWorthDisplay(unified);
+      } else if (!needsFxDash) {
+        setNetWorthDisplay(sumDisplayValuesNaive(dash));
+      } else {
+        setNetWorthDisplay(null);
+      }
+    } catch {
+      /* 保留当前列表与展示 */
+    } finally {
+      setSyncingQuotes(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       ExpoStatusBar.setStatusBarStyle(
@@ -460,46 +492,6 @@ export default function Dashboard() {
     useCallback(() => {
       const gen = ++focusLoadGen.current;
       let cancelled = false;
-      let syncing = false;
-      let timer: ReturnType<typeof setInterval> | null = null;
-      const runSync = async () => {
-        if (syncing || cancelled || gen !== focusLoadGen.current) return;
-        syncing = true;
-        setSyncingQuotes(true);
-        try {
-          const updated = await syncNetWorthFromMarket();
-          if (!cancelled && gen === focusLoadGen.current) {
-            setAssets(updated.assets);
-            const dc = await loadDisplayCurrency();
-            setDisplayCurrency(dc);
-            const dash = filterAssetsForDashboard(updated.assets);
-            const needsFxDash = dash.some(
-              (a) => getAssetCurrency(a) !== dc
-            );
-            const cachedAfterSync = await getCachedFxUsdRates();
-            setFxUsdRates(cachedAfterSync?.rates ?? null);
-            const unified = sumDisplayValuesInCurrency(
-              dash,
-              dc,
-              cachedAfterSync?.rates ?? null
-            );
-            if (unified !== null) {
-              setNetWorthDisplay(unified);
-            } else if (!needsFxDash) {
-              setNetWorthDisplay(sumDisplayValuesNaive(dash));
-            } else {
-              setNetWorthDisplay(null);
-            }
-          }
-        } catch {
-          /* 保留本地列表 */
-        } finally {
-          syncing = false;
-          if (gen === focusLoadGen.current) {
-            setSyncingQuotes(false);
-          }
-        }
-      };
       (async () => {
         try {
           const local = await getAssets();
@@ -531,15 +523,9 @@ export default function Dashboard() {
             setLoading(false);
           }
         }
-        if (cancelled || gen !== focusLoadGen.current) return;
-        await runSync();
-        timer = setInterval(() => {
-          void runSync();
-        }, 60_000);
       })();
       return () => {
         cancelled = true;
-        if (timer) clearInterval(timer);
       };
     }, [])
   );
@@ -667,11 +653,19 @@ export default function Dashboard() {
           },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={syncingQuotes}
+            onRefresh={refreshMarketData}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
       >
       {/* 1. Net Worth — large, centered (below header) */}
       <GlassSurface borderRadius={32} intensity={52}>
       <View style={styles.netWorthSection}>
-        <Text style={styles.netWorthLabel}>净资产</Text>
+        <Text style={styles.netWorthLabel}>净值</Text>
         {netWorthDisplay !== null && Number.isFinite(netWorthDisplay) ? (
           <>
             <AssetPrimaryValue
@@ -702,12 +696,6 @@ export default function Dashboard() {
             {netWorthSummary.lines}
           </Text>
         )}
-        {syncingQuotes ? (
-          <View style={styles.syncRow}>
-            <ActivityIndicator size="small" color={theme.primary} />
-            <Text style={styles.syncRowText}>正在同步行情…</Text>
-          </View>
-        ) : null}
       </View>
       </GlassSurface>
 

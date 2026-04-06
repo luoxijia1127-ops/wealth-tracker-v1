@@ -17,6 +17,7 @@ import {
 } from '@/lib/asset-currency';
 import { archiveAssetRecord } from '@/lib/asset-recycle';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
+import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import {
   formatMoney,
   getAssetCurrency,
@@ -710,6 +711,11 @@ export default function AssetActionScreen() {
       if (!('purposeTarget' in pf)) delete next.purposeTarget;
       await updateAsset(next);
       await load();
+      try {
+        await syncNetWorthFromMarket();
+      } catch {
+        /* 忽略 */
+      }
       Alert.alert('已保存');
     } finally {
       setListedMetaSaving(false);

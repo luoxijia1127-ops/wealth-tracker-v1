@@ -35,7 +35,10 @@ export async function fetchAddAssetReferencePrice(
     if (hist) {
       return {
         price: hist.close,
-        hint: `收盘 ${hist.tradeDate}`,
+        hint:
+          hist.tradeDate < td
+            ? `收盘 ${hist.tradeDate}（最近交易日）`
+            : `收盘 ${hist.tradeDate}`,
       };
     }
     const last = await fetchStooqQuote(pick.intlQuoteSymbol, signal);
@@ -61,7 +64,13 @@ export async function fetchAddAssetReferencePrice(
     signal
   );
   if (k) {
-    return { price: k.close, hint: `收盘 ${k.tradeDate}` };
+    return {
+      price: k.close,
+      hint:
+        k.tradeDate < td
+          ? `收盘 ${k.tradeDate}（最近交易日）`
+          : `收盘 ${k.tradeDate}`,
+    };
   }
 
   const pushFallback = await fetchPush2LastPrice(secid, signal);

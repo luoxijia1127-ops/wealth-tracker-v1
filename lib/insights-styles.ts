@@ -124,7 +124,7 @@ export function createInsightsStyles(
       letterSpacing: -0.25,
     },
     changePct: {
-      fontSize: 14,
+      fontSize: 12,
       fontWeight: '600',
     },
     chartSection: {

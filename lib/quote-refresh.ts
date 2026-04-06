@@ -72,15 +72,23 @@ function mergeListedQuotes(
 ): SimpleAsset {
   let markPrice = a.markPrice;
   let markPriceDate = a.markPriceDate;
-  if (push && push.price > 0) {
-    markPrice = push.price;
-    markPriceDate = getShanghaiDateString();
-  }
   let lastClose = a.lastClose;
   let lastCloseDate = a.lastCloseDate;
   if (kline) {
     lastClose = kline.close;
     lastCloseDate = kline.tradeDate;
+  }
+  if (push && push.price > 0) {
+    markPrice = push.price;
+    markPriceDate = getShanghaiDateString();
+  } else if (kline && kline.close > 0) {
+    /**
+     * getListedUnitPrice 优先 markPrice；push 失败时（休市、超时、部分标的无 f43）
+     * 若仍只更新 lastClose、不动 markPrice，会长期显示陈旧现价，下拉刷新也像「没更新」。
+     * 用日 K 结算价同时作为有效市价来源。
+     */
+    markPrice = kline.close;
+    markPriceDate = kline.tradeDate;
   }
   const next: SimpleAsset = {
     ...a,

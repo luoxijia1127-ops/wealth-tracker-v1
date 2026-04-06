@@ -9,6 +9,7 @@ import { FormRow } from '@/components/add-asset/form-row';
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { InlineSelect } from '@/components/add-asset/inline-select';
 import { GlassSurface } from '@/components/glass-surface';
+import { TradingDateCalendarModal } from '@/components/trading-date-calendar-modal';
 import { formatYmdChineseLine, YmdDateFields } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import {
@@ -30,16 +31,13 @@ import { canAddAnotherAsset } from '@/lib/asset-limit';
 import { saveAssets } from '@/lib/asset-storage';
 import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
 import { rgbaFromHex } from '@/lib/color-utils';
-import {
-  formatInstantToShanghaiDateString,
-  getShanghaiDateString,
-  shanghaiYmdToLocalNoon,
-} from '@/lib/date-shanghai';
+import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
   formatExchangeSymbol,
   searchSgeSecuritiesMerged,
 } from '@/lib/eastmoney-suggest';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
+import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import {
   searchUnifiedInstruments,
   type UnifiedSuggestItem,
@@ -63,7 +61,6 @@ import {
   type SimpleAsset,
 } from '@/types/asset';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRouter } from 'expo-router';
 import {
   useCallback,
@@ -76,7 +73,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -99,8 +95,7 @@ export default function AddModal() {
   const insets = useSafeAreaInsets();
 
   const [tradeDate, setTradeDate] = useState(() => getShanghaiDateString());
-  const [iosDateOpen, setIosDateOpen] = useState(false);
-  const [androidDateOpen, setAndroidDateOpen] = useState(false);
+  const [tradeDateCalendarOpen, setTradeDateCalendarOpen] = useState(false);
 
   const [category, setCategory] = useState<AssetCategory>('Stock');
   const [name, setName] = useState('');
@@ -618,6 +613,11 @@ export default function AddModal() {
         all.push(assetToSave);
         await saveAssets(all);
       }
+      try {
+        await syncNetWorthFromMarket();
+      } catch {
+        /* 净值可稍后在首页下拉刷新 */
+      }
       router.back();
     } catch (e) {
       console.error(e);
@@ -631,11 +631,7 @@ export default function AddModal() {
 
   const openTradeDatePicker = () => {
     if (Platform.OS === 'web') return;
-    if (Platform.OS === 'android') {
-      setAndroidDateOpen(true);
-    } else {
-      setIosDateOpen(true);
-    }
+    setTradeDateCalendarOpen(true);
   };
 
   const currencyModalOptions =
@@ -1237,71 +1233,14 @@ export default function AddModal() {
         </GlassSurface>
       </ScrollView>
 
-      {Platform.OS === 'ios' ? (
-        <Modal
-          visible={iosDateOpen}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setIosDateOpen(false)}
-        >
-          <View
-            style={{
-              flex: 1,
-              justifyContent: 'flex-end',
-              backgroundColor: 'rgba(0,0,0,0.45)',
-            }}
-          >
-            <Pressable style={{ flex: 1 }} onPress={() => setIosDateOpen(false)} />
-            <View
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderTopLeftRadius: 16,
-                borderTopRightRadius: 16,
-                paddingBottom: insets.bottom + 10,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  paddingHorizontal: 18,
-                  paddingVertical: 14,
-                }}
-              >
-                <Pressable onPress={() => setIosDateOpen(false)}>
-                  <Text style={{ fontSize: 16, color: theme.primary }}>取消</Text>
-                </Pressable>
-                <Pressable onPress={() => setIosDateOpen(false)}>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: theme.primary }}>
-                    完成
-                  </Text>
-                </Pressable>
-              </View>
-              <DateTimePicker
-                value={shanghaiYmdToLocalNoon(tradeDate)}
-                mode="date"
-                display="spinner"
-                themeVariant="light"
-                locale="zh_CN"
-                onChange={(_, date) => {
-                  if (date) setTradeDate(formatInstantToShanghaiDateString(date));
-                }}
-              />
-            </View>
-          </View>
-        </Modal>
-      ) : null}
-
-      {Platform.OS === 'android' && androidDateOpen ? (
-        <DateTimePicker
-          value={shanghaiYmdToLocalNoon(tradeDate)}
-          mode="date"
-          display="default"
-          locale="zh-CN"
-          onChange={(_, date) => {
-            setAndroidDateOpen(false);
-            if (date) setTradeDate(formatInstantToShanghaiDateString(date));
-          }}
+      {Platform.OS !== 'web' ? (
+        <TradingDateCalendarModal
+          visible={tradeDateCalendarOpen}
+          onClose={() => setTradeDateCalendarOpen(false)}
+          value={tradeDate}
+          onSelect={setTradeDate}
+          themePrimary={theme.primary}
+          maxDate={getShanghaiDateString()}
         />
       ) : null}
 

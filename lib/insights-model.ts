@@ -208,7 +208,7 @@ export function formatChange(diff: number, pct: number): string {
 }
 
 /**
- * Insights 顶部「今日盈亏」分行：金额（含 ±¥）与百分比（四位小数），便于与参考图一致排版。
+ * Insights 顶部「今日盈亏」分行：金额（含 ±¥）与百分比（两位小数）。
  */
 export function formatInsightsPnlParts(
   diff: number,
@@ -223,7 +223,7 @@ export function formatInsightsPnlParts(
   const body = formatMoney(Math.abs(diff), code);
   const amountText = `${sign}${body}`;
   const signPct = pct >= 0 ? '+' : '−';
-  const pctText = `${signPct}${Math.abs(pct).toFixed(4)}%`;
+  const pctText = `${signPct}${Math.abs(pct).toFixed(2)}%`;
   return { amountText, pctText };
 }
 

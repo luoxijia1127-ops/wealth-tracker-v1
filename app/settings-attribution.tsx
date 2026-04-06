@@ -106,6 +106,23 @@ const CAL_COL_BASE: ViewStyle = {
   minWidth: 0,
 };
 
+/** 测量宽度后每列像素一致，避免 flex+gap 在首末行与满行周之间错列 */
+function calColumnStyle(colPx: number | null): ViewStyle {
+  if (colPx != null && colPx > 0) {
+    return {
+      width: colPx,
+      minWidth: 0,
+      flexGrow: 0,
+      flexShrink: 0,
+    };
+  }
+  return CAL_COL_BASE;
+}
+
+/** 日期格固定高度，首行/末行（含占位）与中间行对齐一致 */
+const CAL_DAY_CELL_HEIGHT = 56;
+const CAL_WEEKDAY_ROW_HEIGHT = 22;
+
 function renderTradeLine(
   x: DailyTradeLine,
   idx: number,
@@ -465,6 +482,11 @@ export default function SettingsAttributionScreen() {
 
   const muted = rgbaFromHex(theme.primary, 0.62);
   const cellGap = 4;
+  const [calendarGridWidth, setCalendarGridWidth] = useState(0);
+  const calColWidthPx = useMemo(() => {
+    if (calendarGridWidth <= 0) return null;
+    return (calendarGridWidth - 6 * cellGap) / 7;
+  }, [calendarGridWidth, cellGap]);
 
   const goPrevMonth = () => {
     setCalendarY((c) =>
@@ -647,43 +669,71 @@ export default function SettingsAttributionScreen() {
           </View>
 
           <View
-            style={{
-              flexDirection: 'row',
-              gap: cellGap,
-              marginBottom: 6,
-              width: '100%',
+            style={{ width: '100%' }}
+            onLayout={(e) => {
+              const w = e.nativeEvent.layout.width;
+              if (w <= 0) return;
+              setCalendarGridWidth((prev) =>
+                Math.abs(prev - w) < 0.5 ? prev : w
+              );
             }}
           >
-            {['日', '一', '二', '三', '四', '五', '六'].map((w) => (
-              <View
-                key={w}
-                style={[CAL_COL_BASE, { alignItems: 'center' }]}
-              >
-                <Text style={{ fontSize: 11, fontWeight: '700', color: muted }}>{w}</Text>
-              </View>
-            ))}
-          </View>
+            <View
+              style={{
+                flexDirection: 'row',
+                marginBottom: cellGap,
+                width: '100%',
+                alignItems: 'center',
+              }}
+            >
+              {['日', '一', '二', '三', '四', '五', '六'].map((w, di) => (
+                <View
+                  key={w}
+                  style={[
+                    calColumnStyle(calColWidthPx),
+                    di > 0 ? { marginLeft: cellGap } : null,
+                    {
+                      height: CAL_WEEKDAY_ROW_HEIGHT,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    },
+                  ]}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: muted }}>
+                    {w}
+                  </Text>
+                </View>
+              ))}
+            </View>
 
-          <View style={{ gap: cellGap, width: '100%' }}>
-            {calendarWeeks.map((week, wi) => (
-              <View
-                key={`w-${wi}`}
-                style={{
-                  flexDirection: 'row',
-                  gap: cellGap,
-                  width: '100%',
-                }}
-              >
-                {week.map((day, di) => {
-                  const idx = wi * 7 + di;
-                  if (day === null) {
-                    return (
-                      <View
-                        key={`pad-${idx}`}
-                        style={[CAL_COL_BASE, { minHeight: 56 }]}
-                      />
-                    );
-                  }
+            <View style={{ gap: cellGap, width: '100%' }}>
+              {calendarWeeks.map((week, wi) => (
+                <View
+                  key={`w-${wi}`}
+                  style={{
+                    flexDirection: 'row',
+                    width: '100%',
+                    alignItems: 'stretch',
+                    minHeight: CAL_DAY_CELL_HEIGHT,
+                  }}
+                >
+                  {week.map((day, di) => {
+                    const idx = wi * 7 + di;
+                    if (day === null) {
+                      return (
+                        <View
+                          key={`pad-${idx}`}
+                          style={[
+                            calColumnStyle(calColWidthPx),
+                            di > 0 ? { marginLeft: cellGap } : null,
+                            {
+                              height: CAL_DAY_CELL_HEIGHT,
+                              alignSelf: 'stretch',
+                            },
+                          ]}
+                        />
+                      );
+                    }
                   const dateStr = ymd(calendarY.y, calendarY.m, day);
                   const row = summaryByDate.get(dateStr);
                   const diff = row?.snapshotDiff;
@@ -732,17 +782,20 @@ export default function SettingsAttributionScreen() {
                         setModalInternalOpen(false);
                       }}
                       style={({ pressed }) => [
-                        CAL_COL_BASE,
+                        calColumnStyle(calColWidthPx),
+                        di > 0 ? { marginLeft: cellGap } : null,
                         {
-                          minHeight: 56,
+                          height: CAL_DAY_CELL_HEIGHT,
                           borderRadius: 10,
-                          paddingVertical: 6,
+                          paddingVertical: 4,
                           paddingHorizontal: 2,
                           backgroundColor: bg,
                           opacity: pressed ? 0.88 : 1,
                           borderWidth: isToday && !isSel ? 1 : 0,
                           borderColor: rgbaFromHex(theme.primary, 0.35),
                           overflow: 'hidden',
+                          justifyContent: 'center',
+                          alignItems: 'center',
                         },
                       ]}
                     >
@@ -773,9 +826,10 @@ export default function SettingsAttributionScreen() {
                       </Text>
                     </Pressable>
                   );
-                })}
-              </View>
-            ))}
+                  })}
+                </View>
+              ))}
+            </View>
           </View>
         </View>
       ) : (

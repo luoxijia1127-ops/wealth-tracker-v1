@@ -44,8 +44,8 @@ type Props = {
   /** 折线宽度；深色模式下可略加粗以突出走势 */
   lineStrokeWidth?: number;
   /**
-   * 浅色：fillTop → fillBottom 渐变。
-   * 深色：用折线色做极淡多段渐变，近线处略有色、向下快速透明，避免大面积着色。
+   * 浅色：三段渐变（顶略淡、中段、底更透），配合主题 chartFill 的 rgba。
+   * 深色：折线色多段渐变，可见色相且向下渐隐。
    */
   ghostAreaFill?: boolean;
 };
@@ -242,12 +242,18 @@ export function InsightsNetWorthAreaChart({
                   />,
                   <Stop
                     key="g1"
-                    offset="0.26"
+                    offset="0.16"
                     stopColor={lineColor}
-                    stopOpacity="0.006"
+                    stopOpacity="0.014"
                   />,
                   <Stop
                     key="g2"
+                    offset="0.36"
+                    stopColor={lineColor}
+                    stopOpacity="0.004"
+                  />,
+                  <Stop
+                    key="g3"
                     offset="1"
                     stopColor={lineColor}
                     stopOpacity="0"
@@ -258,13 +264,19 @@ export function InsightsNetWorthAreaChart({
                     key="n0"
                     offset="0"
                     stopColor={fillTop}
-                    stopOpacity="1"
+                    stopOpacity="0.92"
                   />,
                   <Stop
                     key="n1"
+                    offset="0.48"
+                    stopColor={fillBottom}
+                    stopOpacity="0.52"
+                  />,
+                  <Stop
+                    key="n2"
                     offset="1"
                     stopColor={fillBottom}
-                    stopOpacity="1"
+                    stopOpacity="0.18"
                   />,
                 ]}
           </LinearGradient>

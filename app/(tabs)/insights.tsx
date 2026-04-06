@@ -2,20 +2,20 @@
  * Insights：净值曲线、资产分布、投资回报（Tab）+ 目标进度
  */
 
+import { GlassSurface } from '@/components/glass-surface';
 import {
   DistributionBreakdown,
   DistributionDonut,
 } from '@/components/insights/insights-distribution';
 import { GoalProgressCard } from '@/components/insights/insights-goal-cards';
 import { InsightsTrendChart } from '@/components/insights/insights-trend-tab';
-import { GlassSurface } from '@/components/glass-surface';
 import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import { useAppPalette } from '@/contexts/app-palette-context';
-import { BALANCE_INK, financeDeltaColor } from '@/lib/finance-colors';
 import { formatMoney } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
-import { loadDisplayCurrency } from '@/lib/display-currency-preference';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
+import { loadDisplayCurrency } from '@/lib/display-currency-preference';
+import { BALANCE_INK, financeDeltaColor } from '@/lib/finance-colors';
 import {
   getCachedFxUsdRates,
   type FxUsdMidRates,
@@ -49,6 +49,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   useWindowDimensions,
@@ -109,6 +110,7 @@ export default function Insights() {
   const [trendTimeframe, setTrendTimeframe] = useState<TrendTimeframe>('7D');
   const [trendCustomRange, setTrendCustomRange] =
     useState<TrendCustomRange | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const chartHeight = useMemo(() => {
     const h = Math.round(windowHeight * 0.33);
@@ -162,6 +164,34 @@ export default function Insights() {
       }),
     [trendRangeSnapshots, displayCurrency, fxRates]
   );
+
+  const reloadInsightsData = useCallback(async () => {
+    const [snaps, ass, cachedFx, dc] = await Promise.all([
+      getSnapshots(),
+      assetRepository.getAll(),
+      getCachedFxUsdRates(),
+      loadDisplayCurrency(),
+    ]);
+    setSnapshots(snaps);
+    setAssets(ass);
+    setFxRates(cachedFx);
+    setDisplayCurrency(dc);
+  }, []);
+
+  const onRefreshInsights = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      try {
+        await syncNetWorthFromMarket();
+      } catch {
+        /* 保留已显示 */
+      }
+      await reloadInsightsData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reloadInsightsData]);
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -187,24 +217,6 @@ export default function Insights() {
             setFxRates(null);
             setLoading(false);
           }
-        }
-        if (cancelled) return;
-        try {
-          await syncNetWorthFromMarket();
-          const [snaps, ass, cachedFx, dc] = await Promise.all([
-            getSnapshots(),
-            assetRepository.getAll(),
-            getCachedFxUsdRates(),
-            loadDisplayCurrency(),
-          ]);
-          if (!cancelled) {
-            setSnapshots(snaps);
-            setAssets(ass);
-            setFxRates(cachedFx);
-            setDisplayCurrency(dc);
-          }
-        } catch {
-          /* 保留已显示 */
         }
       })();
       return () => {
@@ -358,13 +370,21 @@ export default function Insights() {
           },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefreshInsights}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
       >
         <GlassSurface borderRadius={34} intensity={50}>
           <View style={styles.heroCardInner}>
           <Text style={[styles.cardKicker, { color: textSecondary }]}>
             {latest && typeof latest.totalValueCny === 'number'
-              ? `净值快照（${displayCurrency}）`
-              : '净值快照'}
+              ? `净值（${displayCurrency}）`
+              : '净值'}
           </Text>
           {loading ? (
             <View style={styles.centered}>
@@ -394,7 +414,7 @@ export default function Insights() {
               <Text style={[styles.unconvertedHint, { color: textMuted }]}>
                 {latest && typeof latest.totalValueCny === 'number'
                   ? typeof latest.fxRateDate === 'string'
-                    ? `汇率基准日 ${latest.fxRateDate}；展示为 ${displayCurrency}`
+                    ? `汇率基准日 ${latest.fxRateDate}`
                     : displayCurrency === 'CNY'
                       ? '已按中间价折算为人民币'
                       : `已按中间价折算为 ${displayCurrency}`
