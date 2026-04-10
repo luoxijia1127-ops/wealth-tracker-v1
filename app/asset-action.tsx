@@ -16,13 +16,16 @@ import {
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { buildPurposeFields } from '@/lib/add-asset-form';
 import {
+  fetchAddAssetReferencePrice,
+  listedAssetToReferencePricePick,
+} from '@/lib/add-asset-reference-price';
+import {
   ASSET_CURRENCY_OPTIONS,
   assetCurrencySymbol,
   normalizeAssetCurrency,
 } from '@/lib/asset-currency';
 import { archiveAssetRecord } from '@/lib/asset-recycle';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
-import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import {
   formatMoney,
   getAssetCurrency,
@@ -45,14 +48,11 @@ import {
 } from '@/lib/eastmoney-suggest';
 import { FINANCE_DOWN, FINANCE_UP } from '@/lib/finance-colors';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
-import {
-  fetchAddAssetReferencePrice,
-  listedAssetToReferencePricePick,
-} from '@/lib/add-asset-reference-price';
 import { createInsightsStyles } from '@/lib/insights-styles';
 import type { UnifiedSuggestItem } from '@/lib/instrument-search';
 import { tryApplyListedAdjustTrade } from '@/lib/listed-adjust-trade';
 import { createAddModalStyles } from '@/lib/modal-styles';
+import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
 import {
   computeSellRealizedPnlByTradeId,

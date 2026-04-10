@@ -238,7 +238,7 @@ export function InsightsNetWorthAreaChart({
                     key="g0"
                     offset="0"
                     stopColor={lineColor}
-                    stopOpacity="0.045"
+                    stopOpacity="0.038"
                   />,
                   <Stop
                     key="g1"
