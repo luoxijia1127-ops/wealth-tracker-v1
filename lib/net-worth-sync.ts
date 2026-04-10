@@ -9,7 +9,11 @@ import {
   sumDisplayValuesNaive,
 } from '@/lib/asset-value';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
-import { ensureFxUsdRatesForToday, type FxEnsureSource } from '@/lib/fx-rates';
+import {
+  ensureFxUsdRatesForToday,
+  ensureFxUsdRatesHistoryBackfill,
+  type FxEnsureSource,
+} from '@/lib/fx-rates';
 import { refreshListedQuotes } from '@/lib/quote-refresh';
 import { getSnapshots, saveSnapshot } from '@/lib/snapshots';
 import { saveAssetDailySnapshot } from '@/lib/asset-daily-snapshots';
@@ -38,6 +42,7 @@ export async function syncNetWorthFromMarket(): Promise<SyncNetWorthResult> {
   const totalNaive = sumDisplayValuesNaive(assets);
   const needsFx = assetsNeedFxConversion(assets);
   const { rates: fx, source } = await ensureFxUsdRatesForToday();
+  await ensureFxUsdRatesHistoryBackfill();
   const hasFx = fx != null && fx.rates.CNY > 0;
   const cnyFromFx = hasFx ? sumDisplayValuesInCny(assets, fx!.rates) : null;
   const totalValueCny =

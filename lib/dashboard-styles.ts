@@ -44,7 +44,7 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 24,
-      paddingBottom: 16,
+      paddingBottom: 8,
       backgroundColor: 'transparent',
     },
     headerTitle: {
@@ -53,16 +53,33 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       letterSpacing: -0.5,
       color: t.primary,
     },
-    headerAddFab: {
-      width: 54,
-      height: 54,
-      borderRadius: 27,
-      alignItems: 'center',
-      justifyContent: 'center',
+    /** 外层光晕（仅一层阴影，避免与玻璃层叠成「双圆」） */
+    headerAddFabOuter: {
+      borderRadius: 26,
+      backgroundColor: 'transparent',
+      ...Platform.select({
+        ios: {
+          shadowColor: p,
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.48,
+          shadowRadius: 14,
+        },
+        android: {
+          elevation: 12,
+        },
+        default: {},
+      }),
+    },
+    /** 横向略扁的椭圆玻璃按钮（宽 > 高） */
+    headerAddFabGlass: {
+      width: 58,
+      height: 48,
+      borderRadius: 24,
+      overflow: 'hidden',
     },
     headerAddFabPressed: {
-      opacity: 0.88,
-      transform: [{ scale: 0.96 }],
+      opacity: 0.92,
+      transform: [{ scale: 0.97 }],
     },
     centered: {
       justifyContent: 'center',
@@ -70,21 +87,21 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     },
     scrollContent: {
       paddingHorizontal: 24,
-      paddingTop: 24,
-      gap: 24,
+      paddingTop: 8,
+      gap: 16,
     },
     /** 净值卡片内层（外层由 GlassSurface 包裹） */
     netWorthSection: {
       alignItems: 'center',
-      paddingVertical: 26,
+      paddingVertical: 20,
       paddingHorizontal: 20,
     },
     netWorthLabel: {
-      fontSize: 12,
+      fontSize: 14,
       color: p65,
       textTransform: 'uppercase',
       letterSpacing: 1,
-      marginBottom: 8,
+      marginBottom: 6,
     },
     netWorthValue: {
       fontSize: 42,
@@ -136,7 +153,7 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       flex: 1,
     },
     groupsContainer: {
-      gap: 20,
+      gap: 12,
     },
     categoryGlassOuter: {
       marginBottom: 0,

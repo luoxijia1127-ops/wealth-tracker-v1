@@ -3,10 +3,16 @@
  */
 
 import { InsightsNetWorthAreaChart } from '@/components/insights/insights-networth-area-chart';
+import { TradingDateCalendarModal } from '@/components/trading-date-calendar-modal';
+import {
+  formatYmdChineseLine,
+  YmdDateFields,
+} from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { formatMoney } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
   addCalendarDaysYmd,
   snapshotDisplayTotalInDisplay,
@@ -16,15 +22,12 @@ import {
   type TrendTimeframe,
 } from '@/lib/insights-model';
 import type { InsightsStyles } from '@/lib/insights-styles';
-import {
-  formatInstantToShanghaiDateString,
-  getShanghaiDateString,
-  shanghaiYmdToLocalNoon,
-} from '@/lib/date-shanghai';
+import { createAddModalStyles } from '@/lib/modal-styles';
 import type { FxUsdMidRates } from '@/lib/fx-rates';
 import type { Snapshot } from '@/lib/snapshots';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import {
+  InteractionManager,
   Modal,
   Platform,
   Pressable,
@@ -32,7 +35,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export function InsightsTrendChart({
@@ -80,10 +83,20 @@ export function InsightsTrendChart({
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [draftStart, setDraftStart] = useState('');
   const [draftEnd, setDraftEnd] = useState('');
-  const [iosWhich, setIosWhich] = useState<'start' | 'end' | null>(null);
-  const [androidOpen, setAndroidOpen] = useState(false);
-  const [androidWhich, setAndroidWhich] = useState<'start' | 'end' | null>(
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarWhich, setCalendarWhich] = useState<'start' | 'end' | null>(
     null
+  );
+  /** 避免「自定义区间 Modal」与日历 Modal 叠两层导致日历无法弹出；从日历返回时再打开自定义层 */
+  const resumeCustomAfterCalendarRef = useRef(false);
+
+  const addModalStyles = useMemo(
+    () => createAddModalStyles(theme),
+    [theme]
+  );
+  const webDatePlaceholderColor = useMemo(
+    () => rgbaFromHex(theme.primary, 0.42),
+    [theme.primary]
   );
 
   const openCustomModal = useCallback(() => {
@@ -96,6 +109,22 @@ export function InsightsTrendChart({
     setCustomModalOpen(true);
   }, [customRange]);
 
+  const closeCustomSheet = useCallback(() => {
+    resumeCustomAfterCalendarRef.current = false;
+    setCustomModalOpen(false);
+    setCalendarOpen(false);
+    setCalendarWhich(null);
+  }, []);
+
+  const openCalendarFor = useCallback((which: 'start' | 'end') => {
+    resumeCustomAfterCalendarRef.current = true;
+    setCalendarWhich(which);
+    setCustomModalOpen(false);
+    InteractionManager.runAfterInteractions(() => {
+      setCalendarOpen(true);
+    });
+  }, []);
+
   const confirmCustomRange = useCallback(() => {
     let s = draftStart.trim();
     let e = draftEnd.trim();
@@ -105,33 +134,32 @@ export function InsightsTrendChart({
       e = t;
     }
     onCustomRangeChange({ start: s, end: e });
-    setCustomModalOpen(false);
-  }, [draftStart, draftEnd, onCustomRangeChange]);
+    closeCustomSheet();
+  }, [draftStart, draftEnd, onCustomRangeChange, closeCustomSheet]);
 
-  const showPicker = (which: 'start' | 'end') => {
-    if (Platform.OS === 'android') {
-      setAndroidWhich(which);
-      setAndroidOpen(true);
-    } else {
-      setIosWhich(which);
+  const calendarMinDate = useMemo(() => {
+    if (calendarWhich !== 'end') return '1990-01-01';
+    const s = draftStart.trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '1990-01-01';
+  }, [calendarWhich, draftStart]);
+
+  const calendarMaxDate = useMemo(() => {
+    const today = getShanghaiDateString();
+    if (calendarWhich !== 'start') return today;
+    const e = draftEnd.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(e)) return today;
+    return e <= today ? e : today;
+  }, [calendarWhich, draftEnd]);
+
+  const calendarValue = useMemo(() => {
+    const today = getShanghaiDateString();
+    if (calendarWhich === 'end') {
+      const e = draftEnd.trim();
+      return /^\d{4}-\d{2}-\d{2}$/.test(e) ? e : today;
     }
-  };
-
-  const onAndroidDateChange = (_: unknown, date?: Date) => {
-    setAndroidOpen(false);
-    if (!date || !androidWhich) return;
-    const ymd = formatInstantToShanghaiDateString(date);
-    if (androidWhich === 'start') setDraftStart(ymd);
-    else setDraftEnd(ymd);
-    setAndroidWhich(null);
-  };
-
-  const pickerValue =
-    iosWhich === 'start'
-      ? draftStart
-      : iosWhich === 'end'
-        ? draftEnd
-        : draftStart;
+    const s = draftStart.trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : today;
+  }, [calendarWhich, draftStart, draftEnd]);
 
   const { appearance } = useAppPalette();
   const trendAxisLabelColor = useMemo(
@@ -250,9 +278,12 @@ export function InsightsTrendChart({
           <Pressable
             style={[
               StyleSheet.absoluteFillObject,
-              { backgroundColor: 'rgba(0,0,0,0.45)' },
+              {
+                zIndex: 0,
+                backgroundColor: 'rgba(0,0,0,0.45)',
+              },
             ]}
-            onPress={() => setCustomModalOpen(false)}
+            onPress={closeCustomSheet}
           />
           <View
             style={{
@@ -260,6 +291,7 @@ export function InsightsTrendChart({
               justifyContent: Platform.OS === 'ios' ? 'flex-end' : 'center',
               paddingHorizontal: Platform.OS === 'android' ? 24 : 0,
               pointerEvents: 'box-none',
+              zIndex: 1,
             }}
           >
             <View
@@ -285,38 +317,117 @@ export function InsightsTrendChart({
             >
               自定义区间
             </Text>
-            <View style={{ paddingHorizontal: 20, gap: 4 }}>
-              <Pressable
-                onPress={() => showPicker('start')}
-                style={{
-                  paddingVertical: 12,
-                  borderBottomWidth: 1,
-                  borderBottomColor: 'rgba(0,0,0,0.08)',
-                }}
-              >
-                <Text style={{ fontSize: 12, color: textMuted }}>开始日期</Text>
-                <Text
-                  style={{ fontSize: 16, fontWeight: '600', marginTop: 4 }}
+            {Platform.OS === 'web' ? (
+              <View style={{ paddingHorizontal: 20, gap: 14 }}>
+                <View>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '600',
+                      marginBottom: 8,
+                      color: textMuted,
+                    }}
+                  >
+                    开始日期
+                  </Text>
+                  <YmdDateFields
+                    value={draftStart}
+                    onChangeText={setDraftStart}
+                    placeholderColor={webDatePlaceholderColor}
+                    inputStyle={addModalStyles.input}
+                    labelColor={rgbaFromHex(theme.primary, 0.62)}
+                  />
+                </View>
+                <View>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '600',
+                      marginBottom: 8,
+                      color: textMuted,
+                    }}
+                  >
+                    结束日期
+                  </Text>
+                  <YmdDateFields
+                    value={draftEnd}
+                    onChangeText={setDraftEnd}
+                    placeholderColor={webDatePlaceholderColor}
+                    inputStyle={addModalStyles.input}
+                    labelColor={rgbaFromHex(theme.primary, 0.62)}
+                  />
+                </View>
+              </View>
+            ) : (
+              <View style={{ paddingHorizontal: 20, gap: 4 }}>
+                <Pressable
+                  onPress={() => openCalendarFor('start')}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: 'rgba(0,0,0,0.08)',
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="选择开始日期"
                 >
-                  {draftStart}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => showPicker('end')}
-                style={{
-                  paddingVertical: 12,
-                  borderBottomWidth: 1,
-                  borderBottomColor: 'rgba(0,0,0,0.08)',
-                }}
-              >
-                <Text style={{ fontSize: 12, color: textMuted }}>结束日期</Text>
-                <Text
-                  style={{ fontSize: 16, fontWeight: '600', marginTop: 4 }}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ fontSize: 12, color: textMuted }}>
+                      开始日期
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: '600',
+                        marginTop: 4,
+                      }}
+                    >
+                      {formatYmdChineseLine(draftStart)}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color={textMuted}
+                  />
+                </Pressable>
+                <Pressable
+                  onPress={() => openCalendarFor('end')}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: 'rgba(0,0,0,0.08)',
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="选择结束日期"
                 >
-                  {draftEnd}
-                </Text>
-              </Pressable>
-            </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ fontSize: 12, color: textMuted }}>
+                      结束日期
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: '600',
+                        marginTop: 4,
+                      }}
+                    >
+                      {formatYmdChineseLine(draftEnd)}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color={textMuted}
+                  />
+                </Pressable>
+              </View>
+            )}
             <View
               style={{
                 flexDirection: 'row',
@@ -325,7 +436,7 @@ export function InsightsTrendChart({
                 paddingTop: 14,
               }}
             >
-              <Pressable onPress={() => setCustomModalOpen(false)}>
+              <Pressable onPress={closeCustomSheet}>
                 <Text style={{ fontSize: 16, color: textSecondary }}>取消</Text>
               </Pressable>
               <Pressable onPress={confirmCustomRange}>
@@ -340,35 +451,30 @@ export function InsightsTrendChart({
                 </Text>
               </Pressable>
             </View>
-            {Platform.OS === 'ios' && iosWhich ? (
-              <DateTimePicker
-                value={shanghaiYmdToLocalNoon(pickerValue)}
-                mode="date"
-                display="spinner"
-                themeVariant="light"
-                onChange={(_, d) => {
-                  if (d) {
-                    const ymd = formatInstantToShanghaiDateString(d);
-                    if (iosWhich === 'start') setDraftStart(ymd);
-                    else setDraftEnd(ymd);
-                  }
-                  setIosWhich(null);
-                }}
-              />
-            ) : null}
             </View>
           </View>
         </View>
       </Modal>
 
-      {Platform.OS === 'android' && androidOpen && androidWhich ? (
-        <DateTimePicker
-          value={shanghaiYmdToLocalNoon(
-            androidWhich === 'start' ? draftStart : draftEnd
-          )}
-          mode="date"
-          display="default"
-          onChange={onAndroidDateChange}
+      {Platform.OS !== 'web' ? (
+        <TradingDateCalendarModal
+          visible={calendarOpen}
+          onClose={() => {
+            setCalendarOpen(false);
+            setCalendarWhich(null);
+            if (resumeCustomAfterCalendarRef.current) {
+              resumeCustomAfterCalendarRef.current = false;
+              setCustomModalOpen(true);
+            }
+          }}
+          value={calendarValue}
+          onSelect={(ymd) => {
+            if (calendarWhich === 'start') setDraftStart(ymd);
+            else if (calendarWhich === 'end') setDraftEnd(ymd);
+          }}
+          themePrimary={theme.primary}
+          maxDate={calendarMaxDate}
+          minDate={calendarMinDate}
         />
       ) : null}
     </>

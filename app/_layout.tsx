@@ -64,12 +64,9 @@ export default function RootLayout() {
           <Stack.Screen
             name="asset-action"
             options={{
-              headerShown: true,
-              headerBackTitle: '返回',
+              headerShown: false,
               presentation: 'modal',
-              title: '资产',
               gestureEnabled: true,
-              headerShadowVisible: false,
             }}
           />
           <Stack.Screen

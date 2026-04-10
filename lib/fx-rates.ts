@@ -178,3 +178,5 @@ export {
   getFxUsdRatesHistory,
   upsertFxUsdRatesHistory,
 } from '@/lib/fx-rates-history';
+
+export { ensureFxUsdRatesHistoryBackfill } from '@/lib/fx-rates-backfill';

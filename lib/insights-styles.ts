@@ -241,13 +241,14 @@ export function createInsightsStyles(
       borderWidth: 1,
       borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.32)',
     },
-    /** 五个区间等分整行，视觉居中对称 */
+    /** 五个区间等分整行，视觉居中对称（略下移，避免贴 chartSurface 顶圆角裁切两侧芯片角） */
     timeframeRow: {
       flexDirection: 'row',
       alignItems: 'stretch',
       justifyContent: 'center',
       width: '100%',
       gap: 6,
+      marginTop: 10,
       marginBottom: 12,
       paddingHorizontal: 0,
     },

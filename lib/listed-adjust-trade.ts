@@ -8,6 +8,8 @@ import { appendListedTrade } from '@/lib/trade-ledger';
 import { getListedUnitPrice, type SimpleAsset } from '@/types/asset';
 
 export type ListedAdjustInput = {
+  /** 交易日 YYYY-MM-DD；缺省或非法时退回上海当日 */
+  tradeDateStr?: string;
   /** 带符号份额/克数：正=买入，负=卖出；无符号视为买入 */
   sharesStr: string;
   unitPriceStr: string;
@@ -70,6 +72,11 @@ export function tryApplyListedAdjustTrade(
     }
   }
 
+  const tradeDateRaw = (input.tradeDateStr ?? '').trim();
+  const tradeDate = /^\d{4}-\d{2}-\d{2}$/.test(tradeDateRaw)
+    ? tradeDateRaw
+    : getShanghaiDateString();
+
   const unit = getListedUnitPrice(editingAsset);
   let priceNum = 0;
   if (unit !== null && unit > 0) priceNum = unit;
@@ -106,7 +113,7 @@ export function tryApplyListedAdjustTrade(
       wantBuy ? 'buy' : 'sell',
       ts,
       tp,
-      getShanghaiDateString(),
+      tradeDate,
       wantBuy
         ? {
             fundingSourceAssetId: input.fundingSourceAssetId,

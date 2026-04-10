@@ -46,12 +46,6 @@ export default function SettingsScreen() {
   const toolTiles: Tile[] = useMemo(
     () => [
       {
-        id: 'about',
-        label: '应用简介',
-        icon: 'info-outline',
-        onPress: () => router.push('/settings-about'),
-      },
-      {
         id: 'market',
         label: '市场大盘',
         icon: 'show-chart',

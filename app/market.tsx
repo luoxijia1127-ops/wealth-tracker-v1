@@ -4,11 +4,22 @@
 
 import { useAppPalette } from '@/contexts/app-palette-context';
 import {
+  loadCachedMarketQuotes,
+  saveMarketQuotesCache,
+} from '@/lib/market-quotes-cache';
+import { MarketWorldMapCard } from '@/components/market-world-map';
+import {
+  formatMarketPct,
+  formatMarketPrice,
+  marketPctColor,
+} from '@/lib/market-quote-format';
+import {
   fetchAllMarketQuotes,
   MARKET_SECTIONS,
   type MarketQuoteResult,
 } from '@/lib/market-quotes';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
@@ -20,32 +31,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const UP = '#16a34a';
-const DOWN = '#e11d48';
-
-function formatPrice(q: MarketQuoteResult): string {
-  const p = q.price;
-  if (p === null || !Number.isFinite(p)) return '—';
-  const sym = q.def.symbol;
-  const isFx =
-    sym.includes('usd') ||
-    sym.includes('eur') ||
-    sym.includes('jpy') ||
-    sym.includes('hkd') ||
-    sym.includes('rub') ||
-    sym.includes('cny');
-  if (isFx && p < 200) return p.toFixed(4);
-  if (p >= 10000) return p.toLocaleString('en-US', { maximumFractionDigits: 2 });
-  if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 3 });
-  return p.toFixed(3);
-}
-
-function formatPct(q: MarketQuoteResult): string {
-  const c = q.changePct;
-  if (c === null || !Number.isFinite(c)) return '—';
-  const sign = c > 0 ? '+' : '';
-  return `${sign}${c.toFixed(2)}%`;
-}
+/** 涨跌着色：红涨、绿跌（与 A 股看盘习惯一致） */
+const RISE = '#e11d48';
+const FALL = '#16a34a';
 
 export default function MarketScreen() {
   const navigation = useNavigation();
@@ -53,10 +41,14 @@ export default function MarketScreen() {
   const { theme } = useAppPalette();
   const p = theme.primary;
   const muted = rgbaFromHex(p, 0.55);
+  /** 与增加资产表单行图标一致 */
+  const iconMuted = useMemo(() => rgbaFromHex(p, 0.5), [p]);
+  const mapStroke = useMemo(() => rgbaFromHex(p, 0.38), [p]);
   const surface = 'rgba(255,255,255,0.94)';
 
   const [quotes, setQuotes] = useState<MarketQuoteResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  /** 首次从本地缓存恢复完成前为 false，不触发网络请求 */
+  const [cacheReady, setCacheReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useLayoutEffect(() => {
@@ -73,21 +65,35 @@ export default function MarketScreen() {
     return m;
   }, [quotes]);
 
-  const load = useCallback(async (isRefresh: boolean) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+  const refreshFromNetwork = useCallback(async () => {
+    setRefreshing(true);
     try {
       const res = await fetchAllMarketQuotes((partial) => setQuotes([...partial]));
       setQuotes(res);
+      await saveMarketQuotesCache(res);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    void load(false);
-  }, [load]);
+    let cancelled = false;
+    void (async () => {
+      const cached = await loadCachedMarketQuotes();
+      if (!cancelled) {
+        setQuotes(cached);
+        setCacheReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const hasAnyPrice = useMemo(
+    () => quotes.some((q) => q.price !== null && Number.isFinite(q.price)),
+    [quotes]
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
@@ -101,22 +107,49 @@ export default function MarketScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => void load(true)}
+            onRefresh={() => void refreshFromNetwork()}
             tintColor={p}
           />
         }
         showsVerticalScrollIndicator={false}
       >
-        {loading && quotes.length === 0 ? (
+        {!cacheReady ? (
           <View style={{ paddingVertical: 48, alignItems: 'center' }}>
             <ActivityIndicator size="large" color={p} />
             <Text style={{ marginTop: 12, fontSize: 13, color: muted }}>
-              正在拉取行情…
+              正在读取缓存…
             </Text>
           </View>
         ) : null}
 
-        {MARKET_SECTIONS.map((sec) => (
+        {cacheReady && !hasAnyPrice && !refreshing ? (
+          <Text
+            style={{
+              fontSize: 13,
+              color: muted,
+              textAlign: 'center',
+              paddingHorizontal: 24,
+              paddingBottom: 8,
+            }}
+          >
+            暂无缓存数据，下拉即可加载行情。
+          </Text>
+        ) : null}
+
+        {cacheReady ? (
+          <MarketWorldMapCard
+            byId={byId}
+            primary={p}
+            stroke={mapStroke}
+            muted={muted}
+            rise={RISE}
+            fall={FALL}
+            surface={surface}
+          />
+        ) : null}
+
+        {cacheReady
+          ? MARKET_SECTIONS.map((sec) => (
           <View key={sec.key} style={{ marginBottom: 18 }}>
             <Text
               style={{
@@ -147,16 +180,11 @@ export default function MarketScreen() {
                   changePct: null,
                   asOfDate: null,
                 };
-                const up = row.changePct !== null && row.changePct > 0;
-                const down = row.changePct !== null && row.changePct < 0;
-                const pctColor =
-                  row.changePct === null
-                    ? muted
-                    : up
-                      ? UP
-                      : down
-                        ? DOWN
-                        : muted;
+                const pctColor = marketPctColor(row, {
+                  muted,
+                  rise: RISE,
+                  fall: FALL,
+                });
                 const isLast = idx === sec.items.length - 1;
                 return (
                   <View
@@ -173,16 +201,17 @@ export default function MarketScreen() {
                   >
                     <View
                       style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 20,
-                        backgroundColor: 'rgba(0,0,0,0.04)',
+                        width: 32,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginRight: 12,
+                        marginRight: 10,
                       }}
                     >
-                      <Text style={{ fontSize: 20 }}>{item.flag}</Text>
+                      <Ionicons
+                        name={item.icon}
+                        size={20}
+                        color={iconMuted}
+                      />
                     </View>
                     <View style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
                       <Text
@@ -205,7 +234,7 @@ export default function MarketScreen() {
                         }}
                         numberOfLines={1}
                       >
-                        {formatPrice(row)}
+                        {formatMarketPrice(row)}
                       </Text>
                       <Text
                         style={{
@@ -215,7 +244,7 @@ export default function MarketScreen() {
                           marginTop: 2,
                         }}
                       >
-                        {formatPct(row)}
+                        {formatMarketPct(row)}
                       </Text>
                     </View>
                   </View>
@@ -223,19 +252,22 @@ export default function MarketScreen() {
               })}
             </View>
           </View>
-        ))}
+        ))
+          : null}
 
-        <Text
-          style={{
-            fontSize: 11,
-            lineHeight: 16,
-            color: muted,
-            paddingHorizontal: 20,
-            marginTop: 8,
-          }}
-        >
-          非实时数据，来自 Stooq 日 K，通常有交易日延迟；数值仅供参考，不构成投资建议。
-        </Text>
+        {cacheReady ? (
+          <Text
+            style={{
+              fontSize: 11,
+              lineHeight: 16,
+              color: muted,
+              paddingHorizontal: 20,
+              marginTop: 8,
+            }}
+          >
+            非实时数据，来自 Stooq 日 K，通常有交易日延迟；数值仅供参考，不构成投资建议。
+          </Text>
+        ) : null}
       </ScrollView>
     </View>
   );

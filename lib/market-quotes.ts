@@ -1,7 +1,10 @@
 /**
  * 全球指数与外汇：优先 Stooq 即时 CSV（q/l）单行解析；A 股主要指数走东方财富日 K（Stooq 常无数据）。
+ *
+ * 注意：Stooq 对部分常用写法（如 ^ixic、^n225、^ftse、ethusd）返回 N/D，需使用其站内可用的别名（见各条 symbol）。
  */
 
+import { Ionicons } from '@expo/vector-icons';
 import { buildStooqCsvUrl, ENDPOINTS } from '@/lib/config/endpoints';
 import { EASTMONEY_UT } from '@/lib/eastmoney-config';
 import { parseKlineLast } from '@/lib/eastmoney-kline';
@@ -12,8 +15,8 @@ export type MarketItemDef = {
   name: string;
   /** Stooq 代码（小写），用于非东财条目 */
   symbol: string;
-  /** 行左侧旗帜 emoji */
-  flag: string;
+  /** 行左侧线性图标（与增加资产表单 Ionicons outline 一致） */
+  icon: keyof typeof Ionicons.glyphMap;
   /** 东方财富 secid（如上证 1.000001）；有则优先拉日 K，失败再试 Stooq */
   eastmoneySecid?: string;
 };
@@ -30,30 +33,33 @@ export const MARKET_SECTIONS: MarketSectionDef[] = [
     key: 'us',
     title: '美股',
     items: [
-      { id: 'ixic', name: '纳斯达克', symbol: '^ixic', flag: '🇺🇸' },
-      { id: 'spx', name: '标普 500', symbol: '^spx', flag: '🇺🇸' },
-      { id: 'dji', name: '道琼斯', symbol: '^dji', flag: '🇺🇸' },
+      /** Stooq 上 ^ixic 常为 N/D；^ndq 有即时合成指数据 */
+      { id: 'ixic', name: '纳斯达克', symbol: '^ndq', icon: 'pulse-outline' },
+      { id: 'spx', name: '标普 500', symbol: '^spx', icon: 'stats-chart-outline' },
+      { id: 'dji', name: '道琼斯', symbol: '^dji', icon: 'bar-chart-outline' },
     ],
   },
   {
     key: 'asia',
     title: '亚太',
     items: [
-      { id: 'axjo', name: '澳股 ASX200', symbol: '^axjo', flag: '🇦🇺' },
-      { id: 'hsi', name: '恒生指数', symbol: '^hsi', flag: '🇭🇰' },
-      { id: 'n225', name: '日经 225', symbol: '^n225', flag: '🇯🇵' },
+      /** ASX200（^axjo）在 Stooq 即时接口常为 N/D；^aor 为澳全普通股指数，可作澳股宽基参考 */
+      { id: 'axjo', name: '澳股·全普通', symbol: '^aor', icon: 'globe-outline' },
+      { id: 'hsi', name: '恒生指数', symbol: '^hsi', icon: 'business-outline' },
+      /** ^n225 常为 N/D；^nkx 为日经 225 在 Stooq 的可用代码 */
+      { id: 'n225', name: '日经 225', symbol: '^nkx', icon: 'speedometer-outline' },
       {
         id: 'sse',
         name: '上证指数',
         symbol: '000001.sh',
-        flag: '🇨🇳',
+        icon: 'trending-up-outline',
         eastmoneySecid: '1.000001',
       },
       {
         id: 'szse',
         name: '深证成指',
         symbol: '399001.sz',
-        flag: '🇨🇳',
+        icon: 'layers-outline',
         eastmoneySecid: '0.399001',
       },
     ],
@@ -62,30 +68,31 @@ export const MARKET_SECTIONS: MarketSectionDef[] = [
     key: 'eu',
     title: '欧美',
     items: [
-      { id: 'ftse', name: '英国富时 100', symbol: '^ftse', flag: '🇬🇧' },
-      { id: 'gdaxi', name: '德国 DAX', symbol: '^gdaxi', flag: '🇩🇪' },
-      { id: 'fchi', name: '法国 CAC40', symbol: '^fchi', flag: '🇫🇷' },
+      { id: 'ftse', name: '英国富时 100', symbol: '^ukx', icon: 'pie-chart-outline' },
+      { id: 'gdaxi', name: '德国 DAX', symbol: '^dax', icon: 'analytics-outline' },
+      { id: 'fchi', name: '法国 CAC40', symbol: '^cac', icon: 'earth-outline' },
     ],
   },
   {
     key: 'fx',
     title: '汇率',
     items: [
-      { id: 'eurusd', name: '欧元/美元', symbol: 'eurusd', flag: '🇪🇺' },
-      { id: 'usdcny', name: '美元/人民币', symbol: 'usdcny', flag: '🇺🇸' },
-      { id: 'usdhkd', name: '美元/港元', symbol: 'usdhkd', flag: '🇺🇸' },
-      { id: 'usdjpy', name: '美元/日元', symbol: 'usdjpy', flag: '🇺🇸' },
-      { id: 'usdrub', name: '美元/卢布', symbol: 'usdrub', flag: '🇺🇸' },
+      { id: 'eurusd', name: '欧元/美元', symbol: 'eurusd', icon: 'swap-horizontal-outline' },
+      { id: 'usdcny', name: '美元/人民币', symbol: 'usdcny', icon: 'cash-outline' },
+      { id: 'usdhkd', name: '美元/港元', symbol: 'usdhkd', icon: 'wallet-outline' },
+      { id: 'usdjpy', name: '美元/日元', symbol: 'usdjpy', icon: 'repeat-outline' },
+      { id: 'usdrub', name: '美元/卢布', symbol: 'usdrub', icon: 'card-outline' },
     ],
   },
   {
     key: 'major',
     title: '主要',
     items: [
-      { id: 'btc', name: '比特币', symbol: 'btcusd', flag: '₿' },
-      { id: 'eth', name: '以太坊', symbol: 'ethusd', flag: 'Ξ' },
-      { id: 'xau', name: '贵金属·金', symbol: 'xauusd', flag: '🥇' },
-      { id: 'xag', name: '贵金属·银', symbol: 'xagusd', flag: '🥈' },
+      { id: 'btc', name: '比特币', symbol: 'btcusd', icon: 'disc-outline' },
+      /** ethusd 在 Stooq q/l 常为 N/D；eth.v 为美元计价 ETH 现货序列 */
+      { id: 'eth', name: '以太坊', symbol: 'eth.v', icon: 'infinite-outline' },
+      { id: 'xau', name: '贵金属·金', symbol: 'xauusd', icon: 'diamond-outline' },
+      { id: 'xag', name: '贵金属·银', symbol: 'xagusd', icon: 'triangle-outline' },
     ],
   },
 ];

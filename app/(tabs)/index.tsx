@@ -35,7 +35,11 @@ import { rgbaFromHex } from '@/lib/color-utils';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
 import { BALANCE_INK } from '@/lib/finance-colors';
-import { getCachedFxUsdRates, type FxUsdMidRates } from '@/lib/fx-rates';
+import {
+  ensureFxUsdRatesHistoryBackfill,
+  getCachedFxUsdRates,
+  type FxUsdMidRates,
+} from '@/lib/fx-rates';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import {
@@ -350,25 +354,25 @@ function DashboardHeader({
     <View style={[styles.header, { paddingTop: insets.top }]}>
       <Text style={styles.headerTitle}>总览</Text>
       <Pressable
-        style={({ pressed }) => [
-          styles.headerAddFab,
-          pressed && styles.headerAddFabPressed,
-        ]}
+        style={({ pressed }) => [pressed && styles.headerAddFabPressed]}
         onPress={() => void onPressAdd()}
         accessibilityLabel="添加资产"
+        hitSlop={8}
       >
-        <GlassSurface
-          borderRadius={27}
-          intensity={56}
-          style={styles.headerAddFab}
-          contentStyle={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <MaterialIcons name="add" size={28} color={theme.primary} />
-        </GlassSurface>
+        <View style={styles.headerAddFabOuter}>
+          <GlassSurface
+            borderRadius={24}
+            intensity={56}
+            style={styles.headerAddFabGlass}
+            contentStyle={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <MaterialIcons name="add" size={30} color={theme.primary} />
+          </GlassSurface>
+        </View>
       </Pressable>
     </View>
   );
@@ -494,6 +498,7 @@ export default function Dashboard() {
       let cancelled = false;
       (async () => {
         try {
+          void ensureFxUsdRatesHistoryBackfill();
           const local = await getAssets();
           if (!cancelled && gen === focusLoadGen.current) {
             setAssets(local);

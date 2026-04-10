@@ -25,6 +25,7 @@ import {
   isSignificantTradeSummaryDay,
   type DailyTradeLine,
   type DailyTradeSummary,
+  type MarketMoverEntry,
 } from '@/lib/trade-summary';
 import { CATEGORY_LABEL_ZH } from '@/types/asset';
 import { useFocusEffect } from '@react-navigation/native';
@@ -72,6 +73,13 @@ function fmtPct(p: number): string {
 
 function deltaColor(v: number, themeMuted: string): string {
   return financeDeltaColor(v, themeMuted);
+}
+
+/** 与「有显著净值变动」同量级（元）；低于此视为无变动，归因资产列表不展示 */
+const NET_WORTH_MOVER_EPS = 0.5;
+
+function moversWithNetChange(movers: MarketMoverEntry[]): MarketMoverEntry[] {
+  return movers.filter((m) => Math.abs(m.delta) >= NET_WORTH_MOVER_EPS);
 }
 
 function ymd(year: number, month: number, day: number): string {
@@ -187,7 +195,7 @@ function AttributionDayDetail({
 
   const displayLines = filterTradeLinesForDisplay(d.lines);
   const internalLines = filterInternalTradeLines(d.lines);
-  const movers = d.marketMovers ?? d.topMarketMovers ?? [];
+  const movers = moversWithNetChange(d.marketMovers ?? d.topMarketMovers ?? []);
 
   return (
     <View style={{ gap: 12 }}>

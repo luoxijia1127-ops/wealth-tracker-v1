@@ -8,6 +8,11 @@
 import { FormRow } from '@/components/add-asset/form-row';
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { GlassSurface } from '@/components/glass-surface';
+import { TradingDateCalendarModal } from '@/components/trading-date-calendar-modal';
+import {
+  formatYmdChineseLine,
+  YmdDateFields,
+} from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { buildPurposeFields } from '@/lib/add-asset-form';
 import {
@@ -40,6 +45,10 @@ import {
 } from '@/lib/eastmoney-suggest';
 import { FINANCE_DOWN, FINANCE_UP } from '@/lib/finance-colors';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
+import {
+  fetchAddAssetReferencePrice,
+  listedAssetToReferencePricePick,
+} from '@/lib/add-asset-reference-price';
 import { createInsightsStyles } from '@/lib/insights-styles';
 import type { UnifiedSuggestItem } from '@/lib/instrument-search';
 import { tryApplyListedAdjustTrade } from '@/lib/listed-adjust-trade';
@@ -52,7 +61,6 @@ import {
 import {
   ASSET_CATEGORY_ORDER,
   CATEGORY_LABEL_ZH,
-  getListedUnitPrice,
   isListedAssetCategory,
   PRECIOUS_METAL_LABEL_ZH,
   PRECIOUS_METAL_SPOT_ORDER,
@@ -87,10 +95,65 @@ const LISTED_TABS: { id: ListedPanel; label: string }[] = [
   { id: 'edit', label: '编辑信息' },
 ];
 
+/** 加减仓与编辑信息：资金账户行标题一致 */
+const FUNDING_ACCOUNT_ROW_LABEL =
+  '资金账户（选填，加仓为扣款来源，减仓为入账去向）';
+
+/** 编辑信息头：单价与资产币种一致，固定 2 位小数 */
+function formatListedUnitForDisplay(amount: number, currency: string): string {
+  const code = /^[A-Z]{3}$/.test(currency) ? currency : 'CNY';
+  try {
+    return new Intl.NumberFormat('zh-CN', {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${code} ${amount.toFixed(2)}`;
+  }
+}
+
 const CASH_TABS: { id: CashPanel; label: string }[] = [
   { id: 'balance', label: '加减余额' },
   { id: 'edit', label: '编辑信息' },
 ];
+
+/**
+ * 写入「首笔买入」流水上的资金来源（baseline 行或日期最早的一笔买入），
+ * 供编辑信息里补选与新增页一致的资金账户。
+ */
+function patchBaselineBuyFunding(
+  asset: SimpleAsset,
+  linkId: string,
+  resolveName: (id: string) => string | undefined
+): SimpleAsset {
+  const th = asset.tradeHistory ? [...asset.tradeHistory] : [];
+  if (th.length === 0) return asset;
+  let idx = th.findIndex((t) => t.id === `baseline-${asset.id}`);
+  if (idx < 0) {
+    const buys = th
+      .map((t, i) => ({ t, i }))
+      .filter(({ t }) => t.side === 'buy');
+    if (buys.length === 0) return asset;
+    buys.sort((a, b) => a.t.tradeDate.localeCompare(b.t.tradeDate));
+    idx = buys[0]!.i;
+  }
+  const row = th[idx];
+  if (!row || row.side !== 'buy') return asset;
+  const nextRow: TradeLedgerEntry = { ...row };
+  const id = linkId.trim();
+  if (id) {
+    nextRow.fundingSourceAssetId = id;
+    const nm = resolveName(id);
+    if (nm) nextRow.fundingSourceAssetName = nm;
+  } else {
+    delete nextRow.fundingSourceAssetId;
+    delete nextRow.fundingSourceAssetName;
+  }
+  th[idx] = nextRow;
+  return { ...asset, tradeHistory: th };
+}
 
 /** 场内「编辑信息」里可切换的类别，仅三类 */
 const LISTED_EDIT_CATEGORIES: AssetCategory[] = ['Stock', 'Fund', 'ETF'];
@@ -176,6 +239,13 @@ export default function AssetActionScreen() {
   const [tradeShares, setTradeShares] = useState('');
   const [tradePrice, setTradePrice] = useState('');
   const [tradeAmount, setTradeAmount] = useState('');
+  const [adjustTradeDate, setAdjustTradeDate] = useState(() =>
+    getShanghaiDateString()
+  );
+  const [adjustTradeDateCalendarOpen, setAdjustTradeDateCalendarOpen] =
+    useState(false);
+  const [adjustQuoteLoading, setAdjustQuoteLoading] = useState(false);
+  const [adjustQuoteHint, setAdjustQuoteHint] = useState<string | null>(null);
   const [adjustSaving, setAdjustSaving] = useState(false);
   /** 加仓=扣款来源，减仓=入账去向，合并为一项 */
   const [tradeLinkedCashId, setTradeLinkedCashId] = useState('');
@@ -188,6 +258,8 @@ export default function AssetActionScreen() {
   const [listedMetaPurposeTarget, setListedMetaPurposeTarget] = useState('');
   const [listedMetaPurposeExpanded, setListedMetaPurposeExpanded] =
     useState(false);
+  /** 建仓/首笔买入的资金账户（与 tradeHistory 首笔买入上的 funding 一致） */
+  const [listedMetaFundingCashId, setListedMetaFundingCashId] = useState('');
   const [listedMetaSaving, setListedMetaSaving] = useState(false);
   const [listedPreciousMetal, setListedPreciousMetal] =
     useState<PreciousMetalSpot>('XAU');
@@ -253,6 +325,57 @@ export default function AssetActionScreen() {
   );
 
   useEffect(() => {
+    setAdjustTradeDate(getShanghaiDateString());
+  }, [id]);
+
+  const listedAdjustRefPick = useMemo(
+    () => (asset ? listedAssetToReferencePricePick(asset) : null),
+    [
+      asset?.id,
+      asset?.emSecid,
+      asset?.intlQuoteSymbol,
+      asset?.exchange,
+      asset?.symbol,
+      asset?.name,
+    ]
+  );
+
+  useEffect(() => {
+    if (!asset || !isHeldChineseAsset(asset)) {
+      setAdjustQuoteLoading(false);
+      setAdjustQuoteHint(null);
+      return;
+    }
+    if (!listedAdjustRefPick) {
+      setAdjustQuoteLoading(false);
+      setAdjustQuoteHint('暂无行情代码，请手填成交单价');
+      return;
+    }
+    const ac = new AbortController();
+    setAdjustQuoteLoading(true);
+    setAdjustQuoteHint(null);
+    fetchAddAssetReferencePrice(listedAdjustRefPick, adjustTradeDate, ac.signal)
+      .then((r) => {
+        if (ac.signal.aborted) return;
+        if (r) {
+          setTradePrice(formatBalanceInputValue(r.price));
+          setAdjustQuoteHint(r.hint);
+        } else {
+          setAdjustQuoteHint('参考价暂不可用，请手填单价');
+        }
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) {
+          setAdjustQuoteHint('参考价获取失败，请手填单价');
+        }
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setAdjustQuoteLoading(false);
+      });
+    return () => ac.abort();
+  }, [asset, listedAdjustRefPick, adjustTradeDate]);
+
+  useEffect(() => {
     if (!asset) return;
     if (isHeldChineseAsset(asset)) {
       if (asset.category === 'Gold') {
@@ -294,6 +417,17 @@ export default function AssetActionScreen() {
           (asset.purpose && asset.purpose.trim().length > 0) ||
           (typeof asset.purposeTarget === 'number' && asset.purposeTarget > 0)
         )
+      );
+      const th = asset.tradeHistory ?? [];
+      const baselineBuy =
+        th.find((t) => t.id === `baseline-${asset.id}`) ??
+        [...th]
+          .filter((t) => t.side === 'buy')
+          .sort((a, b) => a.tradeDate.localeCompare(b.tradeDate))[0];
+      setListedMetaFundingCashId(
+        baselineBuy && typeof baselineBuy.fundingSourceAssetId === 'string'
+          ? baselineBuy.fundingSourceAssetId
+          : ''
       );
     } else if (usesCashAmountLedger(asset)) {
       setCashName(asset.name);
@@ -531,6 +665,11 @@ export default function AssetActionScreen() {
     [tradeShares, tradePrice]
   );
 
+  const openAdjustTradeDatePicker = useCallback(() => {
+    if (Platform.OS === 'web') return;
+    setAdjustTradeDateCalendarOpen(true);
+  }, []);
+
   const headerTitle = useMemo(() => {
     if (!asset) return '';
     if (isListedChineseAsset(asset) || isInternationalListedAsset(asset)) {
@@ -541,6 +680,11 @@ export default function AssetActionScreen() {
 
   const onSaveListedAdjust = async () => {
     if (!asset || !isHeldChineseAsset(asset)) return;
+    const td = adjustTradeDate.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(td)) {
+      Alert.alert('无法保存', '请选择有效的交易日期。');
+      return;
+    }
     const signed = parseSignedCashDelta(tradeShares);
     const wantBuy = signed !== null && signed > 0;
     const absShares =
@@ -554,6 +698,7 @@ export default function AssetActionScreen() {
           : undefined;
       const linkedName = tradeFundingOptions.find((x) => x.id === linkId)?.name;
       const r = tryApplyListedAdjustTrade(asset, {
+        tradeDateStr: td,
         sharesStr: tradeShares,
         unitPriceStr: tradePrice,
         fundingSourceAssetId: wantBuy && linkId ? linkId : undefined,
@@ -601,7 +746,7 @@ export default function AssetActionScreen() {
             src,
             'out',
             amount,
-            getShanghaiDateString(),
+            td,
             {
               relatedAssetId: asset.id,
               relatedAssetName: asset.name,
@@ -646,7 +791,7 @@ export default function AssetActionScreen() {
           dst,
           'in',
           amount,
-          getShanghaiDateString(),
+          td,
           {
             relatedAssetId: asset.id,
             relatedAssetName: asset.name,
@@ -664,6 +809,7 @@ export default function AssetActionScreen() {
       setTradePrice('');
       setTradeAmount('');
       setTradeLinkedCashId('');
+      setAdjustTradeDate(getShanghaiDateString());
       await load();
     } finally {
       setAdjustSaving(false);
@@ -709,7 +855,12 @@ export default function AssetActionScreen() {
       else delete next.account;
       if (!('purpose' in pf)) delete next.purpose;
       if (!('purposeTarget' in pf)) delete next.purposeTarget;
-      await updateAsset(next);
+      const nextWithFunding = patchBaselineBuyFunding(
+        next,
+        listedMetaFundingCashId,
+        (fid) => tradeFundingOptions.find((a) => a.id === fid)?.name
+      );
+      await updateAsset(nextWithFunding);
       await load();
       try {
         await syncNetWorthFromMarket();
@@ -828,12 +979,13 @@ export default function AssetActionScreen() {
     }
   };
 
-  const contentPadTop = 10;
-  const keyboardOffset = Platform.OS === 'ios' ? insets.top + 56 : 0;
+  /** 无表头时仅保留安全区顶距，不再叠加额外 padding */
+  const scrollPadTop = insets.top;
+  const keyboardOffset = Platform.OS === 'ios' ? insets.top : 0;
 
   if (!id) {
     return (
-      <View style={[styles.keyboardRoot, { paddingTop: contentPadTop, paddingHorizontal: 24 }]}>
+      <View style={[styles.keyboardRoot, { paddingTop: scrollPadTop, paddingHorizontal: 24 }]}>
         <Text style={styles.headerName}>缺少资产 ID</Text>
       </View>
     );
@@ -844,7 +996,7 @@ export default function AssetActionScreen() {
       <View
         style={[
           styles.keyboardRoot,
-          { paddingTop: contentPadTop + 24, alignItems: 'center' },
+          { paddingTop: scrollPadTop + 24, alignItems: 'center' },
         ]}
       >
         <ActivityIndicator color={theme.primary} />
@@ -854,7 +1006,7 @@ export default function AssetActionScreen() {
 
   if (!asset) {
     return (
-      <View style={[styles.keyboardRoot, { paddingTop: contentPadTop, paddingHorizontal: 24 }]}>
+      <View style={[styles.keyboardRoot, { paddingTop: scrollPadTop, paddingHorizontal: 24 }]}>
         <Text style={styles.headerName}>未找到该资产</Text>
         <Pressable
           style={[styles.saveButton, { marginTop: 20 }]}
@@ -869,16 +1021,15 @@ export default function AssetActionScreen() {
   const held = isHeldChineseAsset(asset);
   const cashLike = usesCashAmountLedger(asset);
   const useGram = asset.category === 'Gold';
-  const refPrice = getListedUnitPrice(asset);
+  const quoteCurrency = getAssetCurrency(asset);
   const avgDisp =
     typeof asset.avgCost === 'number' && asset.avgCost > 0
-      ? asset.avgCost.toFixed(4)
+      ? formatListedUnitForDisplay(asset.avgCost, quoteCurrency)
       : '—';
   const closeDisp =
     typeof asset.lastClose === 'number' && asset.lastClose > 0
-      ? String(asset.lastClose)
+      ? formatListedUnitForDisplay(asset.lastClose, quoteCurrency)
       : '—';
-  const quoteCurrency = getAssetCurrency(asset);
 
   return (
     <KeyboardAvoidingView
@@ -890,7 +1041,7 @@ export default function AssetActionScreen() {
       <ScrollView
         style={styles.container}
         contentContainerStyle={{
-          paddingTop: contentPadTop,
+          paddingTop: scrollPadTop,
           paddingBottom: insets.bottom + 32,
           paddingHorizontal: 14,
         }}
@@ -940,13 +1091,44 @@ export default function AssetActionScreen() {
                 intensity={50}
                 contentStyle={styles.glassFormInner}
               >
-                  <Text style={[styles.hintMuted, { marginBottom: 14 }]}>
-                    {useGram
-                      ? '克数变动：正为买入，负为卖出。成交金额 ≈ |克数|×单价，可任填两项推算第三项。'
-                      : '份额变动：正为买入，负为卖出。成交金额 ≈ |份额|×单价，可任填两项推算第三项。'}
-                  </Text>
                   <FormRow
                     first
+                    styles={styles}
+                    iconMuted={iconMuted}
+                    icon="calendar-outline"
+                    label="交易时间"
+                    right={
+                      Platform.OS !== 'web' ? (
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={iconMuted}
+                        />
+                      ) : undefined
+                    }
+                  >
+                    {Platform.OS === 'web' ? (
+                      <YmdDateFields
+                        value={adjustTradeDate}
+                        onChangeText={setAdjustTradeDate}
+                        placeholderColor={placeholderColor}
+                        inputStyle={styles.input}
+                        labelColor={rgbaFromHex(theme.primary, 0.62)}
+                      />
+                    ) : (
+                      <Pressable
+                        onPress={openAdjustTradeDatePicker}
+                        style={styles.formRowValuePressable}
+                        accessibilityRole="button"
+                        accessibilityLabel="选择交易日期"
+                      >
+                        <Text style={styles.formRowValue}>
+                          {formatYmdChineseLine(adjustTradeDate)}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </FormRow>
+                  <FormRow
                     styles={styles}
                     iconMuted={iconMuted}
                     icon={useGram ? 'fitness-outline' : 'pie-chart-outline'}
@@ -984,6 +1166,19 @@ export default function AssetActionScreen() {
                       keyboardType="decimal-pad"
                     />
                   </FormRow>
+                  {adjustQuoteLoading ? (
+                    <View style={styles.suggestLoadingRow}>
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.primary}
+                      />
+                      <Text style={styles.suggestLoadingText}>
+                        同步参考价…
+                      </Text>
+                    </View>
+                  ) : adjustQuoteHint ? (
+                    <Text style={styles.hint}>参考：{adjustQuoteHint}</Text>
+                  ) : null}
                   <FormRow
                     styles={styles}
                     iconMuted={iconMuted}
@@ -1012,10 +1207,10 @@ export default function AssetActionScreen() {
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.formRowLabel}>
-                        资金账户（选填）
+                        {FUNDING_ACCOUNT_ROW_LABEL}
                       </Text>
                       <FundingSourcePicker
-                        label="资金账户（选填）"
+                        label={FUNDING_ACCOUNT_ROW_LABEL}
                         emptyOptionLabel="不关联现金账户"
                         valueId={tradeLinkedCashId}
                         onSelectId={setTradeLinkedCashId}
@@ -1031,9 +1226,6 @@ export default function AssetActionScreen() {
                       />
                     </View>
                   </View>
-                  <Text style={[styles.hintMuted, { marginTop: 4 }]}>
-                    加仓为扣款来源，减仓为入账去向
-                  </Text>
                   <Pressable
                     style={[
                       styles.saveButton,
@@ -1234,12 +1426,10 @@ export default function AssetActionScreen() {
                   <View style={[styles.headerCard, { marginBottom: 16 }]}>
                     <Text style={styles.headerName}>{asset.name}</Text>
                     <Text style={[styles.headerMeta, { marginTop: 6 }]}>
-                      持仓 {asset.shares ?? 0} {useGram ? '克' : '份'} · 平均成本
-                      ¥{avgDisp}
-                      {useGram ? '/克' : '/份'} · 最新收盘 ¥{closeDisp}
-                      {refPrice !== null
-                        ? ` · 估值 ¥${refPrice.toFixed(4)}${useGram ? '/克' : '/份'}`
-                        : ''}
+                      持仓 {asset.shares ?? 0} {useGram ? '克' : '份'} · 平均成本{' '}
+                      {avgDisp}
+                      {useGram ? '/克' : '/份'} · 最新收盘价 {closeDisp}
+                      {useGram ? '/克' : '/份'}
                     </Text>
                   </View>
 
@@ -1442,6 +1632,39 @@ export default function AssetActionScreen() {
                       onChangeText={setListedMetaAccount}
                     />
                   </FormRow>
+
+                  <View style={[styles.formRow, { zIndex: 24 }]}>
+                    <View style={styles.formRowIconColumn}>
+                      <View style={styles.formRowIconLabelSpacer} />
+                      <View style={styles.formRowIconWrap}>
+                        <Ionicons
+                          name="wallet-outline"
+                          size={18}
+                          color={iconMuted}
+                        />
+                      </View>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.formRowLabel}>
+                        {FUNDING_ACCOUNT_ROW_LABEL}
+                      </Text>
+                      <FundingSourcePicker
+                        label={FUNDING_ACCOUNT_ROW_LABEL}
+                        emptyOptionLabel="不关联现金账户"
+                        valueId={listedMetaFundingCashId}
+                        onSelectId={setListedMetaFundingCashId}
+                        fundingOptions={tradeFundingOptions}
+                        styles={styles}
+                        omitLabel
+                        mode="inline"
+                        menuKey="fundMeta"
+                        openKey={menuOpen}
+                        setOpenKey={setMenuOpen}
+                        primaryColor={theme.primary}
+                        mutedColor={iconMuted}
+                      />
+                    </View>
+                  </View>
 
                   <Pressable
                     style={styles.purposeSectionHeader}
@@ -2101,6 +2324,17 @@ export default function AssetActionScreen() {
           </View>
         </View>
       </Modal>
+
+      {Platform.OS !== 'web' ? (
+        <TradingDateCalendarModal
+          visible={adjustTradeDateCalendarOpen}
+          onClose={() => setAdjustTradeDateCalendarOpen(false)}
+          value={adjustTradeDate}
+          onSelect={setAdjustTradeDate}
+          themePrimary={theme.primary}
+          maxDate={getShanghaiDateString()}
+        />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }

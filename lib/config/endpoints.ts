@@ -12,7 +12,12 @@ function envUrl(envKey: string, fallback: string): string {
   return fallback;
 }
 
+/** Frankfurter 根地址（用于 `YYYY-MM-DD..YYYY-MM-DD` 时间序列，与 latest 接口同源） */
 export const ENDPOINTS = {
+  frankfurterFxOrigin: envUrl(
+    'EXPO_PUBLIC_FX_ORIGIN',
+    'https://api.frankfurter.app'
+  ),
   frankfurterFx: envUrl(
     'EXPO_PUBLIC_FX_URL',
     'https://api.frankfurter.app/latest?from=USD&to=CNY,EUR,HKD'
