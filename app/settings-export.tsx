@@ -12,6 +12,8 @@ import {
     type DatePresetId,
 } from '@/lib/manual-transactions-export';
 import type { SimpleAsset } from '@/types/asset';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -30,7 +32,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const PRESETS: { id: DatePresetId; label: string }[] = [
   { id: 'd7', label: '近7天' },
   { id: 'd30', label: '近30天' },
-  { id: 'month', label: '本月' },
+  { id: 'm3', label: '近3个月' },
   { id: 'year', label: '本年' },
   { id: 'all', label: '全部' },
 ];
@@ -42,7 +44,6 @@ function validateYmd(s: string): boolean {
 export default function SettingsExportScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
-  const secondary = rgbaFromHex(theme.primary, 0.65);
   const muted = rgbaFromHex(theme.primary, 0.5);
   const chipBg = rgbaFromHex(theme.primary, 0.1);
   const chipActiveBg = rgbaFromHex(theme.primary, 0.22);
@@ -110,7 +111,9 @@ export default function SettingsExportScreen() {
     }
     const csv = manualTransactionsToCsv(rows);
     const fileSafe = `${startDate}_${endDate}`.replace(/[^\d_-]/g, '');
-    const filename = `nest-手动交易-${fileSafe}.csv`;
+    const downloadName = `nest-手动交易-${fileSafe}.csv`;
+    /** 原生路径仅用 ASCII，避免部分系统对中文路径支持不佳 */
+    const nativeFileName = `nest-manual-${fileSafe}.csv`;
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       try {
@@ -118,13 +121,33 @@ export default function SettingsExportScreen() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = filename;
+        a.download = downloadName;
         a.click();
         URL.revokeObjectURL(url);
       } catch {
         Alert.alert('导出失败', '浏览器无法生成下载，请重试。');
       }
       return;
+    }
+
+    const cacheDir = FileSystem.cacheDirectory;
+    if (cacheDir) {
+      const fileUri = `${cacheDir}${nativeFileName}`;
+      try {
+        await FileSystem.writeAsStringAsync(fileUri, csv, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'text/csv',
+            UTI: 'public.comma-separated-values-text',
+            dialogTitle: '导出 CSV',
+          });
+          return;
+        }
+      } catch {
+        /* 回退为纯文本分享 */
+      }
     }
 
     try {
@@ -141,19 +164,11 @@ export default function SettingsExportScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.pageBg }}
       contentContainerStyle={{
-        paddingTop: insets.top + 16,
+        paddingTop: 12,
         paddingBottom: insets.bottom + 24,
         paddingHorizontal: 20,
       }}
     >
-      <Text style={{ fontSize: 17, fontWeight: '800', color: theme.primary, marginBottom: 10 }}>
-        数据与存储
-      </Text>
-      <Text style={{ fontSize: 15, lineHeight: 22, color: secondary, marginBottom: 20 }}>
-        资产、流水与快照均保存在本机（AsyncStorage），不会上传至服务器。以下为「手动增减」相关流水导出：类现金
-        「加减余额」与场内证券的买卖记录；不含因行情导致的市值变动、也不含每日净值快照本身。
-      </Text>
-
       {loading ? (
         <ActivityIndicator color={theme.primary} style={{ marginVertical: 24 }} />
       ) : (
@@ -260,7 +275,7 @@ export default function SettingsExportScreen() {
           <Text style={{ fontSize: 12, color: muted, marginTop: 12, lineHeight: 18 }}>
             {Platform.OS === 'web'
               ? '浏览器将下载 UTF-8 CSV 文件，可用 Excel 打开。'
-              : '将通过系统分享面板发送文本（CSV）。若内容过长，部分机型可能需改用备忘录或文件 App 保存。'}
+              : '将通过系统分享面板发送 UTF-8 的 .csv 文件；若无法调起文件分享，将回退为纯文本。'}
           </Text>
         </>
       )}

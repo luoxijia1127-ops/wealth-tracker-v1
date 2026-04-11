@@ -604,7 +604,7 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       marginHorizontal: -6,
     },
     tradeTableInner: {
-      minWidth: 336,
+      minWidth: 280,
       paddingBottom: 4,
     },
     tradeTableHeader: {
@@ -631,30 +631,30 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     tradeTypeCol: {
       flexDirection: 'row',
       alignItems: 'center',
-      width: 130,
-      gap: 8,
-      paddingRight: 4,
+      width: 94,
+      gap: 5,
+      paddingRight: 2,
     },
     tradeIconCircle: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 24,
+      height: 24,
+      borderRadius: 14,
       backgroundColor: 'rgba(186, 202, 224, 0.55)',
       alignItems: 'center',
       justifyContent: 'center',
     },
     tradeTypeLabel: {
-      fontSize: 15,
+      fontSize: 14,
       fontWeight: '700',
     },
     tradeTypeDate: {
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: '500',
       color: p55,
-      marginTop: 2,
+      marginTop: 1,
     },
     tradeQtyCol: {
-      width: 36,
+      width: 28,
       alignItems: 'flex-end',
     },
     tradeTdNum: {
@@ -662,25 +662,31 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       fontWeight: '600',
       color: p,
     },
+    /** 交易明细 · 价格列略压缩，便于同屏露出已实现盈亏 */
+    tradeTdPrice: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: p,
+    },
     tradePriceCol: {
-      width: 96,
+      width: 80,
       alignItems: 'flex-end',
     },
     tradeFundCol: {
-      width: 86,
-      paddingLeft: 2,
+      width: 68,
+      paddingLeft: 0,
     },
     tradeTdFund: {
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: '600',
       color: p65,
     },
     tradePnlCol: {
-      width: 102,
+      width: 84,
       alignItems: 'flex-end',
     },
     tradeTdPnl: {
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '700',
     },
     tradeEditHint: {
@@ -689,7 +695,7 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       marginTop: 10,
       textAlign: 'center',
     },
-    /** 已归档 / 最近删除：全宽 flex，避免横向滚动 */
+    /** 已归档 / 最近删除：资产列上限避免占满；流水列 flex 吃剩余宽度 */
     recycleTableOuter: {
       width: '100%',
       alignSelf: 'stretch',
@@ -698,30 +704,34 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     recycleNameCol: {
       flex: 1,
       minWidth: 0,
-      paddingRight: 4,
+      maxWidth: 128,
+      paddingRight: 6,
     },
     recycleYmdCol: {
-      width: 50,
+      width: 54,
+      flexShrink: 0,
       alignItems: 'center',
     },
     recycleValueCol: {
-      flexGrow: 0,
-      flexShrink: 1,
-      minWidth: 72,
-      maxWidth: 102,
+      width:60,
+      flexShrink: 0,
       alignItems: 'flex-end',
+      paddingLeft: 2,
     },
     recycleLedgerCol: {
-      width: 40,
+      flex: 0.25,
+      minWidth: 0,
       alignItems: 'flex-end',
+      paddingLeft: 4,
     },
     recycleRestoreCol: {
-      width: 42,
+      width: 60,
+      flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
     },
     recycleTdName: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '700',
       color: p,
     },

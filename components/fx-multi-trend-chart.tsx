@@ -1,55 +1,75 @@
 /**
- * 多币种汇率指数图：平滑贝塞尔曲线，共用同一纵轴（数值需已对齐为同一量纲，如首日=100）。
+ * 汇率走势图：平滑贝塞尔曲线；纵轴为传入序列并集（单币种时即该币种的量级）；
+ * 每条序列单独标注该币种的最低、最高。
  */
 
 import { useMemo } from 'react';
 import { View } from 'react-native';
-import Svg, { G, Line, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 
 const PAD_L = 50;
 const PAD_R = 10;
 const PAD_T = 12;
-const PAD_B = 36;
+const PAD_B = 44;
 const GRID_SEG = 4;
 
-/** 与 Insights 净值图一致的平滑折线 */
+const Y_PAD_RATIO = 0.04;
+
+function buildPlotHelpers(
+  n: number,
+  width: number,
+  height: number,
+  yMin: number,
+  yMax: number,
+  xAt: (i: number) => number
+) {
+  const plotW = width - PAD_L - PAD_R;
+  const plotH = height - PAD_T - PAD_B;
+  const yAtValue = (v: number) => {
+    const t = (v - yMin) / (yMax - yMin);
+    return PAD_T + plotH - t * plotH;
+  };
+  const yAtIndex = (values: number[], i: number) =>
+    yAtValue(values[i]!);
+  return { plotW, plotH, xAt, yAtValue, yAtIndex };
+}
+
+/** 与净值走势图一致的平滑贝塞尔折线（双二次贝塞尔穿过相邻点中点） */
 function buildBezierPath(
   values: number[],
   width: number,
   height: number,
   yMin: number,
-  yMax: number
+  yMax: number,
+  xAt: (i: number) => number
 ): string {
-  const plotW = width - PAD_L - PAD_R;
-  const plotH = height - PAD_T - PAD_B;
   const n = values.length;
   if (n === 0) return '';
-  const xAt = (i: number) =>
-    n === 1
-      ? PAD_L + plotW / 2
-      : PAD_L + (i * plotW) / Math.max(1, n - 1);
-  const yAt = (i: number) => {
-    const v = values[i]!;
-    const t = (v - yMin) / (yMax - yMin);
-    return PAD_T + plotH - t * plotH;
-  };
+  const { yAtIndex } = buildPlotHelpers(
+    n,
+    width,
+    height,
+    yMin,
+    yMax,
+    xAt
+  );
   if (n === 1) {
     const cx = xAt(0);
-    const cy = yAt(0);
-    return `M ${cx - 28} ${cy} L ${cx + 28} ${cy}`;
+    const cy = yAtIndex(values, 0);
+    return `M ${cx - 20} ${cy} L ${cx + 20} ${cy}`;
   }
-  return [`M${xAt(0)},${yAt(0)}`]
+  return [`M${xAt(0)},${yAtIndex(values, 0)}`]
     .concat(
       values.slice(0, -1).map((_, i) => {
         const x_mid = (xAt(i) + xAt(i + 1)) / 2;
-        const y_mid = (yAt(i) + yAt(i + 1)) / 2;
+        const y_mid = (yAtIndex(values, i) + yAtIndex(values, i + 1)) / 2;
         const cp_x1 = (x_mid + xAt(i)) / 2;
         const cp_x2 = (x_mid + xAt(i + 1)) / 2;
         return (
           'Q ' +
           cp_x1 +
           ',' +
-          yAt(i) +
+          yAtIndex(values, i) +
           ' ' +
           x_mid +
           ',' +
@@ -57,11 +77,11 @@ function buildBezierPath(
           ' Q ' +
           cp_x2 +
           ',' +
-          yAt(i + 1) +
+          yAtIndex(values, i + 1) +
           ' ' +
           xAt(i + 1) +
           ',' +
-          yAt(i + 1)
+          yAtIndex(values, i + 1)
         );
       })
     )
@@ -85,8 +105,19 @@ function padSeries(values: number[], n: number): number[] {
 export type FxMultiSeries = {
   code: string;
   color: string;
-  /** 与 dates 等长，建议已为「相对窗口首日 = 100」的指数 */
+  /** 与 dates 等长：多少基准 = 1 目标（`unitsOfTargetPerBase` 的倒数） */
   values: number[];
+};
+
+type SeriesExtreme = {
+  code: string;
+  color: string;
+  seriesIndex: number;
+  minI: number;
+  maxI: number;
+  minV: number;
+  maxV: number;
+  flat: boolean;
 };
 
 type Props = {
@@ -112,35 +143,41 @@ export function FxMultiTrendChart({
     const n = dates.length;
     if (n === 0 || series.length === 0) {
       return {
-        yMin: 99,
-        yMax: 101,
-        yTicks: [99, 99.5, 100, 100.5, 101],
+        yMin: 0,
+        yMax: 1,
+        yTicks: [0, 0.25, 0.5, 0.75, 1],
         xLabels: [] as { x: number; text: string }[],
         plotW: width - PAD_L - PAD_R,
         plotH: height - PAD_T - PAD_B,
         paths: [] as { code: string; color: string; d: string }[],
+        yAtValue: (_v: number) => 0,
+        xAt: (_i: number) => PAD_L,
+        seriesExtremes: [] as SeriesExtreme[],
+        singleSeries: false,
       };
     }
 
     const all: number[] = [];
     for (const s of series) {
-      for (let i = 0; i < Math.min(n, s.values.length); i++) {
-        const v = s.values[i];
+      const vals =
+        s.values.length >= n ? s.values.slice(0, n) : padSeries(s.values, n);
+      for (let i = 0; i < n; i++) {
+        const v = vals[i];
         if (typeof v === 'number' && Number.isFinite(v)) all.push(v);
       }
     }
-    let yMin = all.length > 0 ? Math.min(...all) : 99;
-    let yMax = all.length > 0 ? Math.max(...all) : 101;
+    let yMin = all.length > 0 ? Math.min(...all) : 0;
+    let yMax = all.length > 0 ? Math.max(...all) : 1;
     if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
-      yMin = 99;
-      yMax = 101;
+      yMin = 0;
+      yMax = 1;
     }
     if (yMax - yMin < 1e-6) {
       const c = yMin;
       yMin = c - 0.02;
       yMax = c + 0.02;
     } else {
-      const pad = (yMax - yMin) * 0.1;
+      const pad = (yMax - yMin) * Y_PAD_RATIO;
       yMin -= pad;
       yMax += pad;
     }
@@ -152,6 +189,45 @@ export function FxMultiTrendChart({
       n === 1
         ? PAD_L + plotW / 2
         : PAD_L + (i * plotW) / Math.max(1, n - 1);
+
+    const { yAtValue } = buildPlotHelpers(
+      n,
+      width,
+      height,
+      yMin,
+      yMax,
+      xAt
+    );
+
+    const seriesExtremes: SeriesExtreme[] = series.map((s, seriesIndex) => {
+      const vals =
+        s.values.length >= n ? s.values.slice(0, n) : padSeries(s.values, n);
+      let minI = -1;
+      let maxI = -1;
+      for (let i = 0; i < n; i++) {
+        const v = vals[i]!;
+        if (!Number.isFinite(v)) continue;
+        if (minI < 0 || v < vals[minI]!) minI = i;
+        if (maxI < 0 || v > vals[maxI]!) maxI = i;
+      }
+      if (minI < 0 || maxI < 0) {
+        minI = 0;
+        maxI = 0;
+      }
+      const minV = vals[minI]!;
+      const maxV = vals[maxI]!;
+      const flat = Math.abs(maxV - minV) < 1e-12;
+      return {
+        code: s.code,
+        color: s.color,
+        seriesIndex,
+        minI,
+        maxI,
+        minV,
+        maxV,
+        flat,
+      };
+    });
 
     const yTicks: number[] = [];
     for (let i = 0; i <= GRID_SEG; i++) {
@@ -181,18 +257,44 @@ export function FxMultiTrendChart({
     const paths = series.map((s) => {
       const vals =
         s.values.length >= n ? s.values.slice(0, n) : padSeries(s.values, n);
-      const d = buildBezierPath(vals, width, height, yMin, yMax);
+      const d = buildBezierPath(vals, width, height, yMin, yMax, xAt);
       return { code: s.code, color: s.color, d };
     });
 
-    return { yMin, yMax, yTicks, xLabels, plotW, plotH, paths };
+    return {
+      yMin,
+      yMax,
+      yTicks,
+      xLabels,
+      plotW,
+      plotH,
+      paths,
+      yAtValue,
+      xAt,
+      seriesExtremes,
+      singleSeries: series.length === 1,
+    };
   }, [dates, series, width, height]);
 
   if (dates.length === 0 || width <= 20) return null;
 
   const h = height;
   const w = width;
-  const { yMin, yMax, yTicks, xLabels, plotW, plotH, paths } = model;
+  const {
+    yMin,
+    yMax,
+    yTicks,
+    xLabels,
+    plotW,
+    plotH,
+    paths,
+    yAtValue,
+    xAt,
+    seriesExtremes,
+    singleSeries,
+  } = model;
+
+  const plotMidY = PAD_T + plotH / 2;
 
   const gridLines = yTicks.map((yt, i) => {
     const yy =
@@ -260,6 +362,125 @@ export function FxMultiTrendChart({
             />
           ) : null
         )}
+        <G>
+          {seriesExtremes.map((ex) => {
+            const dx = singleSeries
+              ? 0
+              : (ex.seriesIndex - (series.length - 1) / 2) * 8;
+            if (ex.flat) {
+              const cx = xAt(ex.minI) + dx;
+              const cy = yAtValue(ex.minV);
+              const preferBelow = cy < plotMidY;
+              return (
+                <G key={`${ex.code}-flat`}>
+                  <Circle
+                    cx={cx}
+                    cy={cy}
+                    r={4}
+                    fill={ex.color}
+                    stroke="#fff"
+                    strokeWidth={1.2}
+                  />
+                  <SvgText
+                    x={cx}
+                    y={preferBelow ? cy + 14 : cy - 10}
+                    fontSize={9}
+                    fontWeight="600"
+                    fill={axisLabelColor}
+                    textAnchor="middle"
+                  >
+                    {singleSeries
+                      ? `最低=最高 ${formatY(ex.minV)}`
+                      : `${ex.code} 持平 ${formatY(ex.minV)}`}
+                  </SvgText>
+                  <SvgText
+                    x={cx}
+                    y={preferBelow ? cy + 26 : cy + 2}
+                    fontSize={8}
+                    fontWeight="500"
+                    fill={axisLabelColor}
+                    textAnchor="middle"
+                    opacity={0.85}
+                  >
+                    {shortDateLabel(dates[ex.minI]!)}
+                  </SvgText>
+                </G>
+              );
+            }
+            const minCx = xAt(ex.minI) + dx;
+            const maxCx = xAt(ex.maxI) + dx;
+            const minCy = yAtValue(ex.minV);
+            const maxCy = yAtValue(ex.maxV);
+            const minBelow = minCy < plotMidY;
+            const maxBelow = maxCy < plotMidY;
+            return (
+              <G key={`${ex.code}-ex`}>
+                <Circle
+                  cx={minCx}
+                  cy={minCy}
+                  r={4}
+                  fill={ex.color}
+                  stroke="#fff"
+                  strokeWidth={1.2}
+                />
+                <SvgText
+                  x={minCx}
+                  y={minBelow ? minCy + 14 : minCy - 18}
+                  fontSize={9}
+                  fontWeight="600"
+                  fill={axisLabelColor}
+                  textAnchor="middle"
+                >
+                  {singleSeries
+                    ? `最低 ${formatY(ex.minV)}`
+                    : `最低 ${formatY(ex.minV)} · ${ex.code}`}
+                </SvgText>
+                <SvgText
+                  x={minCx}
+                  y={minBelow ? minCy + 26 : minCy - 6}
+                  fontSize={8}
+                  fontWeight="500"
+                  fill={axisLabelColor}
+                  textAnchor="middle"
+                  opacity={0.85}
+                >
+                  {shortDateLabel(dates[ex.minI]!)}
+                </SvgText>
+                <Circle
+                  cx={maxCx}
+                  cy={maxCy}
+                  r={4}
+                  fill={ex.color}
+                  stroke="#fff"
+                  strokeWidth={1.2}
+                />
+                <SvgText
+                  x={maxCx}
+                  y={maxBelow ? maxCy + 14 : maxCy - 18}
+                  fontSize={9}
+                  fontWeight="600"
+                  fill={axisLabelColor}
+                  textAnchor="middle"
+                >
+                  {singleSeries
+                    ? `最高 ${formatY(ex.maxV)}`
+                    : `最高 ${formatY(ex.maxV)} · ${ex.code}`}
+                </SvgText>
+                <SvgText
+                  x={maxCx}
+                  y={maxBelow ? maxCy + 26 : maxCy - 6}
+                  fontSize={8}
+                  fontWeight="500"
+                  fill={axisLabelColor}
+                  textAnchor="middle"
+                  opacity={0.85}
+                >
+                  {shortDateLabel(dates[ex.maxI]!)}
+                </SvgText>
+              </G>
+            );
+          })}
+        </G>
         <G>{xLabs}</G>
       </Svg>
     </View>

@@ -1,28 +1,33 @@
 /**
  * 市场大盘：价格与涨跌幅展示（与 app/market.tsx 口径一致）
+ *
+ * 价格：汇率类 4 位小数；指数 / 贵金属 / 加密等均为四舍五入整数（千分位分隔）。
  */
 
 import type { MarketQuoteResult } from '@/lib/market-quotes';
 
+/** 与 `MARKET_SECTIONS` 中「汇率」条目 symbol 一致（小写） */
+const FX_4DP_SYMBOLS = new Set([
+  'usdcny',
+  'hkdcny',
+  'eurcny',
+  'jpycny',
+]);
+
 export function formatMarketPrice(q: MarketQuoteResult): string {
   const price = q.price;
   if (price === null || !Number.isFinite(price)) return '—';
-  const sym = q.def.symbol;
-  const isFx =
-    sym.includes('usd') ||
-    sym.includes('eur') ||
-    sym.includes('jpy') ||
-    sym.includes('hkd') ||
-    sym.includes('rub') ||
-    sym.includes('cny');
-  if (isFx && price < 200) return price.toFixed(4);
-  if (price >= 10000) {
-    return price.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const sym = q.def.symbol.trim().toLowerCase();
+
+  if (FX_4DP_SYMBOLS.has(sym)) {
+    return price.toFixed(4);
   }
-  if (price >= 1000) {
-    return price.toLocaleString('en-US', { maximumFractionDigits: 3 });
+
+  const rounded = Math.round(price);
+  if (Math.abs(rounded) >= 10_000) {
+    return rounded.toLocaleString('en-US', { maximumFractionDigits: 0 });
   }
-  return price.toFixed(3);
+  return String(rounded);
 }
 
 export function formatMarketPct(q: MarketQuoteResult): string {

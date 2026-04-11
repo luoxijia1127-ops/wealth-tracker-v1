@@ -4,10 +4,10 @@
  * 注意：Stooq 对部分常用写法（如 ^ixic、^n225、^ftse、ethusd）返回 N/D，需使用其站内可用的别名（见各条 symbol）。
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { buildStooqCsvUrl, ENDPOINTS } from '@/lib/config/endpoints';
 import { EASTMONEY_UT } from '@/lib/eastmoney-config';
 import { parseKlineLast } from '@/lib/eastmoney-kline';
+import { Ionicons } from '@expo/vector-icons';
 
 export type MarketItemDef = {
   id: string;
@@ -43,11 +43,6 @@ export const MARKET_SECTIONS: MarketSectionDef[] = [
     key: 'asia',
     title: '亚太',
     items: [
-      /** ASX200（^axjo）在 Stooq 即时接口常为 N/D；^aor 为澳全普通股指数，可作澳股宽基参考 */
-      { id: 'axjo', name: '澳股·全普通', symbol: '^aor', icon: 'globe-outline' },
-      { id: 'hsi', name: '恒生指数', symbol: '^hsi', icon: 'business-outline' },
-      /** ^n225 常为 N/D；^nkx 为日经 225 在 Stooq 的可用代码 */
-      { id: 'n225', name: '日经 225', symbol: '^nkx', icon: 'speedometer-outline' },
       {
         id: 'sse',
         name: '上证指数',
@@ -62,6 +57,11 @@ export const MARKET_SECTIONS: MarketSectionDef[] = [
         icon: 'layers-outline',
         eastmoneySecid: '0.399001',
       },
+      { id: 'hsi', name: '恒生指数', symbol: '^hsi', icon: 'business-outline' },
+      /** ^n225 常为 N/D；^nkx 为日经 225 在 Stooq 的可用代码 */
+      { id: 'n225', name: '日经 225', symbol: '^nkx', icon: 'speedometer-outline' },
+      /** Stooq：^kospi */
+      { id: 'kospi', name: '韩国综合', symbol: '^kospi', icon: 'flag-outline' },
     ],
   },
   {
@@ -77,16 +77,15 @@ export const MARKET_SECTIONS: MarketSectionDef[] = [
     key: 'fx',
     title: '汇率',
     items: [
-      { id: 'eurusd', name: '欧元/美元', symbol: 'eurusd', icon: 'swap-horizontal-outline' },
       { id: 'usdcny', name: '美元/人民币', symbol: 'usdcny', icon: 'cash-outline' },
-      { id: 'usdhkd', name: '美元/港元', symbol: 'usdhkd', icon: 'wallet-outline' },
-      { id: 'usdjpy', name: '美元/日元', symbol: 'usdjpy', icon: 'repeat-outline' },
-      { id: 'usdrub', name: '美元/卢布', symbol: 'usdrub', icon: 'card-outline' },
+      { id: 'hkdcny', name: '港元/人民币', symbol: 'hkdcny', icon: 'wallet-outline' },
+      { id: 'eurcny', name: '欧元/人民币', symbol: 'eurcny', icon: 'swap-horizontal-outline' },
+      { id: 'jpycny', name: '日元/人民币', symbol: 'jpycny', icon: 'repeat-outline' },
     ],
   },
   {
     key: 'major',
-    title: '主要',
+    title: '其他',
     items: [
       { id: 'btc', name: '比特币', symbol: 'btcusd', icon: 'disc-outline' },
       /** ethusd 在 Stooq q/l 常为 N/D；eth.v 为美元计价 ETH 现货序列 */

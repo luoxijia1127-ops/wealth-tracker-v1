@@ -678,6 +678,25 @@ export default function AssetActionScreen() {
     return asset.name;
   }, [asset]);
 
+  /** 清仓/零余额后自动归档并进入已归档，不再经总览「已清仓」区与二次确认 */
+  const archiveIfHiddenAndGo = useCallback(
+    async (persisted: SimpleAsset): Promise<boolean> => {
+      if (!isAssetHiddenFromDashboard(persisted)) return false;
+      try {
+        await archiveAssetRecord(persisted);
+        router.replace('/settings-archived');
+        return true;
+      } catch (e) {
+        Alert.alert(
+          '失败',
+          e instanceof Error ? e.message : '无法归档清仓记录'
+        );
+        return false;
+      }
+    },
+    [router]
+  );
+
   const onSaveListedAdjust = async () => {
     if (!asset || !isHeldChineseAsset(asset)) return;
     const td = adjustTradeDate.trim();
@@ -805,6 +824,7 @@ export default function AssetActionScreen() {
       } else {
         await updateAsset(r.asset);
       }
+      if (await archiveIfHiddenAndGo(r.asset)) return;
       setTradeShares('');
       setTradePrice('');
       setTradeAmount('');
@@ -861,6 +881,7 @@ export default function AssetActionScreen() {
         (fid) => tradeFundingOptions.find((a) => a.id === fid)?.name
       );
       await updateAsset(nextWithFunding);
+      if (await archiveIfHiddenAndGo(nextWithFunding)) return;
       await load();
       try {
         await syncNetWorthFromMarket();
@@ -900,6 +921,7 @@ export default function AssetActionScreen() {
         getShanghaiDateString()
       );
       await updateAsset(next);
+      if (await archiveIfHiddenAndGo(next)) return;
       setCashAdjustAmount('');
       setCashAdjustNewBalance('');
       await load();
@@ -935,6 +957,7 @@ export default function AssetActionScreen() {
       if (!('purpose' in pf)) delete next.purpose;
       if (!('purposeTarget' in pf)) delete next.purposeTarget;
       await updateAsset(next);
+      if (await archiveIfHiddenAndGo(next)) return;
       await load();
       Alert.alert('已保存');
     } finally {
@@ -972,6 +995,7 @@ export default function AssetActionScreen() {
       if (!('purpose' in pf)) delete next.purpose;
       if (!('purposeTarget' in pf)) delete next.purposeTarget;
       await updateAsset(next);
+      if (await archiveIfHiddenAndGo(next)) return;
       await load();
       Alert.alert('已保存');
     } finally {
@@ -1343,7 +1367,7 @@ export default function AssetActionScreen() {
                                         name={
                                           isBuy ? 'arrow-down' : 'arrow-up'
                                         }
-                                        size={18}
+                                        size={16}
                                         color="#FFFFFF"
                                       />
                                     </View>
@@ -1375,7 +1399,7 @@ export default function AssetActionScreen() {
                                     </Text>
                                   </View>
                                   <View style={styles.tradePriceCol}>
-                                    <Text style={styles.tradeTdNum}>
+                                    <Text style={styles.tradeTdPrice}>
                                       {formatMoney(
                                         t.unitPriceCny,
                                         quoteCurrency
@@ -2193,47 +2217,6 @@ export default function AssetActionScreen() {
               </Pressable>
           </GlassSurface>
         )}
-
-        {isAssetHiddenFromDashboard(asset) ? (
-          <Pressable
-            style={[
-              styles.saveButton,
-              {
-                marginTop: 18,
-                backgroundColor: rgbaFromHex(theme.primary, 0.12),
-              },
-            ]}
-            onPress={() => {
-              Alert.alert(
-                '归档清仓记录',
-                '将从主列表移除本资产，完整交易/余额流水可在「更多 → 已归档」查看并恢复。',
-                [
-                  { text: '取消', style: 'cancel' },
-                  {
-                    text: '归档',
-                    onPress: () => {
-                      void (async () => {
-                        try {
-                          await archiveAssetRecord(asset);
-                          router.back();
-                        } catch (e) {
-                          Alert.alert(
-                            '失败',
-                            e instanceof Error ? e.message : '无法归档'
-                          );
-                        }
-                      })();
-                    },
-                  },
-                ]
-              );
-            }}
-          >
-            <Text style={[styles.saveButtonText, { color: theme.primary }]}>
-              归档清仓记录
-            </Text>
-          </Pressable>
-        ) : null}
 
         <Pressable
           style={[styles.saveButton, { marginTop: 22, backgroundColor: muted }]}

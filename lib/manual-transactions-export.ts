@@ -204,7 +204,7 @@ export function manualTransactionsToCsv(rows: ManualTransactionExportRow[]): str
   return `\ufeff${lines.join('\r\n')}`;
 }
 
-export type DatePresetId = 'd7' | 'd30' | 'month' | 'year' | 'all';
+export type DatePresetId = 'd7' | 'd30' | 'm3' | 'year' | 'all';
 
 function shanghaiDaysAgo(days: number): string {
   const d = new Date();
@@ -225,11 +225,9 @@ export function getPresetDateRange(
       return { start: shanghaiDaysAgo(6), end: today };
     case 'd30':
       return { start: shanghaiDaysAgo(29), end: today };
-    case 'month': {
-      const [y, m] = today.split('-').map(Number);
-      const start = `${y}-${String(m).padStart(2, '0')}-01`;
-      return { start, end: today };
-    }
+    /** 近 3 个月：按自然日滚动约 90 天（与近 7/30 天同一套口径） */
+    case 'm3':
+      return { start: shanghaiDaysAgo(89), end: today };
     case 'year': {
       const y = today.slice(0, 4);
       return { start: `${y}-01-01`, end: today };

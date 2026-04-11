@@ -2,6 +2,9 @@
  * 市场大盘 · 线性世界地图：经纬网 + 陆块轮廓，标注主要指数/品种点位与数值。
  */
 
+import { GlassSurface } from '@/components/glass-surface';
+import { useAppPalette } from '@/contexts/app-palette-context';
+import { rgbaFromHex } from '@/lib/color-utils';
 import { MARKET_SECTIONS, type MarketQuoteResult } from '@/lib/market-quotes';
 import {
   formatMarketPrice,
@@ -42,7 +45,7 @@ function project360(lon: number, lat: number): { x: number; y: number } {
   return { x: lon + 180, y: 90 - lat };
 }
 
-const MAP_PAD = { l: 18, t: 16, r: 18, b: 44 };
+const MAP_PAD = { l: 18, t: 16, r: 18, b: 20 };
 const INNER_W = 360;
 const INNER_H = 180;
 const VB_W = MAP_PAD.l + INNER_W + MAP_PAD.r;
@@ -77,10 +80,10 @@ const PINS: {
   ty: number;
   anchor: 'start' | 'middle' | 'end';
 }[] = [
-  // 美东：标注放东北侧，避开西海岸 BTC
-  { id: 'ixic', label: '纳指', lon: -74, lat: 40.7, tx: 20, ty: -28, anchor: 'start' },
-  // 美西：标注向东伸入太平洋，避免贴左缘被裁切
-  { id: 'btc', label: 'BTC', lon: -122.35, lat: 37.75, tx: 34, ty: -22, anchor: 'start' },
+  // 美洲中部：标注在点位正上方居中，避免与美东其他元素挤在一起
+  { id: 'ixic', label: '纳指', lon: -98, lat: 39, tx: 0, ty: -30, anchor: 'middle' },
+  // 欧洲西南（伊比利亚一带）：点位与标注在欧洲区块左下侧，与富时、黄金错开
+  { id: 'btc', label: 'BTC', lon: -7.8, lat: 37.2, tx: -40, ty: 22, anchor: 'end' },
   // 日本：标注放在本州西北侧海面
   { id: 'n225', label: '日经', lon: 139.75, lat: 35.7, tx: -52, ty: -36, anchor: 'end' },
   // 华东：偏东南，与日经拉开
@@ -98,7 +101,6 @@ type Props = {
   muted: string;
   rise: string;
   fall: string;
-  surface: string;
 };
 
 export const MarketWorldMapCard = memo(function MarketWorldMapCard({
@@ -108,9 +110,18 @@ export const MarketWorldMapCard = memo(function MarketWorldMapCard({
   muted,
   rise,
   fall,
-  surface,
 }: Props) {
+  const { appearance, theme } = useAppPalette();
   const { width: winW } = useWindowDimensions();
+
+  /** 地图圆点填充：与当前主题 surface、玻璃层协调 */
+  const pinFill = useMemo(
+    () =>
+      appearance === 'dark'
+        ? rgbaFromHex(theme.surfaceWhite, 0.88)
+        : rgbaFromHex(theme.surfaceWhite, 0.96),
+    [appearance, theme.surfaceWhite]
+  );
   const cardW = Math.max(280, winW - 28);
   const aspect = VB_H / VB_W;
   const height = Math.round(cardW * aspect);
@@ -175,18 +186,16 @@ export const MarketWorldMapCard = memo(function MarketWorldMapCard({
     };
   });
 
+  const glassTint = appearance === 'dark' ? 'dark' : 'light';
+
   return (
-    <View style={{ marginHorizontal: 14, marginBottom: 16 }}>
-      <View
-        style={{
-          borderRadius: 16,
-          backgroundColor: surface,
-          borderWidth: 1,
-          borderColor: 'rgba(0,0,0,0.06)',
-          overflow: 'hidden',
-        }}
+    <View style={{ marginHorizontal: 14, marginBottom: 8 }}>
+      <GlassSurface
+        borderRadius={16}
+        intensity={appearance === 'dark' ? 52 : 44}
+        tint={glassTint}
       >
-        <View style={{ paddingTop: 12, paddingHorizontal: 14, paddingBottom: 6 }}>
+        <View style={{ paddingTop: 12, paddingHorizontal: 14, paddingBottom: 2 }}>
           <Text style={{ fontSize: 15, fontWeight: '800', color: primary }}>
             全球概览
           </Text>
@@ -272,14 +281,14 @@ export const MarketWorldMapCard = memo(function MarketWorldMapCard({
                 cx={p360.x}
                 cy={p360.y}
                 r={3.4}
-                fill={surface}
+                fill={pinFill}
                 stroke={primary}
                 strokeWidth={1.35}
               />
             ))}
           </G>
         </Svg>
-      </View>
+      </GlassSurface>
     </View>
   );
 });

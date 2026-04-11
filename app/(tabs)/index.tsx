@@ -17,7 +17,7 @@ import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { canAddAnotherAsset } from '@/lib/asset-limit';
-import { moveAssetToTrash } from '@/lib/asset-recycle';
+import { archiveAssetRecord, moveAssetToTrash } from '@/lib/asset-recycle';
 import { getAssets } from '@/lib/asset-storage';
 import {
   filterAssetsForDashboard,
@@ -66,6 +66,21 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CATEGORY_ORDER = ASSET_CATEGORY_ORDER;
+
+/** 清仓/零余额资产不再展示在总览：写入时已自动归档；此处清理历史遗留 */
+async function archiveHiddenAssetsIfAny(): Promise<SimpleAsset[]> {
+  let list = await getAssets();
+  const hidden = list.filter(isAssetHiddenFromDashboard);
+  if (hidden.length === 0) return list;
+  for (const a of hidden) {
+    try {
+      await archiveAssetRecord(a);
+    } catch {
+      /* 单条失败则跳过 */
+    }
+  }
+  return getAssets();
+}
 
 function categoryTitle(cat: string): string {
   return CATEGORY_LABEL_ZH[cat as AssetCategory] ?? cat;
@@ -456,11 +471,12 @@ export default function Dashboard() {
   const refreshMarketData = useCallback(async () => {
     setSyncingQuotes(true);
     try {
-      const updated = await syncNetWorthFromMarket();
-      setAssets(updated.assets);
+      await syncNetWorthFromMarket();
+      const cleaned = await archiveHiddenAssetsIfAny();
+      setAssets(cleaned);
       const dc = await loadDisplayCurrency();
       setDisplayCurrency(dc);
-      const dash = filterAssetsForDashboard(updated.assets);
+      const dash = filterAssetsForDashboard(cleaned);
       const needsFxDash = dash.some((a) => getAssetCurrency(a) !== dc);
       const cachedAfterSync = await getCachedFxUsdRates();
       setFxUsdRates(cachedAfterSync?.rates ?? null);
@@ -499,7 +515,7 @@ export default function Dashboard() {
       (async () => {
         try {
           void ensureFxUsdRatesHistoryBackfill();
-          const local = await getAssets();
+          const local = await archiveHiddenAssetsIfAny();
           if (!cancelled && gen === focusLoadGen.current) {
             setAssets(local);
             setLoading(false);
@@ -537,12 +553,6 @@ export default function Dashboard() {
 
   const dashboardAssets = useMemo(
     () => filterAssetsForDashboard(assets),
-    [assets]
-  );
-
-  /** 主列表隐藏但仍保存在本地的清仓 / 零余额资产，可点进详情并归档 */
-  const hiddenFromDashboardAssets = useMemo(
-    () => assets.filter((a) => isAssetHiddenFromDashboard(a)),
     [assets]
   );
 
@@ -706,7 +716,7 @@ export default function Dashboard() {
 
       {/* 2. Grouped asset structure: Category → Assets (collapsible) */}
       <View style={styles.assetStructureSection}>
-        {dashboardAssets.length === 0 && hiddenFromDashboardAssets.length === 0 ? (
+        {dashboardAssets.length === 0 ? (
           <GlassSurface borderRadius={28} intensity={44}>
             <View style={styles.emptyCardInner}>
               <Text style={styles.emptyText}>
@@ -830,53 +840,6 @@ export default function Dashboard() {
                 </GlassSurface>
               );
             })}
-
-            {hiddenFromDashboardAssets.length > 0 ? (
-              <GlassSurface
-                borderRadius={28}
-                intensity={46}
-                style={styles.categoryGlassOuter}
-              >
-                <View style={styles.folderCard}>
-                  <View
-                    style={[
-                      styles.folderAccentStrip,
-                      { backgroundColor: rgbaFromHex(theme.primary, 0.35) },
-                    ]}
-                  />
-                  <View style={styles.folderBody}>
-                    <View style={[styles.folderHeader, { backgroundColor: rgbaFromHex(theme.primary, 0.12) }]}>
-                      <View style={styles.folderHeaderTextCol}>
-                        <Text style={styles.folderTitle} numberOfLines={1}>
-                          已清仓 / 零余额
-                        </Text>
-                        <Text style={styles.folderSubtitle} numberOfLines={2}>
-                          不计入上方净值汇总；可进入详情后归档交易明细至「更多 → 已归档」
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.folderAssetList}>
-                      {hiddenFromDashboardAssets.map((asset) => {
-                        const cat = asset.category as AssetCategory;
-                        const accent =
-                          theme.categoryAccents[cat] ?? theme.primary;
-                        return (
-                          <AssetRow
-                            key={asset.id}
-                            asset={asset}
-                            accentColor={accent}
-                            styles={styles}
-                            chevronMuted={chevronMuted}
-                            onEdit={handleEditAsset}
-                            onDelete={handleDeleteAsset}
-                          />
-                        );
-                      })}
-                    </View>
-                  </View>
-                </View>
-              </GlassSurface>
-            ) : null}
           </View>
         )}
       </View>

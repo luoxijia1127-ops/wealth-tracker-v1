@@ -12,7 +12,8 @@ import {
   upsertFxUsdRatesHistory,
 } from '@/lib/fx-rates-history';
 
-const TRIO = ['CNY', 'EUR', 'HKD', 'JPY'] as const;
+/** 与走势图所需一致（美元由 1/r 推导，不必向 API 要 USD 字段） */
+const TRIO = ['CNY', 'EUR', 'HKD'] as const;
 
 let inFlight: Promise<{
   ok: boolean;
@@ -20,21 +21,19 @@ let inFlight: Promise<{
   skipped: boolean;
 }> | null = null;
 
-function hasTrio(r: FxUsdMidRates['rates']): boolean {
+function hasCoreRates(r: FxUsdMidRates['rates']): boolean {
   return (
     typeof r.CNY === 'number' &&
     r.CNY > 0 &&
     typeof r.EUR === 'number' &&
     r.EUR > 0 &&
     typeof r.HKD === 'number' &&
-    r.HKD > 0 &&
-    typeof r.JPY === 'number' &&
-    r.JPY > 0
+    r.HKD > 0
   );
 }
 
 /**
- * 若近 windowDays 天内已有足够「含 EUR/HKD/JPY/CNY」的交易日记录则跳过网络；
+ * 若近 windowDays 天内已有足够「含 CNY/EUR/HKD」的交易日记录则跳过网络；
  * 否则请求 Frankfurter 时间序列并 upsert 到本地历史。
  */
 export async function ensureFxUsdRatesHistoryBackfill(options?: {
@@ -60,7 +59,7 @@ export async function ensureFxUsdRatesHistoryBackfill(options?: {
     const inWindow = history.filter(
       (h) => h.shanghaiDate >= windowStart && h.shanghaiDate <= today
     );
-    const complete = inWindow.filter((h) => hasTrio(h.rates));
+    const complete = inWindow.filter((h) => hasCoreRates(h.rates));
     if (complete.length >= minExisting) {
       return { ok: true, merged: 0, skipped: true };
     }
@@ -89,16 +88,13 @@ export async function ensureFxUsdRatesHistoryBackfill(options?: {
         const cny = day.CNY;
         const eur = day.EUR;
         const hkd = day.HKD;
-        const jpy = day.JPY;
         if (
           typeof cny !== 'number' ||
           !(cny > 0) ||
           typeof eur !== 'number' ||
           !(eur > 0) ||
           typeof hkd !== 'number' ||
-          !(hkd > 0) ||
-          typeof jpy !== 'number' ||
-          !(jpy > 0)
+          !(hkd > 0)
         ) {
           continue;
         }
@@ -106,7 +102,11 @@ export async function ensureFxUsdRatesHistoryBackfill(options?: {
         const entry: FxUsdMidRates = {
           shanghaiDate: dateStr,
           apiDate: dateStr,
-          rates: { ...day, CNY: cny } as FxUsdMidRates['rates'],
+          rates: {
+            ...day,
+            CNY: cny,
+            USD: 1,
+          } as FxUsdMidRates['rates'],
         };
         await upsertFxUsdRatesHistory(entry);
         merged++;

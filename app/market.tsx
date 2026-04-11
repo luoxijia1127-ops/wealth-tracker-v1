@@ -2,12 +2,9 @@
  * 市场大盘：全球指数与外汇等（Stooq 日 K，延迟数分钟～一日，非实时撮合价）。
  */
 
-import { useAppPalette } from '@/contexts/app-palette-context';
-import {
-  loadCachedMarketQuotes,
-  saveMarketQuotesCache,
-} from '@/lib/market-quotes-cache';
 import { MarketWorldMapCard } from '@/components/market-world-map';
+import { useAppPalette } from '@/contexts/app-palette-context';
+import { rgbaFromHex } from '@/lib/color-utils';
 import {
   formatMarketPct,
   formatMarketPrice,
@@ -18,7 +15,10 @@ import {
   MARKET_SECTIONS,
   type MarketQuoteResult,
 } from '@/lib/market-quotes';
-import { rgbaFromHex } from '@/lib/color-utils';
+import {
+  loadCachedMarketQuotes,
+  saveMarketQuotesCache,
+} from '@/lib/market-quotes-cache';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
@@ -44,7 +44,10 @@ export default function MarketScreen() {
   /** 与增加资产表单行图标一致 */
   const iconMuted = useMemo(() => rgbaFromHex(p, 0.5), [p]);
   const mapStroke = useMemo(() => rgbaFromHex(p, 0.38), [p]);
-  const surface = 'rgba(255,255,255,0.94)';
+  const listSurface = useMemo(
+    () => rgbaFromHex(theme.surfaceWhite, 0.94),
+    [theme.surfaceWhite]
+  );
 
   const [quotes, setQuotes] = useState<MarketQuoteResult[]>([]);
   /** 首次从本地缓存恢复完成前为 false，不触发网络请求 */
@@ -144,7 +147,6 @@ export default function MarketScreen() {
             muted={muted}
             rise={RISE}
             fall={FALL}
-            surface={surface}
           />
         ) : null}
 
@@ -166,7 +168,7 @@ export default function MarketScreen() {
               style={{
                 marginHorizontal: 14,
                 borderRadius: 16,
-                backgroundColor: surface,
+                backgroundColor: listSurface,
                 borderWidth: 1,
                 borderColor: 'rgba(0,0,0,0.06)',
                 overflow: 'hidden',
@@ -265,7 +267,7 @@ export default function MarketScreen() {
               marginTop: 8,
             }}
           >
-            非实时数据，来自 Stooq 日 K，通常有交易日延迟；数值仅供参考，不构成投资建议。
+            非实时数据，通常有交易日延迟；数值仅供参考，不构成投资建议。
           </Text>
         ) : null}
       </ScrollView>

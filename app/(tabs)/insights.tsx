@@ -624,7 +624,7 @@ export default function Insights() {
                         </View>
                         <Text style={[styles.donutHint, { color: textMuted }]}>
                           {distributionUsesFx
-                            ? '点击环上色块查看大类明细（折合人民币）'
+                            ? '点击环上色块查看大类明细'
                             : '点击环上色块查看大类明细（各币种直接相加）'}
                         </Text>
                         <View style={styles.donutLegend}>

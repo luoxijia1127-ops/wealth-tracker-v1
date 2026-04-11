@@ -106,7 +106,10 @@ export function RecycleRecordsTable({
               </Text>
             </View>
             <View style={styles.recycleLedgerCol}>
-              <Text style={[styles.recycleTdDate, { fontSize: 10 }]}>
+              <Text
+                style={[styles.recycleTdDate, { fontSize: 11 }]}
+                numberOfLines={2}
+              >
                 {ledgerShort}
               </Text>
             </View>
