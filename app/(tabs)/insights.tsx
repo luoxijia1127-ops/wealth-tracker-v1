@@ -12,6 +12,7 @@ import { InsightsTrendChart } from '@/components/insights/insights-trend-tab';
 import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { formatMoney } from '@/lib/asset-value';
+import { editorialDecorBlobs } from '@/lib/editorial-theme';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
@@ -81,14 +82,7 @@ export default function Insights() {
     () => rgbaFromHex(theme.primary, 0.14),
     [theme.primary]
   );
-  const decorColors = useMemo(
-    () => [
-      rgbaFromHex('#8EA8C8', 0.36),
-      rgbaFromHex('#9EC4E8', 0.28),
-      rgbaFromHex('#B8D6F0', 0.22),
-    ],
-    []
-  );
+  const decorColors = useMemo(() => editorialDecorBlobs(theme), [theme]);
 
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -379,7 +373,7 @@ export default function Insights() {
           />
         }
       >
-        <GlassSurface borderRadius={34} intensity={50}>
+        <GlassSurface borderRadius={36} intensity={54} variant="editorial">
           <View style={styles.heroCardInner}>
           <Text style={[styles.cardKicker, { color: textSecondary }]}>
             {latest && typeof latest.totalValueCny === 'number'
@@ -477,7 +471,7 @@ export default function Insights() {
         </GlassSurface>
 
         {!loading && showChartChrome && (
-          <GlassSurface borderRadius={28} intensity={46}>
+          <GlassSurface borderRadius={32} intensity={50} variant="editorial">
             <View style={styles.cardGlassInner}>
                   <View style={styles.tabRow}>
                     {INSIGHTS_CHART_TABS.map((tab) => {
@@ -717,7 +711,7 @@ export default function Insights() {
         )}
 
         {!loading && hasAssets ? (
-          <GlassSurface borderRadius={26} intensity={44}>
+          <GlassSurface borderRadius={30} intensity={48} variant="editorial">
             <View style={styles.goalsGlassInner}>
               <Text
                 style={[styles.goalsSectionTitle, { color: theme.primary }]}

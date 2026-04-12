@@ -81,7 +81,7 @@ export function RecycleRecordsTable(props: Props) {
             </Text>
           </View>
         </View>
-        {props.rows.map((row) => {
+        {props.rows.map((row, rowIdx) => {
           const a = row.record.asset;
           const cur = getAssetCurrency(a);
           const val = getAssetDisplayValue(a);
@@ -92,7 +92,13 @@ export function RecycleRecordsTable(props: Props) {
           const pnl = row.realizedPnlCny;
           const pnlText = pnl === null ? '—' : formatMoney(pnl, 'CNY');
           return (
-            <View key={row.key} style={styles.tradeTableRow}>
+            <View
+              key={row.key}
+              style={[
+                styles.tradeTableRow,
+                rowIdx % 2 === 1 && styles.tradeTableRowAlt,
+              ]}
+            >
               <View style={styles.recycleNameCol}>
                 <Text style={styles.recycleTdName} numberOfLines={2}>
                   {row.nameDisplay}
@@ -180,7 +186,7 @@ export function RecycleRecordsTable(props: Props) {
           </Text>
         </View>
       </View>
-      {rows.map((rec) => {
+      {rows.map((rec, rowIdx) => {
         const a = rec.asset;
         const cur = getAssetCurrency(a);
         const val = getAssetDisplayValue(a);
@@ -190,7 +196,13 @@ export function RecycleRecordsTable(props: Props) {
         const ledgerShort = formatRecycleTransactionSummaryShort(a);
         const busy = busyId === rec.recordId;
         return (
-          <View key={rec.recordId} style={styles.tradeTableRow}>
+          <View
+            key={rec.recordId}
+            style={[
+              styles.tradeTableRow,
+              rowIdx % 2 === 1 && styles.tradeTableRowAlt,
+            ]}
+          >
             <View style={styles.recycleNameCol}>
               <Text style={styles.recycleTdName} numberOfLines={2}>
                 {a.name}

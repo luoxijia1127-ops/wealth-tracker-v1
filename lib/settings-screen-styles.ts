@@ -3,19 +3,25 @@
  */
 
 import type { AppPaletteTheme } from '@/lib/app-palette';
+import { AppFont } from '@/lib/app-fonts';
+import { editorialAmbientWash, editorialSurfaceFill } from '@/lib/editorial-theme';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { Platform, StyleSheet } from 'react-native';
 
 export function createSettingsScreenStyles(t: AppPaletteTheme) {
+  const sf = (a: number) => editorialSurfaceFill(t, a);
   const p = t.primary;
   const p65 = rgbaFromHex(p, 0.65);
   const p50 = rgbaFromHex(p, 0.5);
-  const p12 = rgbaFromHex(p, 0.12);
 
   return StyleSheet.create({
     screen: {
       flex: 1,
       backgroundColor: t.pageBg,
+    },
+    screenAmbient: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: editorialAmbientWash(t),
     },
     scrollContent: {
       paddingBottom: 32,
@@ -42,15 +48,14 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
       borderRadius: 23,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(255,255,255,0.72)',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255,255,255,0.95)',
+      backgroundColor: sf(0.62),
+      borderWidth: 0,
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.06,
-          shadowRadius: 10,
+          shadowColor: '#1e1b4b',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.08,
+          shadowRadius: 18,
         },
         android: { elevation: 2 },
         default: {},
@@ -59,9 +64,10 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
     headerTitle: {
       flex: 1,
       textAlign: 'center',
-      fontSize: 22,
-      fontWeight: '800',
-      letterSpacing: -0.4,
+      fontFamily: AppFont.displayBold,
+      fontSize: 24,
+      fontWeight: '700',
+      letterSpacing: -0.5,
       color: p,
     },
     /** 外层 GlassSurface 负责模糊与圆角，此处仅内边距 */
@@ -83,11 +89,10 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
       width: 52,
       height: 52,
       borderRadius: 26,
-      backgroundColor: 'rgba(255,255,255,0.95)',
+      backgroundColor: sf(0.85),
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: p12,
+      borderWidth: 0,
     },
     profileNameBlock: {
       flex: 1,
@@ -108,25 +113,23 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
     profileCta: {
       paddingVertical: 10,
       paddingHorizontal: 14,
-      borderRadius: 14,
-      backgroundColor: '#F6DB62',
-      borderWidth: 1,
-      borderColor: 'rgba(0,0,0,0.06)',
+      borderRadius: 16,
+      backgroundColor: t.ctaPillBg,
+      borderWidth: 0,
     },
     profileCtaText: {
       fontSize: 13,
       fontWeight: '800',
-      color: '#2D2A22',
+      color: t.ctaPillText,
     },
     statsRow: {
       flexDirection: 'row',
-      borderRadius: 18,
-      backgroundColor: 'rgba(255,255,255,0.92)',
+      borderRadius: 20,
+      backgroundColor: sf(0.58),
       paddingVertical: 14,
       paddingHorizontal: 8,
       marginBottom: 14,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255,255,255,0.98)',
+      borderWidth: 0,
     },
     statCell: {
       flex: 1,

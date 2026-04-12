@@ -72,7 +72,7 @@ export default function SettingsPaletteScreen() {
     : rgbaFromHex(theme.primary, 0.65);
   const nameColor = isDark ? 'rgba(255,255,255,0.72)' : theme.primary;
   const rowBg = isDark ? ROW_BG_DARK : '#FFFFFF';
-  const rowBorder = isDark ? 'transparent' : 'rgba(0,0,0,0.06)';
+  const rowBorder = 'transparent';
   const checkCircleBg = isDark ? CHECK_CIRCLE_DARK : 'rgba(0,0,0,0.08)';
 
   const newSet = new Set<string>(PALETTE_OPTION_NEW_IDS);

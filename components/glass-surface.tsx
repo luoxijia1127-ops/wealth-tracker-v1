@@ -25,6 +25,10 @@ export type GlassSurfaceProps = {
    * Web 无模糊时仅半透明填充会随 tint 变化。
    */
   tint?: 'light' | 'dark';
+  /**
+   * 杂志风：去掉 1px 描边，仅靠模糊 + 柔和阴影分层（与 design 文档「无实线分割」一致）。
+   */
+  variant?: 'default' | 'editorial';
 };
 
 export function GlassSurface({
@@ -34,14 +38,18 @@ export function GlassSurface({
   contentStyle,
   intensity = 48,
   tint = 'light',
+  variant = 'default',
 }: GlassSurfaceProps) {
   const isWeb = Platform.OS === 'web';
   const isDark = tint === 'dark';
+  const editorial = variant === 'editorial';
 
   const overlayTint = isDark ? 'dark' : 'light';
-  const borderColor = isDark
-    ? 'rgba(255, 255, 255, 0.14)'
-    : 'rgba(255, 255, 255, 0.38)';
+  const borderColor = editorial
+    ? 'transparent'
+    : isDark
+      ? 'rgba(255, 255, 255, 0.14)'
+      : 'rgba(255, 255, 255, 0.38)';
   const fillWeb = isDark ? 'rgba(28, 32, 42, 0.42)' : 'rgba(255, 255, 255, 0.28)';
   const fillNative = isDark ? 'rgba(22, 26, 34, 0.38)' : 'rgba(255, 255, 255, 0.16)';
 
@@ -60,18 +68,18 @@ export function GlassSurface({
           {
             borderRadius,
             overflow: 'hidden',
-            borderWidth: 1,
+            borderWidth: editorial ? 0 : 1,
             borderColor,
             backgroundColor: isWeb ? fillWeb : fillNative,
           },
           Platform.select({
             ios: {
-              shadowColor: isDark ? '#000000' : '#1a2744',
-              shadowOffset: { width: 0, height: 12 },
-              shadowOpacity: isDark ? 0.28 : 0.12,
-              shadowRadius: 26,
+              shadowColor: isDark ? '#1e1b4b' : '#1a2744',
+              shadowOffset: { width: 0, height: editorial ? 18 : 12 },
+              shadowOpacity: editorial ? (isDark ? 0.22 : 0.1) : isDark ? 0.28 : 0.12,
+              shadowRadius: editorial ? 44 : 26,
             },
-            android: { elevation: isDark ? 10 : 8 },
+            android: { elevation: editorial ? (isDark ? 8 : 6) : isDark ? 10 : 8 },
             default: {},
           }),
           contentStyle,

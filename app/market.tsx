@@ -4,6 +4,7 @@
 
 import { MarketWorldMapCard } from '@/components/market-world-map';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { editorialAmbientWash } from '@/lib/editorial-theme';
 import { rgbaFromHex } from '@/lib/color-utils';
 import {
   formatMarketPct,
@@ -26,6 +27,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -100,6 +102,13 @@ export default function MarketScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
+      <View
+        pointerEvents="none"
+        style={{
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: editorialAmbientWash(theme),
+        }}
+      />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{

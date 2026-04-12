@@ -670,7 +670,12 @@ export default function AddModal() {
         nestedScrollEnabled
         onScrollBeginDrag={() => setMenuOpen(null)}
       >
-        <GlassSurface borderRadius={32} intensity={50} contentStyle={styles.glassFormInner}>
+        <GlassSurface
+          borderRadius={36}
+          intensity={54}
+          variant="editorial"
+          contentStyle={styles.glassFormInner}
+        >
         <View style={styles.categoryRowWrap}>
           <View style={styles.formRowIconColumn}>
             <View style={styles.formRowIconLabelSpacer} />

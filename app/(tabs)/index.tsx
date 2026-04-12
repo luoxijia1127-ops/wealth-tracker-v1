@@ -33,6 +33,7 @@ import {
 } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
+import { editorialDecorBlobs } from '@/lib/editorial-theme';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
 import { BALANCE_INK } from '@/lib/finance-colors';
 import {
@@ -378,6 +379,7 @@ function DashboardHeader({
           <GlassSurface
             borderRadius={24}
             intensity={56}
+            variant="editorial"
             style={styles.headerAddFabGlass}
             contentStyle={{
               flex: 1,
@@ -418,12 +420,8 @@ export default function Dashboard() {
   }, []);
 
   const decorColors = useMemo(
-    () => [
-      rgbaFromHex('#8EA8C8', 0.4),
-      rgbaFromHex('#9EC4E8', 0.32),
-      rgbaFromHex('#B8D6F0', 0.26),
-    ],
-    []
+    () => editorialDecorBlobs(theme),
+    [theme]
   );
 
   const insets = useSafeAreaInsets();
@@ -678,7 +676,7 @@ export default function Dashboard() {
         }
       >
       {/* 1. Net Worth — large, centered (below header) */}
-      <GlassSurface borderRadius={32} intensity={52}>
+      <GlassSurface borderRadius={36} intensity={56} variant="editorial">
       <View style={styles.netWorthSection}>
         <Text style={styles.netWorthLabel}>净值</Text>
         {netWorthDisplay !== null && Number.isFinite(netWorthDisplay) ? (
@@ -717,7 +715,7 @@ export default function Dashboard() {
       {/* 2. Grouped asset structure: Category → Assets (collapsible) */}
       <View style={styles.assetStructureSection}>
         {dashboardAssets.length === 0 ? (
-          <GlassSurface borderRadius={28} intensity={44}>
+          <GlassSurface borderRadius={32} intensity={48} variant="editorial">
             <View style={styles.emptyCardInner}>
               <Text style={styles.emptyText}>
                 暂无资产。点右上角「+」添加第一条资产。
@@ -753,8 +751,9 @@ export default function Dashboard() {
               return (
                 <GlassSurface
                   key={category}
-                  borderRadius={28}
-                  intensity={46}
+                  borderRadius={32}
+                  intensity={50}
+                  variant="editorial"
                   style={styles.categoryGlassOuter}
                 >
                   <View style={styles.folderCard}>

@@ -7,7 +7,7 @@ import { SettingsGridTile } from '@/components/settings-grid-tile';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { usePurchasesEntitlement } from '@/contexts/purchases-context';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
-import { rgbaFromHex } from '@/lib/color-utils';
+import { editorialDecorBlobs } from '@/lib/editorial-theme';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
@@ -30,14 +30,7 @@ export default function SettingsScreen() {
   const { ready: purchasesReady, isPro } = usePurchasesEntitlement();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
 
-  const decorColors = useMemo(
-    () => [
-      rgbaFromHex('#A7D9F5', 0.35),
-      rgbaFromHex('#9FE6D8', 0.32),
-      rgbaFromHex('#F6DB62', 0.28),
-    ],
-    []
-  );
+  const decorColors = useMemo(() => editorialDecorBlobs(theme), [theme]);
 
   const openMembership = () => {
     router.push('/paywall');
@@ -176,6 +169,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.screen}>
+      <View style={styles.screenAmbient} pointerEvents="none" />
       <View style={styles.decorWrap} pointerEvents="none">
         <View
           style={[
@@ -233,7 +227,12 @@ export default function SettingsScreen() {
           <View style={{ width: 46 }} />
         </View>
 
-        <GlassSurface borderRadius={28} intensity={50} style={styles.profileGlassOuter}>
+        <GlassSurface
+          borderRadius={32}
+          intensity={54}
+          variant="editorial"
+          style={styles.profileGlassOuter}
+        >
           <View style={styles.profileCardInner}>
             <View style={[styles.profileTopRow, { marginBottom: 0 }]}>
               <View style={styles.avatar}>
@@ -263,22 +262,42 @@ export default function SettingsScreen() {
           </View>
         </GlassSurface>
 
-        <GlassSurface borderRadius={26} intensity={44} style={styles.sectionGlassOuter}>
+        <GlassSurface
+          borderRadius={30}
+          intensity={48}
+          variant="editorial"
+          style={styles.sectionGlassOuter}
+        >
           <Text style={styles.sectionLabel}>工具</Text>
           {renderGrid(toolTiles)}
         </GlassSurface>
 
-        <GlassSurface borderRadius={26} intensity={44} style={styles.sectionGlassOuter}>
+        <GlassSurface
+          borderRadius={30}
+          intensity={48}
+          variant="editorial"
+          style={styles.sectionGlassOuter}
+        >
           <Text style={styles.sectionLabel}>设置</Text>
           {renderGrid(settingsTiles)}
         </GlassSurface>
 
-        <GlassSurface borderRadius={26} intensity={44} style={styles.sectionGlassOuter}>
+        <GlassSurface
+          borderRadius={30}
+          intensity={48}
+          variant="editorial"
+          style={styles.sectionGlassOuter}
+        >
           <Text style={styles.sectionLabel}>数据</Text>
           {renderGrid(dataTiles)}
         </GlassSurface>
 
-        <GlassSurface borderRadius={26} intensity={44} style={styles.sectionGlassOuter}>
+        <GlassSurface
+          borderRadius={30}
+          intensity={48}
+          variant="editorial"
+          style={styles.sectionGlassOuter}
+        >
           <Text style={styles.sectionLabel}>支持</Text>
           {renderGrid(supportTiles)}
         </GlassSurface>

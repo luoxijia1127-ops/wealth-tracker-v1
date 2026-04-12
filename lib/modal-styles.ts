@@ -3,13 +3,19 @@
  */
 
 import type { AppPaletteTheme } from '@/lib/app-palette';
+import {
+  editorialAmbientWash,
+  editorialPrimaryButtonBg,
+  editorialPrimaryButtonText,
+  editorialSurfaceFill,
+  editorialTableRowAlt,
+} from '@/lib/editorial-theme';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { Platform, StyleSheet } from 'react-native';
 
 export function createAddModalStyles(t: AppPaletteTheme) {
+  const sf = (alpha: number) => editorialSurfaceFill(t, alpha);
   const p = t.primary;
-  const p12 = rgbaFromHex(p, 0.12);
-  const p14 = rgbaFromHex(p, 0.14);
   const p55 = rgbaFromHex(p, 0.55);
   const p58 = rgbaFromHex(p, 0.58);
   const p65 = rgbaFromHex(p, 0.65);
@@ -24,7 +30,7 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     },
     modalAmbient: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(120, 145, 185, 0.08)',
+      backgroundColor: editorialAmbientWash(t),
     },
     container: {
       flex: 1,
@@ -101,10 +107,9 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       minWidth: 0,
       paddingVertical: 8,
       paddingHorizontal: 3,
-      borderRadius: 11,
-      backgroundColor: 'rgba(255,255,255,0.42)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.45)',
+      borderRadius: 14,
+      backgroundColor: sf(0.52),
+      borderWidth: 0,
     },
     optionTextMini: {
       fontSize: 12,
@@ -119,10 +124,9 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       flex: 1,
       minWidth: 0,
       minHeight: 38,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.45)',
-      backgroundColor: 'rgba(255,255,255,0.42)',
+      borderRadius: 14,
+      borderWidth: 0,
+      backgroundColor: sf(0.58),
       overflow: 'visible',
     },
     inputCurrencyField: {
@@ -136,20 +140,19 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       borderWidth: 0,
     },
     inputCurrencyDivider: {
-      width: StyleSheet.hairlineWidth,
+      width: 1,
       alignSelf: 'stretch',
-      backgroundColor: p14,
+      backgroundColor: rgbaFromHex(p, 0.1),
     },
     inputCompact: {
-      backgroundColor: 'rgba(255,255,255,0.42)',
+      backgroundColor: sf(0.58),
       color: p,
       paddingVertical: 8,
       paddingHorizontal: 10,
-      borderRadius: 10,
+      borderRadius: 14,
       fontSize: 15,
       fontWeight: '600',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.45)',
+      borderWidth: 0,
       minHeight: 36,
     },
     listedTwoCol: {
@@ -162,7 +165,7 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       minWidth: 0,
     },
     formRowInput: {
-      backgroundColor: 'rgba(255,255,255,0.42)',
+      backgroundColor: sf(0.5),
       color: p,
       paddingVertical: 12,
       paddingHorizontal: 0,
@@ -227,38 +230,37 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     },
     saveButtonPill: {
       marginTop: 8,
-      backgroundColor: '#111318',
+      backgroundColor: editorialPrimaryButtonBg(t),
       paddingVertical: 16,
       borderRadius: 999,
       alignItems: 'center',
       borderWidth: 0,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
+      shadowColor: '#1e1b4b',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.14,
+      shadowRadius: 24,
       elevation: 4,
     },
     saveButtonPillText: {
       fontSize: 17,
       fontWeight: '700',
-      color: '#FFFFFF',
+      color: editorialPrimaryButtonText(t),
     },
     headerCard: {
       marginTop: 4,
       marginBottom: 10,
       padding: 18,
-      borderRadius: 22,
-      backgroundColor: 'rgba(255,255,255,0.38)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.42)',
+      borderRadius: 26,
+      backgroundColor: sf(0.48),
+      borderWidth: 0,
       ...Platform.select({
         ios: {
           shadowColor: '#1a2744',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.08,
-          shadowRadius: 18,
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: 0.09,
+          shadowRadius: 28,
         },
-        android: { elevation: 4 },
+        android: { elevation: 3 },
         default: {},
       }),
     },
@@ -315,10 +317,9 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       minWidth: 56,
       paddingVertical: 13,
       paddingHorizontal: 12,
-      borderRadius: 16,
-      backgroundColor: 'rgba(255,255,255,0.4)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.45)',
+      borderRadius: 18,
+      backgroundColor: sf(0.55),
+      borderWidth: 0,
     },
     currencyChipStatic: {
       minWidth: 44,
@@ -326,10 +327,9 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       justifyContent: 'center',
       paddingVertical: 13,
       paddingHorizontal: 12,
-      borderRadius: 16,
-      backgroundColor: 'rgba(255,255,255,0.4)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.45)',
+      borderRadius: 18,
+      backgroundColor: sf(0.55),
+      borderWidth: 0,
     },
     currencyChipText: {
       fontSize: 17,
@@ -350,12 +350,11 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 10,
-      backgroundColor: 'rgba(255,255,255,0.4)',
+      backgroundColor: sf(0.55),
       paddingVertical: 15,
       paddingHorizontal: 14,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.42)',
+      borderRadius: 18,
+      borderWidth: 0,
     },
     selectFieldButtonText: {
       flex: 1,
@@ -373,16 +372,15 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       ...StyleSheet.absoluteFillObject,
     },
     currencyModalCard: {
-      backgroundColor: 'rgba(255,255,255,0.98)',
-      borderRadius: 24,
+      backgroundColor: sf(0.96),
+      borderRadius: 28,
       paddingVertical: 14,
-      borderWidth: 1,
-      borderColor: p12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.12,
-      shadowRadius: 24,
-      elevation: 6,
+      borderWidth: 0,
+      shadowColor: '#1e1b4b',
+      shadowOffset: { width: 0, height: 16 },
+      shadowOpacity: 0.14,
+      shadowRadius: 40,
+      elevation: 8,
     },
     currencyModalTitle: {
       fontSize: 17,
@@ -415,8 +413,8 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       marginTop: 8,
       paddingVertical: 14,
       alignItems: 'center',
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: p12,
+      borderTopWidth: 0,
+      backgroundColor: sf(0.35),
     },
     currencyModalCancelText: {
       fontSize: 16,
@@ -437,14 +435,12 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     option: {
       paddingVertical: 11,
       paddingHorizontal: 16,
-      borderRadius: 18,
-      backgroundColor: 'rgba(255,255,255,0.38)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.42)',
+      borderRadius: 20,
+      backgroundColor: sf(0.52),
+      borderWidth: 0,
     },
     optionSelected: {
       backgroundColor: p06,
-      borderColor: p,
     },
     optionText: {
       fontSize: 14,
@@ -456,14 +452,13 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       fontWeight: '600',
     },
     input: {
-      backgroundColor: 'rgba(255,255,255,0.42)',
+      backgroundColor: sf(0.58),
       color: p,
       paddingVertical: 8,
       paddingHorizontal: 10,
-      borderRadius: 12,
+      borderRadius: 14,
       fontSize: 15,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.45)',
+      borderWidth: 0,
       minHeight: 36,
     },
     valueInputHighlight: {
@@ -499,18 +494,16 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     },
     suggestBox: {
       marginTop: 6,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.4)',
-      backgroundColor: 'rgba(255,255,255,0.55)',
+      borderRadius: 16,
+      borderWidth: 0,
+      backgroundColor: sf(0.62),
       overflow: 'hidden',
       maxHeight: 160,
     },
     suggestRow: {
       paddingVertical: 8,
       paddingHorizontal: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: p12,
+      borderBottomWidth: 0,
     },
     suggestRowPressed: {
       backgroundColor: p08,
@@ -534,10 +527,9 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     selectedCard: {
       marginTop: 8,
       padding: 10,
-      borderRadius: 14,
-      backgroundColor: 'rgba(255,255,255,0.4)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.45)',
+      borderRadius: 18,
+      backgroundColor: sf(0.55),
+      borderWidth: 0,
     },
     selectedLabel: {
       fontSize: 12,
@@ -558,16 +550,15 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     },
     saveButton: {
       marginTop: 32,
-      backgroundColor: p,
+      backgroundColor: editorialPrimaryButtonBg(t),
       paddingVertical: 16,
-      borderRadius: 22,
+      borderRadius: 26,
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.35)',
-      shadowColor: '#1a2744',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.14,
-      shadowRadius: 20,
+      borderWidth: 0,
+      shadowColor: '#1e1b4b',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.16,
+      shadowRadius: 28,
       elevation: 6,
     },
     saveButtonDisabled: {
@@ -576,7 +567,7 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     saveButtonText: {
       fontSize: 17,
       fontWeight: '700',
-      color: '#FFFFFF',
+      color: editorialPrimaryButtonText(t),
     },
     /** 资产详情 · 交易明细表 */
     tradeDetailSection: {
@@ -610,10 +601,11 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     tradeTableHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 8,
-      paddingHorizontal: 6,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: p12,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      borderBottomWidth: 0,
+      backgroundColor: p08,
+      borderRadius: 12,
     },
     tradeTh: {
       fontSize: 11,
@@ -624,9 +616,12 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: 14,
-      paddingHorizontal: 6,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: p08,
+      paddingHorizontal: 8,
+      borderBottomWidth: 0,
+      borderRadius: 12,
+    },
+    tradeTableRowAlt: {
+      backgroundColor: editorialTableRowAlt(t),
     },
     tradeTypeCol: {
       flexDirection: 'row',

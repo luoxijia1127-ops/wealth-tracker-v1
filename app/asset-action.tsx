@@ -1111,8 +1111,9 @@ export default function AssetActionScreen() {
 
             {listedPanel === 'adjust' ? (
               <GlassSurface
-                borderRadius={32}
-                intensity={50}
+                borderRadius={36}
+                intensity={54}
+                variant="editorial"
                 contentStyle={styles.glassFormInner}
               >
                   <FormRow
@@ -1316,7 +1317,7 @@ export default function AssetActionScreen() {
                                 <Text style={styles.tradeTh}>已实现盈亏</Text>
                               </View>
                             </View>
-                            {trades.map((t) => {
+                            {trades.map((t, rowIdx) => {
                               const isBuy = t.side === 'buy';
                               const fundLabel = isBuy
                                 ? t.fundingSourceAssetName?.trim() || '—'
@@ -1344,6 +1345,7 @@ export default function AssetActionScreen() {
                                   key={t.id}
                                   style={({ pressed }) => [
                                     styles.tradeTableRow,
+                                    rowIdx % 2 === 1 && styles.tradeTableRowAlt,
                                     pressed &&
                                       !tradesAreSynthetic && {
                                         opacity: 0.88,
@@ -1453,8 +1455,9 @@ export default function AssetActionScreen() {
               </GlassSurface>
             ) : (
               <GlassSurface
-                borderRadius={32}
-                intensity={50}
+                borderRadius={36}
+                intensity={54}
+                variant="editorial"
                 contentStyle={styles.glassFormInner}
               >
                   <View style={[styles.headerCard, { marginBottom: 16 }]}>
@@ -1790,8 +1793,9 @@ export default function AssetActionScreen() {
 
             {cashPanel === 'balance' ? (
               <GlassSurface
-                borderRadius={32}
-                intensity={50}
+                borderRadius={36}
+                intensity={54}
+                variant="editorial"
                 contentStyle={styles.glassFormInner}
               >
                   <FormRow
@@ -1906,8 +1910,9 @@ export default function AssetActionScreen() {
             </GlassSurface>
             ) : (
               <GlassSurface
-                borderRadius={32}
-                intensity={50}
+                borderRadius={36}
+                intensity={54}
+                variant="editorial"
                 contentStyle={styles.glassFormInner}
               >
                   <FormRow
@@ -2067,8 +2072,9 @@ export default function AssetActionScreen() {
           </>
         ) : (
           <GlassSurface
-            borderRadius={32}
-            intensity={50}
+            borderRadius={36}
+            intensity={54}
+            variant="editorial"
             contentStyle={styles.glassFormInner}
           >
               <FormRow

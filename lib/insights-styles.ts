@@ -3,6 +3,8 @@
  */
 
 import type { AppPaletteTheme } from '@/lib/app-palette';
+import { AppFont } from '@/lib/app-fonts';
+import { editorialSurfaceFill } from '@/lib/editorial-theme';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { StyleSheet } from 'react-native';
 
@@ -13,6 +15,7 @@ export function createInsightsStyles(
   t: AppPaletteTheme,
   appearance: 'light' | 'dark' = 'light'
 ) {
+  const sf = (alpha: number) => editorialSurfaceFill(t, alpha);
   const isDark = appearance === 'dark';
   /** Tab/区间选中底：浅色用 primary（多为深字色），深色用 chartLine（多为饱和色，配 pickTextOnAccent） */
   const accentFill = isDark ? t.chartLine : t.primary;
@@ -136,10 +139,11 @@ export function createInsightsStyles(
       backgroundColor: 'transparent',
     },
     goalsSectionTitle: {
-      fontSize: 16,
-      fontWeight: '700',
+      fontFamily: AppFont.displaySemiBold,
+      fontSize: 18,
+      fontWeight: '600',
       marginBottom: 14,
-      letterSpacing: -0.2,
+      letterSpacing: -0.25,
     },
     goalsEmpty: {
       fontSize: 13,
@@ -148,14 +152,13 @@ export function createInsightsStyles(
     goalCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.92)',
-      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : sf(0.58),
+      borderRadius: 22,
       paddingVertical: 14,
       paddingHorizontal: 14,
       marginBottom: 12,
       gap: 12,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.1)' : p10,
+      borderWidth: 0,
     },
     goalCardPressed: {
       opacity: 0.92,
@@ -205,16 +208,14 @@ export function createInsightsStyles(
       flex: 1,
       paddingVertical: 12,
       paddingHorizontal: 12,
-      borderRadius: 18,
+      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.38)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.42)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : sf(0.48),
+      borderWidth: 0,
     },
     tabChipActive: {
       backgroundColor: accentFill,
-      borderColor: accentFill,
     },
     tabChipPressed: {
       opacity: 0.88,
@@ -235,11 +236,10 @@ export function createInsightsStyles(
     },
     /** 已落在外层 GlassSurface 内，仅轻量衬底以区分图表区 */
     chartSurface: {
-      borderRadius: 24,
+      borderRadius: 26,
       overflow: 'hidden',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.2)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.32)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : sf(0.42),
+      borderWidth: 0,
     },
     /** 五个区间等分整行，视觉居中对称（略下移，避免贴 chartSurface 顶圆角裁切两侧芯片角） */
     timeframeRow: {
@@ -257,20 +257,17 @@ export function createInsightsStyles(
       minWidth: 0,
       paddingVertical: 8,
       paddingHorizontal: 4,
-      borderRadius: 12,
-      borderWidth: 1.5,
-      borderColor: isDark ? 'rgba(255,255,255,0.2)' : p14,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.82)',
+      borderRadius: 14,
+      borderWidth: 0,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : sf(0.52),
       alignItems: 'center',
       justifyContent: 'center',
     },
     timeframeChipActive: {
-      borderColor: t.primary,
       backgroundColor: p08,
     },
     /** 净值曲线区间选中（与 tab 共用 accentFill + onAccentLabel） */
     timeframeChipActiveDark: {
-      borderColor: accentFill,
       backgroundColor: accentFill,
     },
     timeframeChipText: {
@@ -378,16 +375,15 @@ export function createInsightsStyles(
       alignItems: 'center',
     },
     breakdownCard: {
-      borderRadius: 18,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.76)',
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : sf(0.5),
       paddingHorizontal: 12,
       paddingTop: 12,
       paddingBottom: 10,
       maxHeight: 248,
       width: '100%',
       alignSelf: 'stretch',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.1)' : p10,
+      borderWidth: 0,
     },
     breakdownTitle: {
       fontSize: 13,
@@ -401,9 +397,8 @@ export function createInsightsStyles(
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingVertical: 7,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: p14,
+      paddingVertical: 9,
+      borderBottomWidth: 0,
     },
     breakdownName: {
       flex: 1,
@@ -458,16 +453,15 @@ export function createInsightsStyles(
     },
     /** 投资回报面板 */
     returnPanelCard: {
-      borderRadius: 24,
+      borderRadius: 28,
       paddingVertical: 18,
       paddingHorizontal: 16,
-      backgroundColor: isDark ? t.surfaceWhite : 'rgba(255,255,255,0.92)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.12)' : p14,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: isDark ? 0.35 : 0.06,
-      shadowRadius: 18,
+      backgroundColor: isDark ? t.surfaceWhite : sf(0.58),
+      borderWidth: 0,
+      shadowColor: '#1e1b4b',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: isDark ? 0.28 : 0.08,
+      shadowRadius: 28,
       elevation: 3,
     },
     returnKicker: {
@@ -493,14 +487,13 @@ export function createInsightsStyles(
     returnSearchInput: {
       flex: 1,
       minWidth: 140,
-      borderRadius: 14,
+      borderRadius: 16,
       paddingVertical: 12,
       paddingHorizontal: 14,
       fontSize: 14,
       fontWeight: '500',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.92)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.14)' : p10,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : sf(0.55),
+      borderWidth: 0,
     },
     returnChip: {
       paddingVertical: 8,
@@ -576,11 +569,10 @@ export function createInsightsStyles(
       fontWeight: '600',
     },
     returnTableScroll: {
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.12)' : p14,
+      borderRadius: 18,
+      borderWidth: 0,
       overflow: 'hidden',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.88)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : sf(0.5),
     },
     /** 表体默认约 4 行可见高度，其余纵向滚动查看 */
     returnTableBodyScroll: {
@@ -591,9 +583,8 @@ export function createInsightsStyles(
       alignItems: 'center',
       paddingVertical: 10,
       paddingHorizontal: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: p14,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : rgbaFromHex(p, 0.05),
+      borderBottomWidth: 0,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : rgbaFromHex(p, 0.06),
       minWidth: 720,
     },
     returnTableRow: {
@@ -601,8 +592,7 @@ export function createInsightsStyles(
       alignItems: 'center',
       paddingVertical: 10,
       paddingHorizontal: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: p14,
+      borderBottomWidth: 0,
       minWidth: 720,
     },
     returnTh: {

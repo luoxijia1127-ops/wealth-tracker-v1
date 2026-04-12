@@ -2,7 +2,7 @@
  * 加载 Inter 并设置 Text / TextInput 默认字体。
  */
 
-import { interFontMap } from '@/lib/app-fonts';
+import { displayFontMap, interFontMap } from '@/lib/app-fonts';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
@@ -11,7 +11,7 @@ import { Text, TextInput } from 'react-native';
 void SplashScreen.preventAutoHideAsync();
 
 export function FontRoot({ children }: { children: React.ReactNode }) {
-  const [loaded, error] = useFonts(interFontMap);
+  const [loaded, error] = useFonts({ ...interFontMap, ...displayFontMap });
   const appliedDefaults = useRef(false);
 
   useEffect(() => {

@@ -21,7 +21,12 @@ export default function TabLayout() {
       tabBarInactiveTintColor: theme.tabInactive,
       tabBarStyle: {
         backgroundColor: theme.tabBarBg,
-        borderTopColor: theme.tabBarBorder,
+        borderTopWidth: 0,
+        elevation: 0,
+        shadowColor: '#1e1b4b',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 16,
       },
       tabBarLabelStyle: {
         fontFamily: AppFont.semiBold,

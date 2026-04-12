@@ -6,7 +6,7 @@ import { rgbaFromHex } from '@/lib/color-utils';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { ComponentProps } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 export type SettingsGridTileProps = {
   label: string;
@@ -21,7 +21,6 @@ export function SettingsGridTile({
   theme,
   onPress,
 }: SettingsGridTileProps) {
-  const border = rgbaFromHex(theme.primary, 0.1);
   return (
     <Pressable
       accessibilityRole="button"
@@ -40,15 +39,14 @@ export function SettingsGridTile({
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: rgbaFromHex(theme.surfaceWhite, 0.5),
+          backgroundColor: rgbaFromHex(theme.surfaceWhite, 0.62),
           alignItems: 'center',
           justifyContent: 'center',
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: border,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 8,
+          borderWidth: 0,
+          shadowColor: '#1e1b4b',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.08,
+          shadowRadius: 14,
           elevation: 2,
         }}
       >

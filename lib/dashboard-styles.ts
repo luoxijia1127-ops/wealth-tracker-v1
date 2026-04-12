@@ -3,6 +3,8 @@
  */
 
 import type { AppPaletteTheme } from '@/lib/app-palette';
+import { AppFont } from '@/lib/app-fonts';
+import { editorialAmbientWash, editorialSurfaceFill } from '@/lib/editorial-theme';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { Platform, StyleSheet } from 'react-native';
 
@@ -22,10 +24,10 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       flex: 1,
       backgroundColor: t.pageBg,
     },
-    /** 轻冷色氛围层（铺在 pageBg 之上，供玻璃卡片折射） */
+    /** 极淡主色氛围层（铺在 pageBg 之上；随主题 palette 变化） */
     dashboardAmbient: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(120, 145, 185, 0.09)',
+      backgroundColor: editorialAmbientWash(t),
     },
     decorWrap: {
       ...StyleSheet.absoluteFillObject,
@@ -48,9 +50,10 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       backgroundColor: 'transparent',
     },
     headerTitle: {
-      fontSize: 30,
-      fontWeight: '800',
-      letterSpacing: -0.5,
+      fontFamily: AppFont.displayBold,
+      fontSize: 34,
+      fontWeight: '700',
+      letterSpacing: -1.1,
       color: t.primary,
     },
     /** 外层光晕（仅一层阴影，避免与玻璃层叠成「双圆」） */
@@ -97,11 +100,12 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       paddingHorizontal: 20,
     },
     netWorthLabel: {
-      fontSize: 14,
+      fontFamily: AppFont.displaySemiBold,
+      fontSize: 13,
       color: p65,
       textTransform: 'uppercase',
-      letterSpacing: 1,
-      marginBottom: 6,
+      letterSpacing: 1.4,
+      marginBottom: 8,
     },
     netWorthValue: {
       fontSize: 42,
@@ -187,10 +191,11 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       paddingRight: 6,
     },
     folderTitle: {
-      fontSize: 19,
-      fontWeight: '800',
+      fontFamily: AppFont.displaySemiBold,
+      fontSize: 21,
+      fontWeight: '600',
       color: t.primary,
-      letterSpacing: -0.3,
+      letterSpacing: -0.35,
     },
     folderTitleOnAccent: {
       color: '#FFFFFF',
@@ -243,7 +248,7 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       paddingHorizontal: 12,
       paddingBottom: 14,
       paddingTop: 6,
-      backgroundColor: 'rgba(255, 255, 255, 0.38)',
+      backgroundColor: editorialSurfaceFill(t, 0.52),
       borderBottomLeftRadius: 24,
       borderBottomRightRadius: 24,
     },
@@ -260,27 +265,26 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 12,
-      paddingVertical: 15,
-      paddingHorizontal: 15,
-      backgroundColor: 'rgba(255, 255, 255, 0.42)',
+      marginBottom: 10,
+      paddingVertical: 16,
+      paddingHorizontal: 14,
+      backgroundColor: editorialSurfaceFill(t, 0.62),
       borderRadius: 22,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.45)',
+      borderWidth: 0,
       ...Platform.select({
         ios: {
           shadowColor: '#1a2744',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.08,
-          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.07,
+          shadowRadius: 22,
         },
-        android: { elevation: 3 },
+        android: { elevation: 2 },
         default: {},
       }),
     },
     assetRowPressed: {
       opacity: 0.92,
-      backgroundColor: 'rgba(255, 255, 255, 0.58)',
+      backgroundColor: editorialSurfaceFill(t, 0.78),
     },
     assetRowLeft: {
       flex: 1,
