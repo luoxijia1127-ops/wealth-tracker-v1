@@ -8,12 +8,14 @@ import {
   formatMoney,
   getAssetCurrency,
   getAssetDisplayValue,
+  isHeldChineseAsset,
 } from '@/lib/asset-value';
 import {
   deleteCashLedgerEntry,
   updateCashLedgerEntry,
 } from '@/lib/cash-ledger';
 import { FormRow } from '@/components/add-asset/form-row';
+import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { YmdDateFields } from '@/components/ymd-date-fields';
 import { GlassSurface } from '@/components/glass-surface';
 import { rgbaFromHex } from '@/lib/color-utils';
@@ -65,12 +67,22 @@ export default function CashLedgerEditScreen() {
   const [side, setSide] = useState<'in' | 'out'>('in');
   const [entryDate, setEntryDate] = useState('');
   const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [relatedListedId, setRelatedListedId] = useState('');
+  const [listedRelatedOptions, setListedRelatedOptions] = useState<SimpleAsset[]>(
+    []
+  );
+  const [linkedTradeEditId, setLinkedTradeEditId] = useState<string | null>(
+    null
+  );
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!assetId || !entryId) {
       setAsset(null);
       setEntry(null);
+      setListedRelatedOptions([]);
+      setLinkedTradeEditId(null);
       setLoading(false);
       return;
     }
@@ -79,10 +91,25 @@ export default function CashLedgerEditScreen() {
     const e = a?.cashLedger?.find((x) => x.id === entryId) ?? null;
     setAsset(a);
     setEntry(e);
+    setListedRelatedOptions(
+      list.filter((x) => x.id !== assetId && isHeldChineseAsset(x))
+    );
+    let tradeNav: string | null = null;
+    if (e?.transferId && e.relatedAssetId) {
+      const ta = list.find((x) => x.id === e.relatedAssetId);
+      const lt = ta?.tradeHistory?.find((t) => t.transferId === e.transferId);
+      tradeNav = lt?.id ?? null;
+    }
+    setLinkedTradeEditId(tradeNav);
     if (e) {
       setSide(e.side);
       setEntryDate(e.entryDate);
       setAmount(String(e.amount));
+      setNote(e.note ?? '');
+      setRelatedListedId(e.relatedAssetId ?? '');
+    } else {
+      setNote('');
+      setRelatedListedId('');
     }
     setLoading(false);
   }, [assetId, entryId]);
@@ -134,11 +161,26 @@ export default function CashLedgerEditScreen() {
     }
     setSaving(true);
     try {
-      const next = updateCashLedgerEntry(asset, entry.id, {
+      const noteTrim = note.trim();
+      const patch: Parameters<typeof updateCashLedgerEntry>[2] = {
         side,
         amount: q,
         entryDate: d,
-      });
+        note: noteTrim.length > 0 ? noteTrim : undefined,
+      };
+      if (!(linkedTradeAssetId && linkedTransferId)) {
+        const rid = relatedListedId.trim();
+        if (rid) {
+          patch.relatedAssetId = rid;
+          patch.relatedAssetName =
+            listedRelatedOptions.find((x) => x.id === rid)?.name ??
+            entry.relatedAssetName;
+        } else {
+          patch.relatedAssetId = undefined;
+          patch.relatedAssetName = undefined;
+        }
+      }
+      const next = updateCashLedgerEntry(asset, entry.id, patch);
       if (linkedTradeAssetId && linkedTransferId) {
         const all = await getAssets();
         const srcIdx = all.findIndex((x) => x.id === asset.id);
@@ -342,6 +384,67 @@ export default function CashLedgerEditScreen() {
               placeholderTextColor={placeholderColor}
             />
           </FormRow>
+
+          {entry.transferId && entry.relatedAssetId ? (
+            <View style={{ marginTop: 10 }}>
+              <Text style={[styles.hintMuted, { lineHeight: 20 }]}>
+                本笔与场内成交联动，扣款/入账资金账户请在对应证券的「编辑加减仓流水」中修改。
+              </Text>
+              {linkedTradeEditId ? (
+                <Pressable
+                  style={[styles.saveButton, { marginTop: 12 }]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/trade-edit',
+                      params: {
+                        assetId: entry.relatedAssetId,
+                        tradeId: linkedTradeEditId,
+                      },
+                    })
+                  }
+                >
+                  <Text style={styles.saveButtonText}>打开场内流水与资金账户</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : (
+            <FormRow
+              styles={styles}
+              iconMuted={iconMuted}
+              icon="link-outline"
+              label="关联证券（选填）"
+            >
+              <FundingSourcePicker
+                label="关联证券（选填）"
+                emptyOptionLabel="不关联"
+                valueId={relatedListedId}
+                onSelectId={setRelatedListedId}
+                fundingOptions={listedRelatedOptions}
+                styles={styles}
+                omitLabel
+                mode="modal"
+                primaryColor={theme.primary}
+                mutedColor={iconMuted}
+              />
+            </FormRow>
+          )}
+
+          <FormRow
+            styles={styles}
+            iconMuted={iconMuted}
+            icon="document-text-outline"
+            label="备注"
+          >
+            <TextInput
+              style={[styles.input, { minHeight: 72, textAlignVertical: 'top' }]}
+              value={note}
+              onChangeText={setNote}
+              placeholder="用途、账户说明等"
+              placeholderTextColor={placeholderColor}
+              multiline
+            />
+          </FormRow>
+
           <Text style={[styles.hintMuted, { marginTop: 8 }]}>
             当前余额参考：{' '}
             {formatMoney(getAssetDisplayValue(asset), getAssetCurrency(asset))}

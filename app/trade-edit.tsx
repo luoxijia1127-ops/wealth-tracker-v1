@@ -3,16 +3,24 @@
  */
 
 import { FormRow } from '@/components/add-asset/form-row';
-import { YmdDateFields } from '@/components/ymd-date-fields';
+import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { GlassSurface } from '@/components/glass-surface';
+import { YmdDateFields } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { normalizeAssetCurrency } from '@/lib/asset-currency';
+import { getAssetCurrency } from '@/lib/asset-value';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
-import { deleteCashLedgerEntry, updateCashLedgerEntry } from '@/lib/cash-ledger';
+import {
+  appendCashMovement,
+  deleteCashLedgerEntry,
+  usesCashAmountLedger,
+} from '@/lib/cash-ledger';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
 import { createAddModalStyles } from '@/lib/modal-styles';
 import {
-    deleteListedTradeEntry,
-    updateListedTradeEntry,
+  deleteListedTradeEntry,
+  updateListedTradeEntry,
 } from '@/lib/trade-ledger';
 import type { SimpleAsset, TradeLedgerEntry } from '@/types/asset';
 import { getListedUnitPrice } from '@/types/asset';
@@ -20,15 +28,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useGlobalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -51,6 +59,59 @@ function recalcValue(a: SimpleAsset): SimpleAsset {
     return { ...a, value: sh * a.lastClose };
   }
   return a;
+}
+
+const FUNDING_ACCOUNT_ROW_LABEL =
+  '资金账户（选填，加仓为扣款来源，减仓为入账去向）';
+
+/** 从所有类现金资产中移除指定 transferId 的一条流水（用于重绑资金账户前清理旧联动）。 */
+function stripCashEntryByTransferId(
+  all: SimpleAsset[],
+  transferId: string
+): SimpleAsset[] {
+  return all.map((a) => {
+    const rows = a.cashLedger ?? [];
+    const hit = rows.find((e) => e.transferId === transferId);
+    if (!hit) return a;
+    return deleteCashLedgerEntry(a, hit.id);
+  });
+}
+
+function buildFundingPatch(
+  side: 'buy' | 'sell',
+  linkId: string,
+  options: SimpleAsset[],
+  reuseTransferId: string | undefined
+): Partial<TradeLedgerEntry> {
+  if (!linkId) {
+    return {
+      fundingSourceAssetId: undefined,
+      fundingSourceAssetName: undefined,
+      cashDestinationAssetId: undefined,
+      cashDestinationAssetName: undefined,
+      transferId: undefined,
+    };
+  }
+  const peerName = options.find((x) => x.id === linkId)?.name;
+  const tid =
+    reuseTransferId ??
+    `xf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (side === 'buy') {
+    return {
+      fundingSourceAssetId: linkId,
+      fundingSourceAssetName: peerName,
+      cashDestinationAssetId: undefined,
+      cashDestinationAssetName: undefined,
+      transferId: tid,
+    };
+  }
+  return {
+    fundingSourceAssetId: undefined,
+    fundingSourceAssetName: undefined,
+    cashDestinationAssetId: linkId,
+    cashDestinationAssetName: peerName,
+    transferId: tid,
+  };
 }
 
 export default function TradeEditScreen() {
@@ -79,12 +140,17 @@ export default function TradeEditScreen() {
   const [tradeDate, setTradeDate] = useState('');
   const [shares, setShares] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
+  const [linkedCashId, setLinkedCashId] = useState('');
+  const [tradeFundingOptions, setTradeFundingOptions] = useState<SimpleAsset[]>(
+    []
+  );
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!assetId || !tradeId) {
       setAsset(null);
       setTrade(null);
+      setTradeFundingOptions([]);
       setLoading(false);
       return;
     }
@@ -93,11 +159,26 @@ export default function TradeEditScreen() {
     const t = a?.tradeHistory?.find((x) => x.id === tradeId) ?? null;
     setAsset(a);
     setTrade(t);
+    setTradeFundingOptions(
+      list.filter(
+        (x) =>
+          x.id !== assetId &&
+          usesCashAmountLedger(x) &&
+          normalizeAssetCurrency(x.currency) === 'CNY'
+      )
+    );
     if (t) {
       setSide(t.side);
       setTradeDate(t.tradeDate);
       setShares(String(t.shares));
       setUnitPrice(String(t.unitPriceCny));
+      const lid =
+        t.side === 'buy'
+          ? (t.fundingSourceAssetId ?? '')
+          : (t.cashDestinationAssetId ?? '');
+      setLinkedCashId(lid);
+    } else {
+      setLinkedCashId('');
     }
     setLoading(false);
   }, [assetId, tradeId]);
@@ -141,67 +222,90 @@ export default function TradeEditScreen() {
       Alert.alert('无法保存', '日期请使用 YYYY-MM-DD。');
       return;
     }
+    const linkId = linkedCashId.trim();
     setSaving(true);
     try {
-      let next = updateListedTradeEntry(asset, trade.id, {
+      let all = await getAssets();
+      if (trade.transferId) {
+        all = stripCashEntryByTransferId(all, trade.transferId);
+      }
+      const curIdx = all.findIndex((x) => x.id === asset.id);
+      if (curIdx < 0) {
+        Alert.alert('无法保存', '资产数据已变化，请返回重试。');
+        return;
+      }
+      const cur = all[curIdx]!;
+      const fundingPatch = buildFundingPatch(
+        side,
+        linkId,
+        tradeFundingOptions,
+        linkId ? trade.transferId : undefined
+      );
+      let next = updateListedTradeEntry(cur, trade.id, {
         side,
         shares: q,
         unitPriceCny: p,
         tradeDate: d,
+        ...fundingPatch,
       });
       next = preserveQuotes(asset, next);
       next = recalcValue(next);
-      if (trade.transferId && (trade.fundingSourceAssetId || trade.cashDestinationAssetId)) {
-        const all = await getAssets();
-        const curIdx = all.findIndex((x) => x.id === asset.id);
-        const peerId = trade.side === 'buy' ? trade.fundingSourceAssetId : trade.cashDestinationAssetId;
-        const peerIdx = peerId ? all.findIndex((x) => x.id === peerId) : -1;
-        if (curIdx >= 0 && peerIdx >= 0) {
-          const peer = all[peerIdx]!;
-          const peerRows = peer.cashLedger ?? [];
-          const linked = peerRows.find((e) => e.transferId === trade.transferId);
-          if (linked) {
-            const wantBuy = side === 'buy';
-            const patched = updateCashLedgerEntry(peer, linked.id, {
-              side: wantBuy ? 'out' : 'in',
-              amount: q * p,
-              entryDate: d,
-              relatedAssetId: asset.id,
-              relatedAssetName: asset.name,
-              note: linked.note ?? '资金划转',
-              transferId: trade.transferId,
-            });
-            all[peerIdx] = patched;
-          } else if (side === 'buy') {
-            const oldAmount = trade.shares * trade.unitPriceCny;
-            const fallback = peerRows.find(
-              (e) =>
-                e.side === (trade.side === 'buy' ? 'out' : 'in') &&
-                e.relatedAssetId === asset.id &&
-                Math.abs(e.amount - oldAmount) < 1e-6 &&
-                e.entryDate === trade.tradeDate
-            );
-            if (fallback) {
-              const patched = updateCashLedgerEntry(peer, fallback.id, {
-                side: side === 'buy' ? 'out' : 'in',
-                amount: q * p,
-                entryDate: d,
-                relatedAssetId: asset.id,
-                relatedAssetName: asset.name,
-                note: fallback.note ?? '资金划转',
-                transferId: trade.transferId,
-              });
-              all[peerIdx] = patched;
-            }
-          }
-          all[curIdx] = next;
-          await saveAssets(all);
-        } else {
-          await updateAsset(next);
+      all[curIdx] = next;
+
+      if (linkId) {
+        const peerIdx = all.findIndex((x) => x.id === linkId);
+        if (peerIdx < 0) {
+          Alert.alert('无法保存', '所选资金账户不存在或已删除。');
+          return;
         }
-      } else {
-        await updateAsset(next);
+        const tid = fundingPatch.transferId;
+        if (!tid) {
+          Alert.alert('无法保存', '联动信息无效，请重试。');
+          return;
+        }
+        const listingCur = getAssetCurrency(next);
+        const rawAmount = q * p;
+        const conv = await convertListingCostToCnyCashDebit(rawAmount, listingCur);
+        if (!conv.ok) {
+          Alert.alert('无法保存', conv.message);
+          return;
+        }
+        const amount = conv.cny;
+        const note =
+          listingCur === 'CNY'
+            ? side === 'buy'
+              ? '加仓资金划转'
+              : '减仓资金划转'
+            : side === 'buy'
+              ? `加仓资金划转（${listingCur} ${rawAmount.toFixed(2)} 折人民币扣款）`
+              : `减仓资金划转（${listingCur} ${rawAmount.toFixed(2)} 折人民币入账）`;
+        const peer = all[peerIdx]!;
+        try {
+          if (side === 'buy') {
+            all[peerIdx] = appendCashMovement(peer, 'out', amount, d, {
+              relatedAssetId: asset.id,
+              relatedAssetName: next.name,
+              note,
+              transferId: tid,
+            });
+          } else {
+            all[peerIdx] = appendCashMovement(peer, 'in', amount, d, {
+              relatedAssetId: asset.id,
+              relatedAssetName: next.name,
+              note,
+              transferId: tid,
+            });
+          }
+        } catch (e) {
+          Alert.alert(
+            '无法保存',
+            e instanceof Error ? e.message : '资金账户余额或流水校验失败。'
+          );
+          return;
+        }
       }
+
+      await saveAssets(all);
       router.back();
     } catch (e) {
       Alert.alert(
@@ -223,30 +327,26 @@ export default function TradeEditScreen() {
         onPress: async () => {
           setSaving(true);
           try {
-            let next = deleteListedTradeEntry(asset, trade.id);
+            let all = await getAssets();
+            if (trade.transferId) {
+              all = stripCashEntryByTransferId(all, trade.transferId);
+            }
+            const curIdx = all.findIndex((x) => x.id === asset.id);
+            if (curIdx < 0) {
+              await updateAsset(
+                recalcValue(
+                  preserveQuotes(asset, deleteListedTradeEntry(asset, trade.id))
+                )
+              );
+              router.back();
+              return;
+            }
+            const cur = all[curIdx]!;
+            let next = deleteListedTradeEntry(cur, trade.id);
             next = preserveQuotes(asset, next);
             next = recalcValue(next);
-            if (trade.transferId && (trade.fundingSourceAssetId || trade.cashDestinationAssetId)) {
-              const all = await getAssets();
-              const curIdx = all.findIndex((x) => x.id === asset.id);
-              const peerId = trade.side === 'buy' ? trade.fundingSourceAssetId : trade.cashDestinationAssetId;
-              const peerIdx = peerId ? all.findIndex((x) => x.id === peerId) : -1;
-              if (curIdx >= 0 && peerIdx >= 0) {
-                const peer = all[peerIdx]!;
-                const linked = (peer.cashLedger ?? []).find(
-                  (e) => e.transferId === trade.transferId
-                );
-                if (linked) {
-                  all[peerIdx] = deleteCashLedgerEntry(peer, linked.id);
-                }
-                all[curIdx] = next;
-                await saveAssets(all);
-              } else {
-                await updateAsset(next);
-              }
-            } else {
-              await updateAsset(next);
-            }
+            all[curIdx] = next;
+            await saveAssets(all);
             router.back();
           } catch (e) {
             Alert.alert(
@@ -386,6 +486,26 @@ export default function TradeEditScreen() {
               onChangeText={setUnitPrice}
               keyboardType="decimal-pad"
               placeholderTextColor={placeholderColor}
+            />
+          </FormRow>
+
+          <FormRow
+            styles={styles}
+            iconMuted={iconMuted}
+            icon="wallet-outline"
+            label={FUNDING_ACCOUNT_ROW_LABEL}
+          >
+            <FundingSourcePicker
+              label={FUNDING_ACCOUNT_ROW_LABEL}
+              emptyOptionLabel="不关联现金账户"
+              valueId={linkedCashId}
+              onSelectId={setLinkedCashId}
+              fundingOptions={tradeFundingOptions}
+              styles={styles}
+              omitLabel
+              mode="modal"
+              primaryColor={theme.primary}
+              mutedColor={iconMuted}
             />
           </FormRow>
 

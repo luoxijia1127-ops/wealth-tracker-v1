@@ -7,6 +7,10 @@ import { canAddAnotherAsset } from '@/lib/asset-limit';
 import { addAsset, deleteAsset, getAssets } from '@/lib/asset-storage';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import { applyRestoredAssetSnapshotAdjustments } from '@/lib/snapshot-restore-adjust';
+import {
+  computeClosedCycleRealizedPnlSeries,
+  computeSellRealizedPnlByTradeId,
+} from '@/lib/trade-ledger';
 import { ensureAsset, generateAssetId, type SimpleAsset } from '@/types/asset';
 
 const ARCHIVED_KEY = '@nest/archived-assets-v1';
@@ -157,4 +161,67 @@ export function formatRecycleTransactionSummaryShort(a: SimpleAsset): string {
   const nC = a.cashLedger?.length ?? 0;
   if (nT === 0 && nC === 0) return '—';
   return `${nT}交/${nC}余`;
+}
+
+/** 已归档表格一行：可同一归档快照拆成多段（多次建仓—清仓）。 */
+export type ArchivedDisplayRow = {
+  key: string;
+  record: AssetRecycleRecord;
+  /** 展示用名称，多段时带「（第n段）」 */
+  nameDisplay: string;
+  /** 人民币计已实现盈亏；无场内流水等无法计算时为 null */
+  realizedPnlCny: number | null;
+};
+
+/**
+ * 将归档记录展开为表格行：有交易流水时按「清仓周期」拆分；同一条归档里两段持仓显示两行。
+ */
+export function buildArchivedDisplayRows(
+  records: AssetRecycleRecord[]
+): ArchivedDisplayRow[] {
+  const out: ArchivedDisplayRow[] = [];
+  for (const rec of records) {
+    const a = rec.asset;
+    const trades = a.tradeHistory;
+    if (!trades || trades.length === 0) {
+      out.push({
+        key: rec.recordId,
+        record: rec,
+        nameDisplay: a.name,
+        realizedPnlCny: null,
+      });
+      continue;
+    }
+    const cycles = computeClosedCycleRealizedPnlSeries(trades);
+    if (cycles.length > 1) {
+      cycles.forEach((pnl, i) => {
+        out.push({
+          key: `${rec.recordId}-c${i}`,
+          record: rec,
+          nameDisplay: `${a.name}（第${i + 1}段）`,
+          realizedPnlCny: pnl,
+        });
+      });
+      continue;
+    }
+    if (cycles.length === 1) {
+      out.push({
+        key: rec.recordId,
+        record: rec,
+        nameDisplay: a.name,
+        realizedPnlCny: cycles[0]!,
+      });
+      continue;
+    }
+    const bySell = computeSellRealizedPnlByTradeId(trades);
+    let sum = 0;
+    for (const v of bySell.values()) sum += v;
+    out.push({
+      key: rec.recordId,
+      record: rec,
+      nameDisplay: a.name,
+      realizedPnlCny: bySell.size > 0 ? sum : null,
+    });
+  }
+  return out;
 }

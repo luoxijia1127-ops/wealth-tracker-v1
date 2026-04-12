@@ -111,6 +111,51 @@ export function computeSellRealizedPnlByTradeId(
   return out;
 }
 
+/**
+ * 按时间顺序回放，每经历一次「持仓从有到无」（清仓）累计该段内所有卖出的已实现盈亏，与明细里逐笔卖出盈亏之和一致。
+ * 用于已归档列表：同一快照内多次建仓—清仓时拆成多行。
+ */
+export function computeClosedCycleRealizedPnlSeries(
+  trades: TradeLedgerEntry[]
+): number[] {
+  const sorted = [...trades].sort((a, b) =>
+    a.tradeDate.localeCompare(b.tradeDate) !== 0
+      ? a.tradeDate.localeCompare(b.tradeDate)
+      : a.id.localeCompare(b.id)
+  );
+  let sh = 0;
+  let totalCost = 0;
+  let cycleRealized = 0;
+  const out: number[] = [];
+  for (const t of sorted) {
+    const q = t.shares;
+    const p = t.unitPriceCny;
+    if (!(q > 0) || p < 0 || Number.isNaN(q) || Number.isNaN(p)) {
+      break;
+    }
+    if (t.side === 'buy') {
+      totalCost += q * p;
+      sh += q;
+    } else {
+      if (sh <= 0 || q > sh + 1e-9) {
+        break;
+      }
+      const avg = totalCost / sh;
+      const realized = (p - avg) * q;
+      cycleRealized += realized;
+      totalCost -= q * avg;
+      sh -= q;
+      if (totalCost < 0) totalCost = 0;
+      if (sh <= 1e-9) {
+        out.push(cycleRealized);
+        cycleRealized = 0;
+        sh = 0;
+      }
+    }
+  }
+  return out;
+}
+
 export function replayListedPosition(trades: TradeLedgerEntry[]): ReplayResult {
   const sorted = [...trades].sort((a, b) =>
     a.tradeDate.localeCompare(b.tradeDate) !== 0

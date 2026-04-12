@@ -654,19 +654,23 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       marginTop: 1,
     },
     tradeQtyCol: {
-      width: 28,
+      width: 32,
       alignItems: 'flex-end',
     },
     tradeTdNum: {
       fontSize: 14,
       fontWeight: '600',
       color: p,
+      width: '100%',
+      textAlign: 'right',
     },
     /** 交易明细 · 价格列略压缩，便于同屏露出已实现盈亏 */
     tradeTdPrice: {
       fontSize: 12,
       fontWeight: '600',
       color: p,
+      width: '100%',
+      textAlign: 'right',
     },
     tradePriceCol: {
       width: 80,
@@ -729,6 +733,20 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    /** 已归档：已实现盈亏（人民币） */
+    recyclePnlCol: {
+      width: 76,
+      flexShrink: 0,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      paddingLeft: 2,
+    },
+    recycleTdPnlArchived: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: p,
+      textAlign: 'right',
     },
     recycleTdName: {
       fontSize: 13,

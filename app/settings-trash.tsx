@@ -88,6 +88,7 @@ export default function SettingsTrashScreen() {
         <Text style={{ fontSize: 15, color: muted, marginTop: 12 }}>暂无删除记录</Text>
       ) : (
         <RecycleRecordsTable
+          variant="restore"
           rows={rows}
           busyId={busyId}
           nameHeader="资产"

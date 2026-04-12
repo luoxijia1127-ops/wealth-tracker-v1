@@ -1394,12 +1394,22 @@ export default function AssetActionScreen() {
                                     </View>
                                   </View>
                                   <View style={styles.tradeQtyCol}>
-                                    <Text style={styles.tradeTdNum}>
+                                    <Text
+                                      style={styles.tradeTdNum}
+                                      numberOfLines={1}
+                                      adjustsFontSizeToFit
+                                      minimumFontScale={0.55}
+                                    >
                                       {String(t.shares)}
                                     </Text>
                                   </View>
                                   <View style={styles.tradePriceCol}>
-                                    <Text style={styles.tradeTdPrice}>
+                                    <Text
+                                      style={styles.tradeTdPrice}
+                                      numberOfLines={1}
+                                      adjustsFontSizeToFit
+                                      minimumFontScale={0.55}
+                                    >
                                       {formatMoney(
                                         t.unitPriceCny,
                                         quoteCurrency
