@@ -3,6 +3,7 @@
  */
 
 import type { AppPaletteTheme } from '@/lib/app-palette';
+import { rgbaFromHex } from '@/lib/color-utils';
 import {
   editorialAmbientWash,
   editorialPrimaryButtonBg,
@@ -10,7 +11,6 @@ import {
   editorialSurfaceFill,
   editorialTableRowAlt,
 } from '@/lib/editorial-theme';
-import { rgbaFromHex } from '@/lib/color-utils';
 import { Platform, StyleSheet } from 'react-native';
 
 export function createAddModalStyles(t: AppPaletteTheme) {

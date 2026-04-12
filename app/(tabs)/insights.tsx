@@ -12,10 +12,10 @@ import { InsightsTrendChart } from '@/components/insights/insights-trend-tab';
 import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { formatMoney } from '@/lib/asset-value';
-import { editorialDecorBlobs } from '@/lib/editorial-theme';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
+import { editorialDecorBlobs } from '@/lib/editorial-theme';
 import { BALANCE_INK, financeDeltaColor } from '@/lib/finance-colors';
 import {
   getCachedFxUsdRates,

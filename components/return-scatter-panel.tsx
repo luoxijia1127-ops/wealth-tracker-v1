@@ -5,33 +5,33 @@
 import { useAppPalette } from '@/contexts/app-palette-context';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { formatMoney } from '@/lib/asset-value';
-import { FINANCE_UP } from '@/lib/finance-colors';
-import {
-  CUMULATIVE_CHART_CAP,
-  CUMULATIVE_CHART_FLOOR,
-  clampCumulativeForAxis,
-  computeAllReturnMetrics,
-  type InvestmentReturnMetric,
-  isPlottableMetric,
-} from '@/lib/investment-return-metrics';
-import type { InsightsStyles } from '@/lib/insights-styles';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
+import { FINANCE_UP } from '@/lib/finance-colors';
+import type { InsightsStyles } from '@/lib/insights-styles';
 import {
-  ASSET_CATEGORY_ORDER,
-  CATEGORY_LABEL_ZH,
-  type AssetCategory,
-  type SimpleAsset,
+    CUMULATIVE_CHART_CAP,
+    CUMULATIVE_CHART_FLOOR,
+    clampCumulativeForAxis,
+    computeAllReturnMetrics,
+    isPlottableMetric,
+    type InvestmentReturnMetric,
+} from '@/lib/investment-return-metrics';
+import {
+    ASSET_CATEGORY_ORDER,
+    CATEGORY_LABEL_ZH,
+    type AssetCategory,
+    type SimpleAsset,
 } from '@/types/asset';
 import { useMemo, useState } from 'react';
 import {
-  Platform,
-  Pressable,
-  ScrollView,
-  Switch,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions,
+    Platform,
+    Pressable,
+    ScrollView,
+    Switch,
+    Text,
+    TextInput,
+    View,
+    useWindowDimensions,
 } from 'react-native';
 import { Circle, G, Line, Svg, Text as SvgText } from 'react-native-svg';
 

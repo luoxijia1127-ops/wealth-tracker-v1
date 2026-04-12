@@ -2,10 +2,10 @@
  * Dashboard 样式工厂：随配色主题变化。
  */
 
-import type { AppPaletteTheme } from '@/lib/app-palette';
 import { AppFont } from '@/lib/app-fonts';
-import { editorialAmbientWash, editorialSurfaceFill } from '@/lib/editorial-theme';
+import type { AppPaletteTheme } from '@/lib/app-palette';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { editorialAmbientWash, editorialSurfaceFill } from '@/lib/editorial-theme';
 import { Platform, StyleSheet } from 'react-native';
 
 export function createDashboardStyles(t: AppPaletteTheme) {
@@ -16,8 +16,6 @@ export function createDashboardStyles(t: AppPaletteTheme) {
   const p48 = rgbaFromHex(p, 0.48);
   const p58 = rgbaFromHex(p, 0.58);
   const p40 = rgbaFromHex(p, 0.4);
-  const p08 = rgbaFromHex(p, 0.08);
-  const p10 = rgbaFromHex(p, 0.1);
 
   return StyleSheet.create({
     screenWrapper: {
@@ -40,6 +38,240 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     container: {
       flex: 1,
       backgroundColor: 'transparent',
+    },
+    /** design.json：分屏顶栏与主指标 — 直角色块 */
+    magHeaderSplit: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      minHeight: 56,
+    },
+    magHeaderCell: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+    },
+    magHeaderTitle: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 26,
+      fontWeight: '700',
+      letterSpacing: -0.8,
+    },
+    magHeaderAddHit: {
+      flex: 1,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      paddingRight: 4,
+    },
+    magHeroSplit: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      minHeight: 148,
+    },
+    magHeroLeft: {
+      flex: 3,
+      paddingHorizontal: 18,
+      paddingVertical: 22,
+      justifyContent: 'center',
+    },
+    magHeroRight: {
+      flex: 2,
+      paddingHorizontal: 14,
+      paddingVertical: 22,
+      justifyContent: 'center',
+    },
+    magHeroKicker: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1.6,
+      textTransform: 'uppercase',
+      marginBottom: 8,
+    },
+    magCategoryFrame: {
+      marginBottom: 3,
+      overflow: 'hidden',
+    },
+    /** 上半屏：dashboard.png — 奶油底布 + 三块矩形叠压（无旋转，直角） */
+    magHeroHalfRoot: {
+      width: '100%',
+      overflow: 'hidden',
+    },
+    magHeroCollagePad: {
+      flex: 1,
+      paddingHorizontal: 0,
+      paddingBottom: 0,
+    },
+    magHeroCollageStage: {
+      flex: 1,
+      position: 'relative',
+    },
+    magHeroPaperBase: {
+      borderRadius: 0,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#141414',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 6,
+        },
+        default: {},
+      }),
+    },
+    /** 左上横条：CLAUDIA / Dashboard（约 3/4 屏宽） */
+    magHeroPaperDashboard: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '74%',
+      height: '36%',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      zIndex: 2,
+    },
+    /** 右上竖条：参考图浅蓝块（今日涨跌位）— 各币种原值 */
+    magHeroPaperSideBlue: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      width: '49%',
+      height: '62%',
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      zIndex: 1,
+    },
+    /** 下方横条：参考图最大数字 + TOTAL VALUE — 默认币种合计净值 */
+    magHeroPaperTotalOrange: {
+      position: 'absolute',
+      right: 0,
+      bottom: 0,
+      width: '85%',
+      height: '38%',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      zIndex: 3,
+      justifyContent: 'flex-end',
+    },
+    /** 多币种明细在橙块内展开时略增高底部橙区，避免与右下角今日涨跌重叠 */
+    magHeroPaperTotalOrangeWithDetail: {
+      height: '48%',
+    },
+    /** 单币种：仅左上标题 + 下方整块净值 */
+    magHeroPaperTotalOrangeWide: {
+      position: 'absolute',
+      left: 0,
+      bottom: 0,
+      width: '100%',
+      height: '58%',
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      zIndex: 2,
+      justifyContent: 'flex-end',
+    },
+    magDashboardTitleCollage: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 66,
+      fontWeight: '700',
+      letterSpacing: -2.8,
+      lineHeight: 68,
+    },
+    magHeroHalfInner: {
+      flex: 1,
+      flexDirection: 'column',
+    },
+    magHeroMastheadBand: {
+      flex: 2.25,
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      paddingBottom: 14,
+      justifyContent: 'flex-start',
+    },
+    magDashboardTitle: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 58,
+      fontWeight: '700',
+      letterSpacing: -2.6,
+      lineHeight: 62,
+    },
+    magDashboardSubtitle: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1.85,
+      textTransform: 'uppercase',
+      marginTop: 10,
+    },
+    magHeroMetricBand: {
+      flex: 1.4,
+      justifyContent: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+    },
+    magHeroMetricInner: {
+      width: '100%',
+      alignItems: 'flex-end',
+    },
+    magHeroMetricLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1.6,
+      textTransform: 'uppercase',
+      marginBottom: 8,
+      textAlign: 'right',
+    },
+    /** 右上蓝条内多行原币种（略小于底部主数字） */
+    magHeroCurrencyLine: {
+      fontSize: 15,
+      fontWeight: '700',
+      letterSpacing: -0.35,
+      textAlign: 'right',
+      lineHeight: 22,
+    },
+    /** 底部橙条：全页最大净值数字（参考 TOTAL VALUE 一行） */
+    magHeroNetInt: {
+      fontSize: 60,
+      fontWeight: '800',
+      letterSpacing: -1.2,
+    },
+    magHeroNetDec: {
+      fontSize: 32,
+      fontWeight: '800',
+      paddingTop: 8,
+    },
+    magHeroNetForeign: {
+      fontSize: 50,
+      fontWeight: '800',
+      letterSpacing: -0.85,
+      textAlign: 'right',
+    },
+    /** 主数字下方小标题（对齐参考 TOTAL VALUE） */
+    magHeroMetricCaptionBelow: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1.6,
+      textTransform: 'uppercase',
+      marginTop: 10,
+      textAlign: 'right',
+    },
+    magHeroAddHitAbs: {
+      position: 'absolute',
+      right: 12,
+      zIndex: 20,
+      padding: 10,
+    },
+    /** 今日盈亏比例：叠在拼贴层，位于右下角净值橙块「上方」（bottom 与橙块高度对齐） */
+    magHeroDailyAboveCard: {
+      position: 'absolute',
+      right: 14,
+      zIndex: 4,
+      alignItems: 'flex-end',
+    },
+    magHeroDailyPctOnly: {
+      fontSize: 50,
+      fontWeight: '800',
+      letterSpacing: -0.35,
+      textAlign: 'right',
     },
     header: {
       flexDirection: 'row',
@@ -89,9 +321,9 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       alignItems: 'center',
     },
     scrollContent: {
-      paddingHorizontal: 24,
-      paddingTop: 8,
-      gap: 16,
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      gap: 0,
     },
     /** 净值卡片内层（外层由 GlassSurface 包裹） */
     netWorthSection: {
@@ -157,7 +389,9 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       flex: 1,
     },
     groupsContainer: {
-      gap: 12,
+      gap: 0,
+      paddingTop: 4,
+      paddingHorizontal: 0,
     },
     categoryGlassOuter: {
       marginBottom: 0,
@@ -165,7 +399,7 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     folderCard: {
       flexDirection: 'row',
       alignItems: 'stretch',
-      borderRadius: 28,
+      borderRadius: 0,
       backgroundColor: 'transparent',
       overflow: 'hidden',
     },
@@ -177,18 +411,30 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       flex: 1,
       backgroundColor: 'transparent',
     },
+    /** 左 20% 图标 | 中间名称与摘要 | 右列金额；整行单色，无列缝 */
     folderHeader: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      paddingVertical: 18,
-      paddingHorizontal: 16,
-      gap: 10,
+      alignItems: 'stretch',
+      alignSelf: 'stretch',
+      width: '100%',
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      gap: 0,
     },
-    folderHeaderTextCol: {
+    folderHeaderIconCol: {
+      width: '20%',
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      paddingHorizontal: 6,
+    },
+    folderHeaderMiddleCol: {
       flex: 1,
       minWidth: 0,
-      paddingRight: 6,
+      justifyContent: 'center',
+      paddingVertical: 16,
+      paddingHorizontal: 10,
     },
     folderTitle: {
       fontFamily: AppFont.displaySemiBold,
@@ -210,9 +456,14 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       color: 'rgba(255, 255, 255, 0.88)',
     },
     folderHeaderRight: {
-      alignItems: 'flex-end',
-      maxWidth: '54%',
+      width: '30%',
+      flexShrink: 0,
       minWidth: 0,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      paddingLeft: 6,
+      paddingRight: 6,
     },
     folderTotal: {
       fontSize: 18,
@@ -248,55 +499,51 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       paddingHorizontal: 12,
       paddingBottom: 14,
       paddingTop: 6,
-      backgroundColor: editorialSurfaceFill(t, 0.52),
-      borderBottomLeftRadius: 24,
-      borderBottomRightRadius: 24,
-    },
-    assetIconWrap: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 12,
-      flexShrink: 0,
+      backgroundColor: editorialSurfaceFill(t, 0.45),
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
     },
     assetRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 10,
-      paddingVertical: 16,
-      paddingHorizontal: 14,
-      backgroundColor: editorialSurfaceFill(t, 0.62),
-      borderRadius: 22,
+      alignSelf: 'stretch',
+      alignItems: 'stretch',
+      width: '100%',
+      marginBottom: 8,
+      paddingVertical: 0,
+      paddingHorizontal: 0,
+      gap: 0,
+      borderRadius: 0,
       borderWidth: 0,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#1a2744',
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.07,
-          shadowRadius: 22,
-        },
-        android: { elevation: 2 },
-        default: {},
-      }),
     },
     assetRowPressed: {
-      opacity: 0.92,
-      backgroundColor: editorialSurfaceFill(t, 0.78),
+      opacity: 0.9,
     },
-    assetRowLeft: {
+    assetRowIconCol: {
+      width: '20%',
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 6,
+    },
+    assetRowMiddleCol: {
       flex: 1,
-      gap: 2,
       minWidth: 0,
+      gap: 2,
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 8,
     },
-    assetRowRight: {
+    assetRowRightCol: {
+      width: '30%',
+      flexShrink: 0,
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'flex-end',
       gap: 2,
-      marginLeft: 8,
-      paddingTop: 2,
+      paddingVertical: 12,
+      paddingLeft: 4,
+      paddingRight: 10,
     },
     assetRowRightStack: {
       alignItems: 'flex-end',

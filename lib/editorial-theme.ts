@@ -42,3 +42,19 @@ export function editorialPrimaryButtonText(t: AppPaletteTheme): string {
 export function editorialTableRowAlt(t: AppPaletteTheme): string {
   return rgbaFromHex(t.primary, 0.045);
 }
+
+/**
+ * 大类折叠头整行底色（三列同色，无列缝）：收起为 accent 淡染，展开为纯色 accent。
+ */
+export function dashboardFolderHeaderBg(
+  accentHex: string,
+  expanded: boolean
+): string {
+  if (expanded) return accentHex;
+  return rgbaFromHex(accentHex, 0.12);
+}
+
+/** 资产明细行整行底色（与列表区叠化）；accent 来自当前大类主题色 */
+export function dashboardAssetRowBg(accentHex: string): string {
+  return rgbaFromHex(accentHex, 0.1);
+}

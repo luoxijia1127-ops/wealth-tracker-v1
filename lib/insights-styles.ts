@@ -2,10 +2,10 @@
  * Insights 页样式工厂：随配色主题变化。
  */
 
-import type { AppPaletteTheme } from '@/lib/app-palette';
 import { AppFont } from '@/lib/app-fonts';
-import { editorialSurfaceFill } from '@/lib/editorial-theme';
+import type { AppPaletteTheme } from '@/lib/app-palette';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
+import { editorialSurfaceFill } from '@/lib/editorial-theme';
 import { StyleSheet } from 'react-native';
 
 /**

@@ -2,8 +2,8 @@
  * 设置页网格入口：圆形图标底 + 短标签，便于后续扩展更多方块。
  */
 
-import { rgbaFromHex } from '@/lib/color-utils';
 import type { AppPaletteTheme } from '@/lib/app-palette';
+import { rgbaFromHex } from '@/lib/color-utils';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { ComponentProps } from 'react';
 import { Pressable, Text, View } from 'react-native';

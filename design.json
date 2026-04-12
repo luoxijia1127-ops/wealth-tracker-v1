@@ -1,533 +1,270 @@
 {
   "meta": {
-    "name": "Soft Editorial Collage Design System",
-    "version": "1.0.0",
-    "intent": "High-level design direction for reproducing the attached reference aesthetic across the app.",
-    "productContext": "Nest: a personal wealth and investing app that should feel warm, editorial, playful, premium, and approachable instead of cold fintech."
+    "name": "Daybreak Editorial — Magazine Finance UI",
+    "version": "2.0.0",
+    "sourceOfTruth": "docs/desigh/reference/*.png — dashboard, addasset, insight-asset change, invest analysis, more",
+    "intent": "High-level creative direction for AI and humans: replicate a fashion-editorial, flat-color-block wealth app. Not generic fintech; not glassmorphism-first.",
+    "productContext": "Personal wealth / portfolio tracking. Data must stay trustworthy; the shell is expressive, poster-like, and calm."
   },
-  "brandEssence": {
-    "keywords": [
-      "soft",
-      "editorial",
-      "playful",
-      "premium",
-      "collage-like",
-      "tactile",
-      "optimistic",
-      "friendly",
-      "lightweight",
-      "pastel"
+  "creativeNorthStar": {
+    "oneLiner": "Every screen reads like a magazine spread: big type, flat color fields, intentional asymmetry, and cream paper between the ink.",
+    "metaphors": [
+      "Editorial fashion spread (Vogue / Kinfolk energy, not Bloomberg terminal)",
+      "Paper collage: rectangles of color taped on a warm sheet",
+      "Poster hierarchy: one dominant message, then supporting bands"
     ],
-    "feeling": "The UI should feel like a carefully art-directed lifestyle product, not a utilitarian finance dashboard. It should suggest clarity, warmth, and delight through soft color fields, large rounded cards, generous negative space, and layered compositions.",
-    "designPrinciple": "Use bright pastel surfaces and editorial composition to make finance feel emotionally safe and visually memorable."
-  },
-  "creativeDirection": {
-    "overallLook": "Large soft cards float on a warm off-white canvas. Layouts feel editorial and asymmetrical but still balanced. Surfaces use broad pastel gradients or single-tone pastel fills. Components often feel like printed cards or objects placed on a tabletop.",
-    "visualMetaphor": "Think modern greeting-card app, magazine layout, and lifestyle brand art direction translated into a finance product.",
-    "personalityRules": [
-      "Prefer charm over density.",
-      "Prefer one strong focal area per screen.",
-      "Prefer clear hierarchy over showing everything at once.",
-      "Prefer soft delight over hard enterprise sharpness.",
-      "Make data feel friendly without reducing trust."
+    "keywords": [
+      "editorial",
+      "flat color blocks",
+      "high contrast ink",
+      "serif display",
+      "geometric sans utility",
+      "split-screen",
+      "magazine masthead",
+      "full-bleed sections",
+      "sharp geometry",
+      "cream canvas",
+      "confident whitespace"
     ]
   },
-  "structure": {
-    "screenComposition": {
-      "background": "Use a warm neutral page background rather than pure white. Default should feel creamy, airy, and quiet.",
-      "sections": "Break screens into large rounded modules. Each module should read as a self-contained story block.",
-      "layoutStyle": "Favor a magazine-like grid: one dominant card plus supporting cards. Allow intentional asymmetry, but maintain visual equilibrium.",
-      "density": "Low to medium density. Do not cram multiple explanations, labels, and controls into the same visible region."
+  "designPrinciples": [
+    {
+      "name": "Structure is color, not chrome",
+      "rule": "Separate regions with solid fills and alignment — not hairline borders, not nested outlined boxes. If you need a divider, use spacing or a new color band."
     },
-    "spacing": {
-      "philosophy": "Spacing should feel generous and breathable. The app should never feel crowded.",
-      "outerPadding": "20-24px on mobile screens.",
-      "sectionGap": "16-24px between major modules.",
-      "cardPadding": "16-24px inside cards depending on content depth.",
-      "microSpacing": "6-12px between related text lines, chips, or compact controls."
+    {
+      "name": "Typography does the drama",
+      "rule": "Headlines and hero numbers are oversized serif; labels and metadata are smaller caps or sans. Scale contrast beats decoration."
     },
-    "shapeLanguage": {
-      "primaryRadius": "28-36px for major cards.",
-      "secondaryRadius": "16-22px for inner trays, pills, sheets, and compact surfaces.",
-      "pillStyle": "Rounded, friendly, thick enough to feel tactile.",
-      "corners": "Avoid sharp corners almost entirely."
+    {
+      "name": "Right angles for architecture, pills for controls",
+      "rule": "Hero bands, category strips, and mastheads use 0–4px radius (structural). Segmented tabs, search fields, and tiny filters may use pills — never the whole page."
+    },
+    {
+      "name": "One focal plane per viewport",
+      "rule": "Avoid stacking three equally loud layers. Either a masthead shouts, or the chart shouts — not both at full volume."
+    },
+    {
+      "name": "Theme is swappable, grammar is fixed",
+      "rule": "Peach / sky / lemon in references are roles (block A, B, C), not fixed hex. User-chosen palettes must keep the same layout grammar."
+    },
+    {
+      "name": "Money stays legible",
+      "rule": "Decorative layout must never reduce contrast on balances, returns, or warnings. Status red/green conventions stay intuitive."
+    }
+  ],
+  "layoutAndStructure": {
+    "screenCanvas": {
+      "description": "Warm off-white / cream full-screen ground (#F5F0E1–#FAF9F6 family). Never pure optic white as the only layer.",
+      "bleed": "Key sections (masthead, split metrics, category bands) may go edge-to-edge horizontally."
+    },
+    "gridLogic": {
+      "description": "Use a loose 2-column or split flex logic: 60/40 or 50/50 for hero pairs; single column for lists below.",
+      "asymmetry": "Deliberately offset: vertical accent bar beside a title, or one tall block beside two stacked blocks."
+    },
+    "sectioningModel": [
+      "Masthead band (brand + page intent + primary metric)",
+      "Content band (chart, table, or form)",
+      "Footer band (two performance strips, tab bar)"
+    ],
+    "density": "Low to medium. Generous padding inside color blocks (16–24px). Avoid cramming controls into mastheads."
+  },
+  "spacing": {
+    "unitBase": 4,
+    "scale": [4, 8, 12, 16, 20, 24, 32, 40, 48],
+    "pageHorizontalPadding": {
+      "default": 16,
+      "loose": 20,
+      "whenFullBleedBlocks": 0
+    },
+    "verticalRhythm": {
+      "betweenMajorSections": 16,
+      "insideMasthead": 12,
+      "betweenFormRows": 12,
+      "betweenListRows": 8
+    },
+    "philosophy": "Negative space is part of the composition — empty cream areas separate color blocks as much as lines would."
+  },
+  "shapeLanguage": {
+    "structural": {
+      "radius": "0px for primary rectangles (headers, split metrics, category rows, mastheads).",
+      "intent": "Reads as print layout, not app bubble."
+    },
+    "controls": {
+      "segmentedTab": "Pill or rounded rectangle for active state; inactive sits on tinted flat ground.",
+      "searchField": "Full-width pill or soft capsule inside content band.",
+      "chipsFilters": "Pill or stadium; selected = filled solid accent; unselected = outline or soft tint."
+    },
+    "elevation": {
+      "default": "Prefer flat. If needed, one soft diffuse shadow on floating elements only (tab bar, modal sheet) — never harsh drop shadows on every card.",
+      "avoid": "Stacked glass cards with double shadows; thick borders around every module."
     }
   },
   "colorSystem": {
-    "strategy": "Use a quiet neutral canvas plus cheerful pastel statement colors. Each large block may own a color mood.",
-    "pageBackground": {
-      "description": "Warm off-white / cream, slightly tinted rather than stark white.",
-      "suggestedHex": [
-        "#F7F3EA",
-        "#F8F5EE",
-        "#F4F0E7"
-      ]
+    "strategy": "Cream neutral canvas + 3–5 saturated accents from a coordinated palette. Blocks carry mood; text is mostly near-black on light fills.",
+    "roles": {
+      "canvas": "page background — warm paper",
+      "blockPrimary": "First accent (e.g. peach / orange) — mastheads, primary CTA strips, vertical accent bars",
+      "blockSecondary": "Second accent (e.g. sky blue) — paired columns, secondary metrics",
+      "blockTertiary": "Third accent (e.g. lemon / yellow) — tertiary bands, highlights",
+      "ink": "Primary text on light surfaces — near-black #141414–#2C3E50, not pure #000",
+      "inkOnDark": "White or near-white on deep charcoal / black bands",
+      "mutedInk": "Labels, captions — 55–72% opacity of ink on same surface"
     },
-    "pastelSurfaces": {
-      "lavender": "#CDB6F6",
-      "pink": "#F46CA8",
-      "lime": "#CFE77A",
-      "butter": "#F6DB62",
-      "mint": "#9FE6D8",
-      "sky": "#A7D9F5",
-      "peach": "#F7B7A8"
+    "referencePaletteAnchors": {
+      "note": "Illustrative only — map to user theme swatches in app code.",
+      "examples": {
+        "peach": "#FFB37E",
+        "sky": "#B9D9EB",
+        "cream": "#F5F0E1",
+        "lemon": "#F5E000",
+        "charcoal": "#2C2C2E"
+      }
     },
-    "usageRules": [
-      "One dominant pastel per card.",
-      "Do not use too many saturated colors in the same module.",
-      "Let color blocks do the emotional work; keep chrome minimal.",
-      "Finance-specific status colors should still exist, but soften them slightly to fit the world."
-    ],
-    "textColors": {
-      "primary": "#23201C",
-      "secondary": "#4B463F",
-      "muted": "#7A746B",
-      "inverse": "#FFFFFF"
-    },
-    "statusColors": {
-      "positive": "#22A06B",
-      "negative": "#D85C63",
-      "warning": "#E8A33B",
-      "info": "#5A86D6"
+    "financeSemantics": {
+      "positive": "Green family for up / gain — may be softened but must stay distinguishable",
+      "negative": "Red / rose family for down / loss",
+      "neutral": "Use ink or muted, not gray-50 on gray-50"
     }
   },
   "typography": {
-    "direction": "Pair an editorial serif-like display style for major headings with a clean, rounded, modern sans-serif for body, controls, metrics, and utility text.",
-    "headlineStyle": {
-      "tone": "Confident, elegant, slightly nostalgic editorial headlines.",
-      "weight": "Semibold to bold.",
-      "tracking": "Tight to neutral.",
-      "usage": "Hero titles, section titles, major card headings."
+    "pairing": {
+      "display": "High-contrast serif for mastheads, hero words, big numbers where editorial impact matters (e.g. Newsreader, Playfair-style).",
+      "ui": "Clean geometric sans for labels, tabs, body, table cells, inputs (e.g. Inter)."
     },
-    "bodyStyle": {
-      "tone": "Friendly and easy to scan.",
-      "weight": "Regular to medium.",
-      "usage": "Descriptions, supporting text, labels, helper content."
-    },
-    "typeScale": {
-      "hero": "34-44",
-      "sectionTitle": "24-32",
-      "cardTitle": "18-24",
-      "body": "14-17",
-      "caption": "11-13",
-      "micro": "10-11"
+    "hierarchy": {
+      "mastheadWordmark": { "sizeRange": "32–40px", "weight": "700", "case": "sentence or ALL CAPS for brand only", "tracking": "tight for serif" },
+      "heroNumeric": { "sizeRange": "40–52px", "weight": "700–800", "role": "Net worth, giant headline figures" },
+      "sectionLabel": { "sizeRange": "11–13px", "weight": "600–700", "case": "ALL CAPS with letter-spacing 1.5–2.2", "role": "PORTFOLIO SUMMARY, NET WORTH" },
+      "body": { "sizeRange": "14–16px", "weight": "500–600" },
+      "caption": { "sizeRange": "11–12px", "weight": "500–600" }
     },
     "rules": [
-      "Use few font sizes, but with strong hierarchy.",
-      "Headlines should feel oversized and intentional.",
-      "Descriptions should remain concise and not form large gray paragraphs.",
-      "Numbers should be crisp, prominent, and easy to compare."
+      "Few sizes, strong steps — no wall of 15px text.",
+      "Serif for emotion and hierarchy; sans for reading efficiency.",
+      "Numbers that matter are larger than their labels, always."
     ]
   },
-  "surfaces": {
-    "cardStyle": {
-      "look": "Chunky rounded rectangles with soft fill, subtle shadow, and a sense of physical presence.",
-      "shadow": "Soft, low-contrast, diffused shadow; never harsh or heavy.",
-      "border": "Usually no visible border, or an extremely soft hairline if needed.",
-      "layering": "Allow object overlap, like a white tray or floating panel sitting on top of a colored card."
+  "referenceScreens": {
+    "dashboard": {
+      "file": "docs/desigh/reference/dashboard.png",
+      "composition": "Split header (two flat colors) + split primary metrics (large left total, right daily change) + cream list region with category rows (icon + label + value + optional side accent).",
+      "mustHave": ["Split-color top bar", "No rounded outer cards for main structure", "Category rows as horizontal bands"]
     },
-    "innerPanels": {
-      "look": "White trays, mini sheets, or inset modules used inside colorful cards.",
-      "radius": "18-24px.",
-      "shadow": "Small but noticeable lift to imply physical stacking."
+    "addAsset": {
+      "file": "docs/desigh/reference/addasset.png",
+      "composition": "Vertical accent bar + huge ADD ASSET serif title + row of flat color rectangles for asset class + underline-only fields + full-width flat primary CTA with oversized word.",
+      "mustHave": ["Vertical brand color bar", "Category as color tiles not chips", "Bottom hero button"]
+    },
+    "insightsAssetChange": {
+      "file": "docs/desigh/reference/insight-asset change.png",
+      "composition": "Orange masthead with brand + subtitle + net worth + segmented tabs (asset change / distribution / ROI) + chart with optional oversized figures overlapping gradient fill + two bottom strips (gainer / loser).",
+      "mustHave": ["Solid masthead block", "Pill active tab on flat ground", "Editorial scale on chart annotations"]
+    },
+    "investAnalysis": {
+      "file": "docs/desigh/reference/invest analysis.png",
+      "composition": "Stacked serif title block + bubble/scatter chart + pill search + category filter row + list rows with large serif name left and solid color rectangle right containing %.",
+      "mustHave": ["Magazine title stack", "Prominent filter chips", "Right-hand color block for key metric per row"]
+    },
+    "more": {
+      "file": "docs/desigh/reference/more.png",
+      "composition": "Large masthead + asymmetric grid: tall account block + stacked tool/data blocks + preferences band + support entries.",
+      "mustHave": ["2-column masonry feel", "Account as single tall color field", "Preferences in muted wide band"]
     }
   },
-  "imageryAndIllustration": {
-    "style": "Collage, mockup-like product imagery, tilted cards, layered screenshots, small floating objects, and tactile visual inserts.",
-    "guideline": "If using artwork or screenshots, present them as composition elements, not full-bleed content blocks.",
-    "forThisApp": "Charts, account cards, summaries, and goal cards can be treated like art-directed objects placed onto a pastel board."
-  },
-  "componentGuidelines": {
-    "appShell": {
-      "topBar": "Minimal chrome. Use lots of breathing room. Icons may sit in soft circular or rounded containers.",
-      "bottomNavigation": "Use a rounded floating tray rather than a hard edge tab bar when possible. Background should feel elevated and friendly.",
-      "screenTitles": "Short, editorial, and confident."
+  "components": {
+    "bottomNavigation": {
+      "style": "Light bar; thin top separation or none; line icons; active state = stronger ink or accent — not heavy fills.",
+      "items": "4–5 primary destinations max; short labels."
     },
-    "heroCards": {
-      "purpose": "Introduce the most important message or metric on a screen.",
-      "design": "Large pastel card with strong title, short supporting copy, and possibly a layered object or inset tray.",
-      "contentRule": "One hero metric or one key story only."
+    "masthead": {
+      "layout": "Full-width solid rectangle. Left: brand word (serif, large). Below: subtitle (sans, caps, tracked). Optional primary metric block.",
+      "height": "Comfortable — not a minimal 44pt bar; feels like a cover."
     },
-    "summaryMetricCards": {
-      "look": "Compact inner white trays or mini pastel blocks with strong numeric emphasis.",
-      "hierarchy": "Number first, label second.",
-      "spacing": "Tight but breathable."
+    "splitMetricBand": {
+      "layout": "Two adjacent rectangles (flex split). Left often wider for primary number; right for secondary or delta.",
+      "text": "Use `pickTextOnAccent`-style logic: light block → dark ink; dark block → light ink."
     },
-    "sectionCards": {
-      "look": "Rounded modules with clear top-left title and lightweight body structure.",
-      "rule": "Avoid heavy visual dividers. Use spacing, tint, and alignment instead."
+    "categorySelector": {
+      "addFlow": "Horizontal row of equal-height color rectangles; label in strong serif or bold sans; selected = outline or inner contrast shift.",
+      "insightsTabs": "Segmented control: active = white or light pill on tinted field; inactive = flat on canvas."
     },
-    "buttons": {
-      "primary": "Rounded, bold, high contrast, simple text, feels touchable and slightly chunky.",
-      "secondary": "Pill or soft-outline button with tinted fill.",
-      "ghost": "Text or icon button with minimal chrome."
+    "formFields": {
+      "default": "Underline only (bottom border) or minimal bottom rule — no full box unless platform requires.",
+      "labels": "Above or inline placeholder in serif or sans per screen consistency."
     },
-    "chipsAndFilters": {
-      "look": "Rounded capsules with clear selected and unselected states.",
-      "selectedState": "Use full category color or a stronger tint.",
-      "unselectedState": "Use soft tinted fills rather than gray pills.",
-      "layout": "Center align chip groups where possible. They should feel balanced, not left-heavy."
+    "primaryButton": {
+      "addFlow": "Full-width rectangle, 0 radius, fill = primary accent; label in huge serif or bold (ADD).",
+      "standard": "Flat filled rectangle or sharp stadium; avoid bubbly default iOS blue."
     },
-    "cardsForCharts": {
-      "look": "Charts should sit inside calm, refined cards. Supporting controls should be lightweight.",
-      "axes": "Axes should be subtle and not dominate the module.",
-      "labels": "Short, sparse, readable at a glance.",
-      "annotations": "Prefer a few well-placed highlights over many legends and long explanations."
+    "dataListRow": {
+      "wealth": "Left: name + subline. Right: large amount or percent. Optional vertical sliver of accent color.",
+      "investmentReturnRow": "Left: serif asset name. Right: solid block with cumulative return % — black or white text on block per contrast."
     },
-    "dataTablesAndLists": {
-      "approach": "Convert dense data into soft panels. Use scrollable trays with fixed headers if needed.",
-      "density": "Keep rows readable; do not make the table feel spreadsheet-like.",
-      "hierarchy": "Name/value first, details second."
+    "charts": {
+      "areaLine": "Soft gradient fill under line; axis minimal; allow large typographic annotation inside chart area for hero metrics.",
+      "scatterBubble": "Glossy or flat circles with labels inside; grid light gray; axes labeled clearly but quietly."
     },
-    "forms": {
-      "inputShape": "Rounded inputs with soft fill or light outline.",
-      "fieldLayout": "Show only essential helper text. Prefer progressive disclosure over many visible explanations.",
-      "selectionControls": "Use chips, dropdown sheets, or rounded segmented controls."
-    },
-    "modalsAndSheets": {
-      "look": "Rounded sheet surfaces with generous top padding and minimal decoration.",
-      "tone": "Feels like a premium card sliding over the page."
-    },
-    "goalCards": {
-      "look": "Warm, optimistic, compact story cards.",
-      "priority": "Progress visualization should be friendly, not clinical.",
-      "style": "Prefer rings, progress bars, and concise labels inside cheerful surfaces."
-    },
-    "emptyStates": {
-      "tone": "Encouraging, calm, lightly playful.",
-      "content": "Short sentence only. No long instructional blocks."
+    "settingsGrid": {
+      "layout": "Color blocks as cells, not white cards in void. Icons + short labels; grid 2–3 columns depending on width.",
+      "preferences": "Single wide low-chroma band for language + theme rows."
     }
-  },
-  "financeAdaptationRules": {
-    "trust": [
-      "Data should remain legible and trustworthy even inside a playful system.",
-      "Critical financial numbers must have stronger contrast than decorative text.",
-      "Performance colors should remain intuitive: green positive, red negative, amber warning."
-    ],
-    "whatToSimplify": [
-      "Reduce explanatory helper text by default.",
-      "Use grouping, chips, and modular cards to avoid overwhelming the user.",
-      "Show one primary metric per card, not a wall of metrics."
-    ],
-    "howToMakeChartsFit": [
-      "Keep chart chrome light.",
-      "Use colored annotations sparingly.",
-      "Place legends into existing controls when possible instead of adding separate legend blocks.",
-      "Prefer direct labeling near meaningful lines or points."
-    ]
   },
   "motion": {
-    "philosophy": "Motion should feel soft, buoyant, and premium. No snappy enterprise motion.",
-    "rules": [
-      "Use gentle fade, lift, and slide transitions.",
-      "Pressed states should slightly dim or compress.",
-      "Hover or selection should feel like a tactile state change, not a technical toggle."
-    ]
+    "feel": "Calm and confident. Short fades; press = slight opacity or scale — not bouncy playfulness.",
+    "principle": "Motion supports comprehension; it does not replace hierarchy."
+  },
+  "accessibility": {
+    "contrast": "All text on colored blocks must meet readable contrast; use dynamic `onBlock` text color.",
+    "touchTargets": "Maintain minimum 44pt hit areas even when layout looks editorial.",
+    "data": "Never rely on color alone for profit/loss — pair with sign, icon, or text."
+  },
+  "themeIntegration": {
+    "codeMapping": "User-selectable palettes live in `AppPaletteTheme` (`lib/app-palette.ts`). Structural colors should derive from `swatches`, `pageBg`, `primary`, `categoryAccents`, `ctaPillBg` / `ctaPillText` — not hardcoded reference hex.",
+    "layoutHelpers": "Use `lib/editorial-reference-layout.ts` patterns (`magazineBlocks`, `magazineStrongOnBlock`) when implementing block-based UI."
   },
   "dosAndDonts": {
     "do": [
-      "Use large rounded cards with generous whitespace.",
-      "Let color blocks define sections and mood.",
-      "Use editorial headings and short body copy.",
-      "Create focal points through scale and spacing.",
-      "Treat UI like art direction, not only layout."
+      "Use flat rectangles and split layouts for primary structure.",
+      "Use serif display for mastheads and hero words.",
+      "Let cream/background breathe between saturated blocks.",
+      "Use color blocks to express hierarchy.",
+      "Keep finance numbers visually dominant."
     ],
     "dont": [
-      "Do not use cold grayscale dashboards as the dominant look.",
-      "Do not overfill screens with helper text and secondary explanation.",
-      "Do not stack too many bordered boxes inside each other.",
-      "Do not use sharp corners, harsh shadows, or ultra-dense tables.",
-      "Do not make every component visually equal."
+      "Don't default to large rounded cards for every screen — references are mostly sharp.",
+      "Don't rely on 1px dividers everywhere — use bands and spacing.",
+      "Don't mix five loud accents in one viewport without a neutral anchor.",
+      "Don't shrink critical numbers to fit decoration.",
+      "Don't describe this system as 'glassmorphism-first' — glass is optional garnish, not the spine."
     ]
   },
+  "aiReplicationChecklist": [
+    "1. Set cream/off-white page background from theme `pageBg`.",
+    "2. Map masthead / split bands / vertical bar to `swatches[0..n]` and `ctaPillBg` — never one-off random hex unless prototyping.",
+    "3. Use serif for display lines and sans for UI chrome (match project fonts: Newsreader + Inter).",
+    "4. Prefer structural radius 0; reserve pills for tabs, chips, search.",
+    "5. Section with color + spacing, not borders.",
+    "6. For each screen, identify one hero (masthead, split metric, or chart) before adding secondary UI.",
+    "7. After layout, verify contrast on all money and status elements.",
+    "8. Cross-check `referenceScreens` for the feature being built."
+  ],
   "themeTokens": {
-    "tokenStrategy": "These tokens are intended to map directly onto this app's current theme architecture, especially `lib/app-palette.ts`, while shifting the product closer to the editorial pastel direction.",
+    "note": "Numeric tokens below are implementation hints; radii updated for v2 editorial (structural 0, control pills flexible).",
     "global": {
-      "spacing": {
-        "4": 4,
-        "6": 6,
-        "8": 8,
-        "10": 10,
-        "12": 12,
-        "14": 14,
-        "16": 16,
-        "20": 20,
-        "24": 24,
-        "28": 28,
-        "32": 32,
-        "40": 40
-      },
+      "spacing": { "4": 4, "8": 8, "12": 12, "16": 16, "20": 20, "24": 24, "32": 32 },
       "radius": {
-        "xs": 10,
-        "sm": 14,
-        "md": 18,
-        "lg": 22,
-        "xl": 28,
-        "hero": 34,
+        "structural": 0,
+        "control": 14,
         "pill": 999
-      },
-      "typography": {
-        "displayHero": {
-          "fontSize": 40,
-          "lineHeight": 44,
-          "fontWeight": "700",
-          "letterSpacing": -0.8
-        },
-        "displaySection": {
-          "fontSize": 28,
-          "lineHeight": 32,
-          "fontWeight": "700",
-          "letterSpacing": -0.5
-        },
-        "titleCard": {
-          "fontSize": 22,
-          "lineHeight": 26,
-          "fontWeight": "700",
-          "letterSpacing": -0.3
-        },
-        "titleBlock": {
-          "fontSize": 18,
-          "lineHeight": 22,
-          "fontWeight": "700",
-          "letterSpacing": -0.2
-        },
-        "body": {
-          "fontSize": 15,
-          "lineHeight": 22,
-          "fontWeight": "500"
-        },
-        "bodyStrong": {
-          "fontSize": 15,
-          "lineHeight": 22,
-          "fontWeight": "600"
-        },
-        "label": {
-          "fontSize": 13,
-          "lineHeight": 18,
-          "fontWeight": "600"
-        },
-        "caption": {
-          "fontSize": 12,
-          "lineHeight": 16,
-          "fontWeight": "500"
-        },
-        "micro": {
-          "fontSize": 11,
-          "lineHeight": 14,
-          "fontWeight": "600"
-        },
-        "numericHero": {
-          "fontSize": 42,
-          "lineHeight": 44,
-          "fontWeight": "700",
-          "letterSpacing": -0.8
-        },
-        "numericSecondary": {
-          "fontSize": 20,
-          "lineHeight": 24,
-          "fontWeight": "700",
-          "letterSpacing": -0.2
-        }
-      },
-      "shadow": {
-        "cardSoft": {
-          "shadowColor": "#000000",
-          "shadowOffset": { "width": 0, "height": 8 },
-          "shadowOpacity": 0.06,
-          "shadowRadius": 20,
-          "elevation": 4
-        },
-        "cardLifted": {
-          "shadowColor": "#000000",
-          "shadowOffset": { "width": 0, "height": 10 },
-          "shadowOpacity": 0.1,
-          "shadowRadius": 24,
-          "elevation": 6
-        },
-        "insetTray": {
-          "shadowColor": "#000000",
-          "shadowOffset": { "width": 0, "height": 4 },
-          "shadowOpacity": 0.08,
-          "shadowRadius": 12,
-          "elevation": 3
-        }
       }
     },
     "semanticColorRoles": {
-      "pageBg": "Warm cream pastel canvas.",
-      "surfaceHero": "Dominant pastel card background.",
-      "surfaceCard": "White or near-white module surface.",
-      "surfaceInset": "Soft white tray inside colorful cards.",
-      "textPrimary": "Main readable copy and key metrics.",
-      "textSecondary": "Supporting descriptions and labels.",
-      "textMuted": "Quiet helper text; should be used sparingly.",
-      "accentPrimary": "Primary text/action/accent for the current palette.",
-      "accentCategory": "Category-dependent chip/chart color.",
-      "chartGrid": "Very soft, low-contrast grid line.",
-      "tabBarBg": "Floating white tray.",
-      "tabBarBorder": "Soft border with very low contrast."
-    },
-    "componentTokens": {
-      "screen": {
-        "pagePaddingX": 24,
-        "pagePaddingTop": 20,
-        "sectionGap": 24
-      },
-      "heroCard": {
-        "radius": 34,
-        "padding": 24,
-        "minHeight": 220,
-        "titleStyle": "displaySection",
-        "bodyStyle": "body",
-        "shadow": "cardSoft"
-      },
-      "contentCard": {
-        "radius": 22,
-        "padding": 20,
-        "shadow": "cardSoft"
-      },
-      "insetTray": {
-        "radius": 20,
-        "padding": 16,
-        "background": "#FFFFFF",
-        "shadow": "insetTray"
-      },
-      "button": {
-        "height": 48,
-        "radius": 999,
-        "paddingX": 18,
-        "fontStyle": "bodyStrong"
-      },
-      "chip": {
-        "height": 34,
-        "radius": 999,
-        "paddingX": 12,
-        "gap": 8,
-        "fontStyle": "label"
-      },
-      "input": {
-        "height": 48,
-        "radius": 14,
-        "paddingX": 14,
-        "fontStyle": "body",
-        "backgroundStrategy": "Prefer white or slightly tinted fill over stark outlined controls."
-      },
-      "floatingTabBar": {
-        "height": 62,
-        "radius": 28,
-        "marginX": 18,
-        "marginBottom": 10,
-        "background": "tabBarBg",
-        "border": "tabBarBorder"
-      },
-      "chartCard": {
-        "radius": 22,
-        "padding": 18,
-        "gridOpacity": 0.12,
-        "labelDensity": "sparse",
-        "annotationStyle": "direct labels near lines or points"
-      },
-      "tableTray": {
-        "radius": 14,
-        "headerHeight": 42,
-        "rowMinHeight": 44,
-        "borderOpacity": 0.12
-      },
-      "modalSheet": {
-        "radiusTop": 28,
-        "paddingTop": 18,
-        "paddingX": 20,
-        "background": "#FFFFFF"
-      }
-    },
-    "appSpecificPaletteGuidance": {
-      "recommendedBasePalette": "Use the existing palette system, but bias future palettes toward warm cream backgrounds with one dominant pastel card color and one deep editorial text color.",
-      "mappingToCurrentThemeShape": {
-        "pageBg": "Keep soft and airy. Prefer cream or very light pastel rather than saturated full-screen backgrounds.",
-        "primary": "Use as the main editorial text/action tone, not as the only brand color.",
-        "categoryAccents": "Should be distinct, soft-but-clear colors suitable for chips, chart points, and category ribbons.",
-        "folderListBg": "Treat as an inset tray tint, not a loud highlight.",
-        "purposeAccent": "Use sparingly for emotional emphasis.",
-        "chartLine": "Should usually align with primary or a slightly brighter companion accent.",
-        "chartFillTop": "Soft translucent wash, never heavy or muddy.",
-        "goalRingColors": "Should feel coordinated, pastel, and collectible rather than purely functional.",
-        "tabBarBg": "Always near-white, floating, and elevated.",
-        "chartGridStroke": "Extremely subtle."
-      },
-      "paletteFormula": {
-        "1": "Choose one warm neutral background.",
-        "2": "Choose one deep editorial text color.",
-        "3": "Choose 3-5 pastel accents with distinct roles.",
-        "4": "Make sure charts remain readable over decorative softness.",
-        "5": "Avoid using two equally dominant saturated hues on the same screen."
-      }
-    },
-    "recommendedFinanceUIMapping": {
-      "dashboard": {
-        "netWorthHero": {
-          "fontStyle": "numericHero",
-          "secondaryBreakdownStyle": "caption",
-          "cardStyle": "heroCard"
-        },
-        "categoryFolders": {
-          "radius": 22,
-          "accentStrip": true,
-          "headerStyle": "titleBlock",
-          "bodyStyle": "caption"
-        }
-      },
-      "insights": {
-        "trendChart": {
-          "cardStyle": "chartCard",
-          "timeframeChipStyle": "chip",
-          "yAxisLabelStyle": "micro"
-        },
-        "distribution": {
-          "donutCardStyle": "contentCard",
-          "legendStrategy": "merge legend into filters or labels when possible"
-        },
-        "returns": {
-          "filterChips": "use category accent colors directly",
-          "table": "insetTray + fixed header + vertical scroll body"
-        }
-      },
-      "settings": {
-        "entryGrid": {
-          "tileRadius": 22,
-          "iconBadgeRadius": 28,
-          "tileSpacing": 12
-        }
-      },
-      "forms": {
-        "fieldSpacing": 16,
-        "helperTextDefault": "hidden unless necessary",
-        "pickerStyle": "rounded sheet or rounded select row"
-      }
-    },
-    "strictRulesForAIImplementation": [
-      "Do not introduce flat enterprise blue-gray styling.",
-      "Do not use small radii for major cards.",
-      "Do not overuse muted helper text.",
-      "Do not make chart legends separate if the same information can live in chips or direct labels.",
-      "Do not place dense data directly on the page background; wrap it in white or lightly tinted trays.",
-      "Always preserve strong contrast for money, return, and net worth figures."
-    ]
-  },
-  "implementationNotesForAI": {
-    "priorityOrder": [
-      "1. Start from warm neutral background and oversized rounded cards.",
-      "2. Assign each major module a pastel mood.",
-      "3. Use strong editorial typography for headings.",
-      "4. Keep body copy short and friendly.",
-      "5. Use white inset trays for dense or interactive content.",
-      "6. Merge legends into filters, chips, or direct labels whenever possible."
-    ],
-    "whenDesigningNewScreens": [
-      "First decide the hero card and its color mood.",
-      "Then place 1-3 supporting modules beneath it.",
-      "If a section feels too dense, split it into cards instead of shrinking everything.",
-      "If something is decorative and data-heavy at the same time, simplify the data layer first."
-    ],
-    "visualTarget": "A warm editorial finance product with pastel modular cards, tactile rounded surfaces, and carefully controlled information density."
+      "pageBg": "Cream canvas",
+      "blockA": "Primary split / masthead (maps swatch[0])",
+      "blockB": "Secondary split (maps swatch[1])",
+      "blockC": "Accent bar / tertiary (maps swatch[2] or cta)",
+      "ink": "Editorial text (`primary` or derived on-block)"
+    }
   }
 }

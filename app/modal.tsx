@@ -13,19 +13,19 @@ import { TradingDateCalendarModal } from '@/components/trading-date-calendar-mod
 import { formatYmdChineseLine, YmdDateFields } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import {
-  buildCashLikeAsset,
-  buildGoldAsset,
-  buildListedAsset,
-  buildPurposeFields,
-  validateCashLikeForm,
-  validateGoldForm,
-  validateListedForm,
+    buildCashLikeAsset,
+    buildGoldAsset,
+    buildListedAsset,
+    buildPurposeFields,
+    validateCashLikeForm,
+    validateGoldForm,
+    validateListedForm,
 } from '@/lib/add-asset-form';
 import { fetchAddAssetReferencePrice } from '@/lib/add-asset-reference-price';
 import {
-  ASSET_CURRENCY_OPTIONS,
-  assetCurrencySymbol,
-  normalizeAssetCurrency,
+    ASSET_CURRENCY_OPTIONS,
+    assetCurrencySymbol,
+    normalizeAssetCurrency,
 } from '@/lib/asset-currency';
 import { canAddAnotherAsset } from '@/lib/asset-limit';
 import { saveAssets } from '@/lib/asset-storage';
@@ -33,52 +33,52 @@ import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
-  formatExchangeSymbol,
-  searchSgeSecuritiesMerged,
+    formatExchangeSymbol,
+    searchSgeSecuritiesMerged,
 } from '@/lib/eastmoney-suggest';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
-import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import {
-  searchUnifiedInstruments,
-  type UnifiedSuggestItem,
+    searchUnifiedInstruments,
+    type UnifiedSuggestItem,
 } from '@/lib/instrument-search';
 import { createAddModalStyles } from '@/lib/modal-styles';
+import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { assetRepository } from '@/lib/repositories/asset-repository';
 import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
 import {
-  FREE_ASSET_LIMIT,
+    FREE_ASSET_LIMIT,
 } from '@/lib/subscription-constants';
 import {
-  ASSET_CATEGORY_ORDER,
-  CATEGORY_LABEL_ZH,
-  generateAssetId,
-  isListedAssetCategory,
-  PRECIOUS_METAL_LABEL_ZH,
-  PRECIOUS_METAL_SPOT_ORDER,
-  type AssetCategory,
-  type ListingExchange,
-  type PreciousMetalSpot,
-  type SimpleAsset,
+    ASSET_CATEGORY_ORDER,
+    CATEGORY_LABEL_ZH,
+    generateAssetId,
+    isListedAssetCategory,
+    PRECIOUS_METAL_LABEL_ZH,
+    PRECIOUS_METAL_SPOT_ORDER,
+    type AssetCategory,
+    type ListingExchange,
+    type PreciousMetalSpot,
+    type SimpleAsset,
 } from '@/types/asset';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRouter } from 'expo-router';
 import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useState,
 } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

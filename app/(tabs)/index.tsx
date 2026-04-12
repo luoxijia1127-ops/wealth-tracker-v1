@@ -13,9 +13,7 @@
  * 浅色「文件夹」交互：大类默认只显示合计 + 资产名摘要；点击展开明细；展开时头部用类别色条填充。
  */
 
-import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
-import type { AppPaletteTheme } from '@/lib/app-palette';
 import { canAddAnotherAsset } from '@/lib/asset-limit';
 import { archiveAssetRecord, moveAssetToTrash } from '@/lib/asset-recycle';
 import { getAssets } from '@/lib/asset-storage';
@@ -31,11 +29,21 @@ import {
   sumDisplayValuesInCurrency,
   sumDisplayValuesNaive,
 } from '@/lib/asset-value';
+import type { AppPaletteTheme } from '@/lib/app-palette';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { financeDeltaColor } from '@/lib/finance-colors';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
-import { editorialDecorBlobs } from '@/lib/editorial-theme';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
-import { BALANCE_INK } from '@/lib/finance-colors';
+import {
+  formatInsightsPnlParts,
+  getDailyChangeInDisplay,
+} from '@/lib/insights-model';
+import { getSnapshots, type Snapshot } from '@/lib/snapshots';
+import { dashboardAssetRowBg, dashboardFolderHeaderBg } from '@/lib/editorial-theme';
+import {
+  magazineBlocks,
+  magazineStrongOnBlock,
+} from '@/lib/editorial-reference-layout';
 import {
   ensureFxUsdRatesHistoryBackfill,
   getCachedFxUsdRates,
@@ -62,6 +70,7 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -138,6 +147,7 @@ function AssetPrimaryValue({
   accentColor,
   styles,
   hero,
+  dashboardHero,
 }: {
   amount: number;
   currency: string;
@@ -145,33 +155,36 @@ function AssetPrimaryValue({
   styles: DashboardStyles;
   /** 仅 Dashboard 顶部人民币合计：更大字号 */
   hero?: boolean;
+  /** 上半屏底部橙条主净值：最大号、可右对齐 */
+  dashboardHero?: boolean;
 }) {
+  const mag = Boolean(dashboardHero);
   if (currency === 'CNY' && Number.isFinite(amount)) {
     const [intRaw, dec = '00'] = amount.toFixed(2).split('.');
     const intFmt = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const intSt = mag
+      ? styles.magHeroNetInt
+      : hero
+        ? styles.netWorthHeroInt
+        : styles.assetValueInt;
+    const decSt = mag
+      ? styles.magHeroNetDec
+      : hero
+        ? styles.netWorthHeroDec
+        : styles.assetValueDec;
     return (
-      <View style={styles.assetValueSplit}>
-        <Text
-          style={[
-            hero ? styles.netWorthHeroInt : styles.assetValueInt,
-            { color: accentColor },
-          ]}
-        >
-          ¥{intFmt}
-        </Text>
-        <Text
-          style={[
-            hero ? styles.netWorthHeroDec : styles.assetValueDec,
-            { color: accentColor },
-          ]}
-        >
-          .{dec}
-        </Text>
+      <View
+        style={[styles.assetValueSplit, mag && { alignSelf: 'flex-end' }]}
+      >
+        <Text style={[intSt, { color: accentColor }]}>¥{intFmt}</Text>
+        <Text style={[decSt, { color: accentColor }]}>.{dec}</Text>
       </View>
     );
   }
   return (
-    <Text style={[styles.assetValue, { color: accentColor }]}>
+    <Text
+      style={[mag ? styles.magHeroNetForeign : styles.assetValue, { color: accentColor }]}
+    >
       {formatMoney(amount, currency)}
     </Text>
   );
@@ -236,7 +249,7 @@ function categoryQuoteFootnote(assets: SimpleAsset[]): string | null {
 }
 
 /**
- * 明细行：左侧圆形图标 + 名称/持仓 + 金额。
+ * 明细行：名称/持仓 + 金额（大类图标在折叠标题行，不在此行）。
  */
 function AssetRow({
   asset,
@@ -274,25 +287,21 @@ function AssetRow({
     <Pressable
       style={({ pressed }) => [
         styles.assetRow,
+        { backgroundColor: dashboardAssetRowBg(accentColor) },
         pressed && styles.assetRowPressed,
       ]}
       onPress={() => onEdit(asset)}
       onLongPress={handleLongPress}
       delayLongPress={500}
     >
-      <View
-        style={[
-          styles.assetIconWrap,
-          { backgroundColor: `${accentColor}18` },
-        ]}
-      >
+      <View style={styles.assetRowIconCol}>
         <MaterialIcons
           name={CATEGORY_ROW_ICONS[cat] ?? 'folder'}
           size={22}
           color={accentColor}
         />
       </View>
-      <View style={styles.assetRowLeft}>
+      <View style={styles.assetRowMiddleCol}>
         <Text style={styles.assetName}>{asset.name}</Text>
         {asset.account?.trim() ? (
           <Text style={styles.assetAccount} numberOfLines={1}>
@@ -319,7 +328,7 @@ function AssetRow({
           </Text>
         ) : null}
       </View>
-      <View style={styles.assetRowRight}>
+      <View style={styles.assetRowRightCol}>
         <View style={styles.assetRowRightStack}>
           <AssetPrimaryValue
             amount={amount}
@@ -343,53 +352,234 @@ function AssetRow({
 }
 
 /**
- * Top navigation bar: "Dashboard" title on left, "+" button on right.
- *
- * LAYOUT STRUCTURE:
- *   [flexDirection: row, justifyContent: space-between]
- *   — Left: Title "Dashboard" (bold, white)
- *   — Right: "+" button (minimal, touchable)
- *
- * NAVIGATION:
- *   Expo Router uses file-based routing. The route /modal maps to app/modal.tsx
- *   (a Stack screen with presentation: 'modal'). router.push('/modal') pushes
- *   that screen onto the stack, showing it as a modal overlay for adding assets.
+ * 对齐 dashboard.png 上半屏：左上横橙 Dashboard、右上竖蓝各币种、下横橙最大默认币种净值（直角、无旋转）。
  */
-function DashboardHeader({
+function DashboardHeroUpperHalf({
   insets,
   styles,
   theme,
+  blocks,
+  heroHeight,
+  netWorthDisplay,
+  displayCurrency,
+  netWorthSummary,
+  dailyChange,
   onPressAdd,
 }: {
-  insets: { top: number; right: number; left: number };
+  insets: { top: number; right: number; left: number; bottom: number };
   styles: DashboardStyles;
   theme: AppPaletteTheme;
+  blocks: ReturnType<typeof magazineBlocks>;
+  heroHeight: number;
+  netWorthDisplay: number | null;
+  displayCurrency: string;
+  netWorthSummary: { lines: string; hasMultiple: boolean };
+  /** 与洞察页「今日盈亏」同源（快照相邻两日 × 汇率到默认货币） */
+  dailyChange: { diff: number; pct: number } | null;
   onPressAdd: () => void | Promise<void>;
 }) {
+  const mastheadInk = magazineStrongOnBlock(blocks.blockA);
+  const mastheadSubInk = rgbaFromHex(mastheadInk, 0.62);
+  const addIconOn = magazineStrongOnBlock(blocks.blockA);
+
+  const breakdownLines = netWorthSummary.lines
+    .split('\n')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const showMultiBand = netWorthSummary.hasMultiple;
+
+  const totalCaption = showMultiBand ? '净值（默认币种）' : '净值';
+
+  const pctTextOnly =
+    dailyChange !== null
+      ? formatInsightsPnlParts(
+          dailyChange.diff,
+          dailyChange.pct,
+          displayCurrency
+        ).pctText
+      : null;
+  const deltaZeroColor = rgbaFromHex(mastheadInk, 0.55);
+  const deltaColor =
+    dailyChange !== null
+      ? financeDeltaColor(dailyChange.diff, deltaZeroColor)
+      : deltaZeroColor;
+  /** 与底部净值橙块高度一致，用于把涨跌比例贴在卡片上沿之上 */
+  const dailyPctBottomOffset = showMultiBand ? '48%' : '58%';
+
+  const totalFigure =
+    netWorthDisplay !== null && Number.isFinite(netWorthDisplay) ? (
+      <AssetPrimaryValue
+        amount={netWorthDisplay}
+        currency={displayCurrency}
+        accentColor={mastheadInk}
+        styles={styles}
+        hero
+        dashboardHero
+      />
+    ) : (
+      <Text
+        style={[
+          styles.magHeroNetForeign,
+          {
+            color: mastheadInk,
+            fontSize: 24,
+            lineHeight: 32,
+            textAlign: 'right',
+          },
+        ]}
+      >
+        {netWorthSummary.lines}
+      </Text>
+    );
+
+  const totalOrangeBlock = (
+    <View
+      style={[
+        styles.magHeroPaperBase,
+        showMultiBand ? styles.magHeroPaperTotalOrange : styles.magHeroPaperTotalOrangeWide,
+        showMultiBand && styles.magHeroPaperTotalOrangeWithDetail,
+        { backgroundColor: blocks.blockA },
+      ]}
+    >
+      <View
+        style={{
+          width: '100%',
+          flex: 1,
+          position: 'relative',
+          justifyContent: 'flex-end',
+        }}
+      >
+        <View
+          style={{
+            width: '100%',
+            alignItems: 'flex-end',
+          }}
+        >
+          {totalFigure}
+          <Text
+            style={[
+              styles.magHeroMetricCaptionBelow,
+              { color: rgbaFromHex(mastheadInk, 0.72) },
+            ]}
+          >
+            {totalCaption}
+          </Text>
+          {showMultiBand ? (
+            <View
+              style={{
+                maxWidth: '68%',
+                alignSelf: 'flex-end',
+                marginTop: 8,
+              }}
+            >
+              {breakdownLines.map((line, i) => (
+                <Text
+                  key={`${i}-${line.slice(0, 12)}`}
+                  style={[
+                    styles.magHeroCurrencyLine,
+                    {
+                      color: rgbaFromHex(mastheadInk, 0.88),
+                      marginTop: i === 0 ? 0 : 4,
+                    },
+                  ]}
+                >
+                  {line}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+
+  const dashboardBlock = (
+    <View
+      style={[
+        styles.magHeroPaperBase,
+        styles.magHeroPaperDashboard,
+        { backgroundColor: blocks.blockA },
+      ]}
+    >
+      <Text style={[styles.magDashboardTitleCollage, { color: mastheadInk }]}>
+        Dashboard
+      </Text>
+      <Text style={[styles.magDashboardSubtitle, { color: mastheadSubInk }]}>
+        资产总览
+      </Text>
+    </View>
+  );
+
   return (
-    <View style={[styles.header, { paddingTop: insets.top }]}>
-      <Text style={styles.headerTitle}>总览</Text>
+    <View
+      style={[
+        styles.magHeroHalfRoot,
+        { height: heroHeight, backgroundColor: theme.pageBg },
+      ]}
+    >
+      <View style={{ paddingTop: insets.top, flex: 1 }}>
+        <View style={styles.magHeroCollagePad}>
+          <View style={styles.magHeroCollageStage}>
+            {showMultiBand ? (
+              <>
+                {dashboardBlock}
+                <View
+                  style={[
+                    styles.magHeroPaperBase,
+                    styles.magHeroPaperSideBlue,
+                    { backgroundColor: blocks.blockB },
+                  ]}
+                />
+                {totalOrangeBlock}
+                {pctTextOnly ? (
+                  <View
+                    style={[
+                      styles.magHeroDailyAboveCard,
+                      { bottom: dailyPctBottomOffset },
+                    ]}
+                    pointerEvents="none"
+                  >
+                    <Text style={[styles.magHeroDailyPctOnly, { color: deltaColor }]}>
+                      {pctTextOnly}
+                    </Text>
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <>
+                {dashboardBlock}
+                {totalOrangeBlock}
+                {pctTextOnly ? (
+                  <View
+                    style={[
+                      styles.magHeroDailyAboveCard,
+                      { bottom: dailyPctBottomOffset },
+                    ]}
+                    pointerEvents="none"
+                  >
+                    <Text style={[styles.magHeroDailyPctOnly, { color: deltaColor }]}>
+                      {pctTextOnly}
+                    </Text>
+                  </View>
+                ) : null}
+              </>
+            )}
+          </View>
+        </View>
+      </View>
+
       <Pressable
-        style={({ pressed }) => [pressed && styles.headerAddFabPressed]}
+        style={({ pressed }) => [
+          styles.magHeroAddHitAbs,
+          { top: insets.top + 6, zIndex: 30 },
+          pressed && styles.headerAddFabPressed,
+        ]}
         onPress={() => void onPressAdd()}
         accessibilityLabel="添加资产"
         hitSlop={8}
       >
-        <View style={styles.headerAddFabOuter}>
-          <GlassSurface
-            borderRadius={24}
-            intensity={56}
-            variant="editorial"
-            style={styles.headerAddFabGlass}
-            contentStyle={{
-              flex: 1,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <MaterialIcons name="add" size={30} color={theme.primary} />
-          </GlassSurface>
-        </View>
+        <MaterialIcons name="add" size={32} color={addIconOn} />
       </Pressable>
     </View>
   );
@@ -397,10 +587,15 @@ function DashboardHeader({
 
 export default function Dashboard() {
   const { theme, appearance } = useAppPalette();
+  const { height: windowHeight } = useWindowDimensions();
   const styles = useMemo(() => createDashboardStyles(theme), [theme]);
   const chevronMuted = useMemo(
     () => rgbaFromHex(theme.primary, 0.38),
     [theme.primary]
+  );
+  const heroHeight = useMemo(
+    () => Math.round(windowHeight * 0.5),
+    [windowHeight]
   );
 
   const handlePressAdd = useCallback(async () => {
@@ -419,10 +614,7 @@ export default function Dashboard() {
     router.push({ pathname: '/modal', params: {} });
   }, []);
 
-  const decorColors = useMemo(
-    () => editorialDecorBlobs(theme),
-    [theme]
-  );
+  const blocks = useMemo(() => magazineBlocks(theme), [theme]);
 
   const insets = useSafeAreaInsets();
   const [assets, setAssets] = useState<SimpleAsset[]>([]);
@@ -436,6 +628,7 @@ export default function Dashboard() {
   const [fxUsdRates, setFxUsdRates] = useState<FxUsdMidRates['rates'] | null>(
     null
   );
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const focusLoadGen = useRef(0);
 
   /** 默认全部折叠，只显示各类合计与名称摘要 */
@@ -474,6 +667,7 @@ export default function Dashboard() {
       setAssets(cleaned);
       const dc = await loadDisplayCurrency();
       setDisplayCurrency(dc);
+      setSnapshots(await getSnapshots());
       const dash = filterAssetsForDashboard(cleaned);
       const needsFxDash = dash.some((a) => getAssetCurrency(a) !== dc);
       const cachedAfterSync = await getCachedFxUsdRates();
@@ -519,6 +713,7 @@ export default function Dashboard() {
             setLoading(false);
             const dc = await loadDisplayCurrency();
             setDisplayCurrency(dc);
+            setSnapshots(await getSnapshots());
             const dash = filterAssetsForDashboard(local);
             const needsFx = dash.some((a) => getAssetCurrency(a) !== dc);
             const cached = await getCachedFxUsdRates();
@@ -565,43 +760,17 @@ export default function Dashboard() {
     [dashboardAssets]
   );
 
+  const dailyChange = useMemo(
+    () =>
+      getDailyChangeInDisplay(snapshots, displayCurrency, fxUsdRates),
+    [snapshots, displayCurrency, fxUsdRates]
+  );
+
   if (loading) {
     return (
       <View style={styles.screenWrapper}>
         <View style={styles.dashboardAmbient} pointerEvents="none" />
-        <View style={styles.decorWrap} pointerEvents="none">
-          <View
-            style={[
-              styles.decorBlob,
-              {
-                width: 240,
-                height: 300,
-                top: -50,
-                left: -70,
-                backgroundColor: decorColors[0],
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.decorBlob,
-              {
-                width: 300,
-                height: 280,
-                top: 100,
-                right: -90,
-                backgroundColor: decorColors[1],
-              },
-            ]}
-          />
-        </View>
-        <DashboardHeader
-          insets={insets}
-          styles={styles}
-          theme={theme}
-          onPressAdd={handlePressAdd}
-        />
-        <View style={[styles.container, styles.centered]}>
+        <View style={[styles.container, styles.centered, { flex: 1 }]}>
           <ActivityIndicator size="large" color={theme.primary} />
         </View>
       </View>
@@ -611,117 +780,56 @@ export default function Dashboard() {
   return (
     <View style={styles.screenWrapper}>
       <View style={styles.dashboardAmbient} pointerEvents="none" />
-      <View style={styles.decorWrap} pointerEvents="none">
-        <View
-          style={[
-            styles.decorBlob,
+      <View style={{ flex: 1 }}>
+        <DashboardHeroUpperHalf
+          insets={insets}
+          styles={styles}
+          theme={theme}
+          blocks={blocks}
+          heroHeight={heroHeight}
+          netWorthDisplay={netWorthDisplay}
+          displayCurrency={displayCurrency}
+          netWorthSummary={netWorthSummary}
+          dailyChange={dailyChange}
+          onPressAdd={handlePressAdd}
+        />
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[
+            styles.scrollContent,
             {
-              width: 240,
-              height: 300,
-              top: -50,
-              left: -70,
-              backgroundColor: decorColors[0],
+              paddingBottom: insets.bottom + 32,
+              flexGrow: 1,
+              backgroundColor: 'transparent',
             },
           ]}
-        />
-        <View
-          style={[
-            styles.decorBlob,
-            {
-              width: 300,
-              height: 280,
-              top: 100,
-              right: -90,
-              backgroundColor: decorColors[1],
-            },
-          ]}
-        />
-        <View
-          style={[
-            styles.decorBlob,
-            {
-              width: 200,
-              height: 200,
-              bottom: 120,
-              left: 10,
-              backgroundColor: decorColors[2],
-            },
-          ]}
-        />
-      </View>
-      <DashboardHeader
-        insets={insets}
-        styles={styles}
-        theme={theme}
-        onPressAdd={handlePressAdd}
-      />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.scrollContent,
-          {
-            paddingBottom: insets.bottom + 32,
-            flexGrow: 1,
-            backgroundColor: 'transparent',
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={syncingQuotes}
-            onRefresh={refreshMarketData}
-            tintColor={theme.primary}
-            colors={[theme.primary]}
-          />
-        }
-      >
-      {/* 1. Net Worth — large, centered (below header) */}
-      <GlassSurface borderRadius={36} intensity={56} variant="editorial">
-      <View style={styles.netWorthSection}>
-        <Text style={styles.netWorthLabel}>净值</Text>
-        {netWorthDisplay !== null && Number.isFinite(netWorthDisplay) ? (
-          <>
-            <AssetPrimaryValue
-              amount={netWorthDisplay}
-              currency={displayCurrency}
-              accentColor={BALANCE_INK}
-              styles={styles}
-              hero
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={syncingQuotes}
+              onRefresh={refreshMarketData}
+              tintColor={theme.primary}
+              colors={[theme.primary]}
             />
-            <Text
-              style={[
-                styles.netWorthValue,
-                styles.netWorthBreakdown,
-                netWorthSummary.lines.includes('\n') &&
-                  styles.netWorthValueCompact,
-              ]}
-            >
-              {netWorthSummary.lines}
-            </Text>
-          </>
-        ) : (
-          <Text
-            style={[
-              styles.netWorthValue,
-              netWorthSummary.lines.includes('\n') && styles.netWorthValueCompact,
-            ]}
-          >
-            {netWorthSummary.lines}
-          </Text>
-        )}
-      </View>
-      </GlassSurface>
-
-      {/* 2. Grouped asset structure: Category → Assets (collapsible) */}
+          }
+        >
+      {/* Grouped asset structure: Category → Assets (collapsible) */}
       <View style={styles.assetStructureSection}>
         {dashboardAssets.length === 0 ? (
-          <GlassSurface borderRadius={32} intensity={48} variant="editorial">
-            <View style={styles.emptyCardInner}>
-              <Text style={styles.emptyText}>
-                暂无资产。点右上角「+」添加第一条资产。
-              </Text>
-            </View>
-          </GlassSurface>
+          <View
+            style={[
+              styles.magCategoryFrame,
+              {
+                backgroundColor: theme.pageBg,
+                paddingVertical: 36,
+                paddingHorizontal: 20,
+              },
+            ]}
+          >
+            <Text style={styles.emptyText}>
+              暂无资产。点右上角「+」添加第一条资产。
+            </Text>
+          </View>
         ) : (
           <View style={styles.groupsContainer}>
             {CATEGORY_ORDER.map((category) => {
@@ -749,12 +857,12 @@ export default function Dashboard() {
               const foot = categoryQuoteFootnote(list);
 
               return (
-                <GlassSurface
+                <View
                   key={category}
-                  borderRadius={32}
-                  intensity={50}
-                  variant="editorial"
-                  style={styles.categoryGlassOuter}
+                  style={[
+                    styles.magCategoryFrame,
+                    { backgroundColor: theme.pageBg },
+                  ]}
                 >
                   <View style={styles.folderCard}>
                     <View
@@ -764,14 +872,28 @@ export default function Dashboard() {
                       <Pressable
                         style={[
                           styles.folderHeader,
-                          isCategoryExpanded && {
-                            backgroundColor: accent,
-                            borderTopRightRadius: 18,
+                          {
+                            backgroundColor: dashboardFolderHeaderBg(
+                              accent,
+                              isCategoryExpanded
+                            ),
                           },
                         ]}
                         onPress={() => toggleCategory(category)}
                       >
-                        <View style={styles.folderHeaderTextCol}>
+                        <View style={styles.folderHeaderIconCol}>
+                          <MaterialIcons
+                            name={
+                              CATEGORY_ROW_ICONS[category as AssetCategory] ??
+                              'folder'
+                            }
+                            size={26}
+                            color={
+                              isCategoryExpanded ? '#FFFFFF' : accent
+                            }
+                          />
+                        </View>
+                        <View style={styles.folderHeaderMiddleCol}>
                           <Text
                             style={[
                               styles.folderTitle,
@@ -836,13 +958,14 @@ export default function Dashboard() {
                       ) : null}
                     </View>
                   </View>
-                </GlassSurface>
+                </View>
               );
             })}
           </View>
         )}
       </View>
-    </ScrollView>
+        </ScrollView>
+      </View>
     </View>
   );
 }
