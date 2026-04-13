@@ -4,7 +4,7 @@
  */
 
 import type { AppPaletteTheme } from '@/lib/app-palette';
-import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
+import { rgbaFromHex } from '@/lib/color-utils';
 
 export type MagazineBlockSet = {
   blockA: string;
@@ -13,24 +13,25 @@ export type MagazineBlockSet = {
   blockD: string;
   blockMuted: string;
   ink: string;
+  inkSoft: string;
   canvas: string;
 };
 
 export function magazineBlocks(t: AppPaletteTheme): MagazineBlockSet {
   const s = t.swatches;
   return {
-    blockA: s[0]!,
-    blockB: s[1]!,
-    blockC: s[2]!,
-    blockD: s[3]!,
-    blockMuted: rgbaFromHex(t.primary, 0.06),
+    blockA: rgbaFromHex(s[1] ?? t.categoryAccents.Fund ?? t.primary, 0.35),
+    blockB: rgbaFromHex(s[2] ?? t.categoryAccents.ETF ?? t.primary, 0.25),
+    blockC: rgbaFromHex(s[3] ?? t.categoryAccents.Cash ?? t.primary, 0.2),
+    blockD: rgbaFromHex(s[4] ?? t.categoryAccents.Gold ?? t.primary, 0.3),
+    blockMuted: rgbaFromHex(t.primary, 0.05),
     ink: t.primary,
+    inkSoft: rgbaFromHex(t.primary, 0.68),
     canvas: t.pageBg,
   };
 }
 
-/** 色块上的主文字色（深底浅字 / 浅底深字） */
-export function magazineStrongOnBlock(bg: string): string {
-  const on = pickTextOnAccent(bg);
-  return on === '#FFFFFF' ? '#FFFFFF' : '#141414';
+/** 色块上的主文字色（浅色柔和块面上统一用深色 ink） */
+export function magazineStrongOnBlock(t: AppPaletteTheme): string {
+  return t.primary;
 }
