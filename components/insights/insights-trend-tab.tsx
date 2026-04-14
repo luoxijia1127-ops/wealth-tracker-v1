@@ -11,7 +11,7 @@ import {
 import { useAppPalette } from '@/contexts/app-palette-context';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { formatMoney } from '@/lib/asset-value';
-import { rgbaFromHex } from '@/lib/color-utils';
+import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
   addCalendarDaysYmd,
@@ -173,9 +173,10 @@ export function InsightsTrendChart({
 
   return (
     <>
-      <View style={styles.timeframeRow}>
+      <View style={[{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 24, paddingVertical: 12 }]}>
         {TREND_TIMEFRAME_OPTIONS.map((opt) => {
           const active = timeframe === opt.id;
+          const accent = theme.primary;
           return (
             <Pressable
               key={opt.id}
@@ -190,19 +191,30 @@ export function InsightsTrendChart({
                 }
               }}
               style={({ pressed }) => [
-                styles.timeframeChip,
-                active && styles.timeframeChipActiveDark,
-                pressed && !active && { opacity: 0.88 },
+                styles.returnChipInRow,
+                active
+                  ? {
+                      backgroundColor: accent,
+                      borderWidth: 0,
+                    }
+                  : {
+                      backgroundColor: rgbaFromHex(accent, 0.08),
+                      borderWidth: 1,
+                      borderColor: rgbaFromHex(accent, 0.2),
+                    },
+                pressed && { opacity: 0.88 },
               ]}
             >
               <Text
                 style={[
-                  styles.timeframeChipText,
-                  active && styles.timeframeChipTextActiveDark,
+                  styles.returnChipTextInRow,
+                  {
+                    color: active ? pickTextOnAccent(accent) : textSecondary,
+                  },
                 ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                minimumFontScale={0.78}
+                minimumFontScale={0.82}
               >
                 {opt.label}
               </Text>

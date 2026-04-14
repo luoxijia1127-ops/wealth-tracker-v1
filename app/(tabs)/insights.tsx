@@ -1,8 +1,8 @@
 /**
  * Insights：净值曲线、资产分布、投资回报（Tab）+ 目标进度
+ * 重构版：Editorial Poster 风格
  */
 
-import { GlassSurface } from '@/components/glass-surface';
 import {
   DistributionBreakdown,
   DistributionDonut,
@@ -38,6 +38,7 @@ import {
   type TrendCustomRange,
   type TrendTimeframe,
 } from '@/lib/insights-model';
+import { computeAllReturnMetrics, isPlottableMetric } from '@/lib/investment-return-metrics';
 import { createInsightsStyles } from '@/lib/insights-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { assetRepository } from '@/lib/repositories/asset-repository';
@@ -64,25 +65,23 @@ export default function Insights() {
     () => createInsightsStyles(theme, appearance),
     [theme, appearance]
   );
+  
+  // Dynamic semantic colors for poster layout
+  const mastheadBlockColor = useMemo(() => rgbaFromHex(theme.swatches[1] ?? theme.primary, 0.34), [theme]);
+  const supportBlockColor = useMemo(() => rgbaFromHex(theme.swatches[2] ?? theme.primary, 0.18), [theme]);
+  const inkColor = theme.primary;
+  const inkSoft = rgbaFromHex(theme.primary, 0.68);
+  const mutedBlock = rgbaFromHex(theme.primary, 0.04);
+  const segmentedBarBg = rgbaFromHex(theme.primary, 0.06);
+
   const textSecondary = useMemo(
-    () =>
-      appearance === 'dark'
-        ? 'rgba(255,255,255,0.74)'
-        : rgbaFromHex(theme.primary, 0.65),
+    () => appearance === 'dark' ? 'rgba(255,255,255,0.74)' : rgbaFromHex(theme.primary, 0.65),
     [appearance, theme.primary]
   );
   const textMuted = useMemo(
-    () =>
-      appearance === 'dark'
-        ? 'rgba(255,255,255,0.48)'
-        : rgbaFromHex(theme.primary, 0.5),
+    () => appearance === 'dark' ? 'rgba(255,255,255,0.48)' : rgbaFromHex(theme.primary, 0.5),
     [appearance, theme.primary]
   );
-  const ringTrackColor = useMemo(
-    () => rgbaFromHex(theme.primary, 0.14),
-    [theme.primary]
-  );
-  const decorColors = useMemo(() => editorialDecorBlobs(theme), [theme]);
 
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -94,47 +93,33 @@ export default function Insights() {
   const [loading, setLoading] = useState(true);
   const [chartTab, setChartTab] = useState<InsightsChartTab>('trend');
   const [chartTabSeeded, setChartTabSeeded] = useState(false);
-  const [selectedDistributionCategory, setSelectedDistributionCategory] =
-    useState<AssetCategory | null>(null);
-  const [trendTip, setTrendTip] = useState<{
-    index: number;
-    x: number;
-    y: number;
-  } | null>(null);
-  const [trendTimeframe, setTrendTimeframe] = useState<TrendTimeframe>('7D');
-  const [trendCustomRange, setTrendCustomRange] =
-    useState<TrendCustomRange | null>(null);
+  const [selectedDistributionCategory, setSelectedDistributionCategory] = useState<AssetCategory | null>(null);
+  const [trendTip, setTrendTip] = useState<{ index: number; x: number; y: number } | null>(null);
+  const [trendTimeframe, setTrendTimeframe] = useState<TrendTimeframe>('ALL');
+  const [trendCustomRange, setTrendCustomRange] = useState<TrendCustomRange | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const chartHeight = useMemo(() => {
-    const h = Math.round(windowHeight * 0.33);
-    return Math.min(320, Math.max(200, h));
+    const h = Math.round(windowHeight * 0.38);
+    return Math.min(380, Math.max(280, h));
   }, [windowHeight]);
 
   const chartWidth = useMemo(() => {
-    const outerPad = 24 * 2;
-    const cardPad = 20 * 2;
-    return Math.max(260, windowWidth - outerPad - cardPad);
+    return Math.max(260, windowWidth - 32); // marginHorizontal: 16 * 2 = 32
   }, [windowWidth]);
 
   const donutRingHeight = useMemo(
-    () => Math.min(chartHeight, Math.round(chartWidth * 0.52)),
-    [chartHeight, chartWidth]
+    () => Math.min(260, Math.round(chartWidth * 0.6)),
+    [chartWidth]
   );
 
   const donutPainterWidth = useMemo(
-    () =>
-      Math.max(
-        200,
-        Math.min(Math.floor(chartWidth * 0.48), Math.floor(chartWidth - 32))
-      ),
+    () => Math.max(200, Math.min(Math.floor(chartWidth * 0.5), Math.floor(chartWidth - 32))),
     [chartWidth]
   );
 
   const toggleDistributionCategory = useCallback((category: AssetCategory) => {
-    setSelectedDistributionCategory((prev) =>
-      prev === category ? null : category
-    );
+    setSelectedDistributionCategory((prev) => prev === category ? null : category);
   }, []);
 
   const orderedSnapshots = useMemo(
@@ -150,12 +135,9 @@ export default function Insights() {
       trendTimeframe === 'CUSTOM' ? trendCustomRange : null
     );
   }, [orderedSnapshots, trendTimeframe, trendCustomRange]);
+  
   const trendModel = useMemo(
-    () =>
-      toTrendChartModel(trendRangeSnapshots, {
-        displayCurrency,
-        usdRates: fxRates?.rates ?? null,
-      }),
+    () => toTrendChartModel(trendRangeSnapshots, { displayCurrency, usdRates: fxRates?.rates ?? null }),
     [trendRangeSnapshots, displayCurrency, fxRates]
   );
 
@@ -178,7 +160,7 @@ export default function Insights() {
       try {
         await syncNetWorthFromMarket();
       } catch {
-        /* 保留已显示 */
+        // ignore
       }
       await reloadInsightsData();
     } finally {
@@ -213,76 +195,54 @@ export default function Insights() {
           }
         }
       })();
-      return () => {
-        cancelled = true;
-      };
+      return () => { cancelled = true; };
     }, [])
   );
 
   const hasSnapshotTrend = trendModel.series.length > 0;
   const hasAnySnapshots = orderedSnapshots.length > 0;
   const hasAssets = assets.length > 0;
+  
   const donutSlices = useMemo(
-    () =>
-      buildDonutSlices(
-        assets,
-        theme.categoryAccents,
-        fxRates?.rates ?? null,
-        displayCurrency
-      ),
+    () => buildDonutSlices(assets, theme.categoryAccents, fxRates?.rates ?? null, displayCurrency),
     [assets, theme.categoryAccents, fxRates, displayCurrency]
   );
-  const distributionUsesFx =
-    fxRates != null && fxRates.rates.CNY > 0;
+  const distributionUsesFx = fxRates != null && fxRates.rates.CNY > 0;
   const donutTotal = donutSlices.reduce((s, x) => s + x.value, 0);
   const goalRows = useMemo(
-    () =>
-      buildAggregatedGoalRows(assets, theme.goalRingColors, theme.primary),
+    () => buildAggregatedGoalRows(assets, theme.goalRingColors, theme.primary),
     [assets, theme.goalRingColors, theme.primary]
   );
 
   const effectiveDonutWidth = useMemo(
-    () =>
-      selectedDistributionCategory
-        ? Math.max(168, donutPainterWidth - 36)
-        : donutPainterWidth,
+    () => selectedDistributionCategory ? Math.max(168, donutPainterWidth - 36) : donutPainterWidth,
     [selectedDistributionCategory, donutPainterWidth]
   );
 
   const distributionPanelSide = useMemo<'left' | 'right'>(() => {
-    if (!selectedDistributionCategory || donutSlices.length === 0)
-      return 'right';
-    const c = getCentroidForCategory(
-      donutSlices,
-      selectedDistributionCategory,
-      effectiveDonutWidth,
-      donutRingHeight
-    );
+    if (!selectedDistributionCategory || donutSlices.length === 0) return 'right';
+    const c = getCentroidForCategory(donutSlices, selectedDistributionCategory, effectiveDonutWidth, donutRingHeight);
     if (!c) return 'right';
     return c[0] < 0 ? 'left' : 'right';
-  }, [
-    selectedDistributionCategory,
-    donutSlices,
-    effectiveDonutWidth,
-    donutRingHeight,
-  ]);
+  }, [selectedDistributionCategory, donutSlices, effectiveDonutWidth, donutRingHeight]);
 
-  const latest =
-    orderedSnapshots.length > 0
-      ? orderedSnapshots[orderedSnapshots.length - 1]
-      : null;
+  const latest = orderedSnapshots.length > 0 ? orderedSnapshots[orderedSnapshots.length - 1] : null;
   const dailyChange = useMemo(
-    () =>
-      getDailyChangeInDisplay(
-        orderedSnapshots,
-        displayCurrency,
-        fxRates?.rates ?? null
-      ),
+    () => getDailyChangeInDisplay(orderedSnapshots, displayCurrency, fxRates?.rates ?? null),
     [orderedSnapshots, displayCurrency, fxRates]
   );
-
-  const showChartChrome = hasAnySnapshots || hasAssets;
-  const chartBlockMinHeight = chartHeight + 24;
+  
+  // Calculate period change for the Trend chart (first to last snapshot in the range)
+  const periodChange = useMemo(() => {
+    if (trendRangeSnapshots.length < 2) return null;
+    const first = trendRangeSnapshots[0]!;
+    const last = trendRangeSnapshots[trendRangeSnapshots.length - 1]!;
+    const v1 = snapshotDisplayTotalInDisplay(first, displayCurrency, fxRates?.rates ?? null);
+    const v2 = snapshotDisplayTotalInDisplay(last, displayCurrency, fxRates?.rates ?? null);
+    const diff = v2 - v1;
+    const pct = v1 > 0 ? diff / v1 : 0;
+    return { diff, pct };
+  }, [trendRangeSnapshots, displayCurrency, fxRates]);
 
   const distributionPanelOpen = !!selectedDistributionCategory;
 
@@ -304,440 +264,226 @@ export default function Insights() {
     setTrendTip(null);
   }, [trendTimeframe, trendCustomRange]);
 
-  useEffect(() => {
-    if (
-      selectedDistributionCategory &&
-      !donutSlices.some((s) => s.category === selectedDistributionCategory)
-    ) {
-      setSelectedDistributionCategory(null);
+  // Top gainer and loser placeholder logic (use real logic if available, here using mockup placeholder to fit the layout request)
+  const { topGainer, topLoser } = useMemo(() => {
+    if (!assets || assets.length === 0) return { topGainer: null, topLoser: null };
+    const validMetrics = computeAllReturnMetrics(assets).filter(isPlottableMetric);
+    if (validMetrics.length === 0) return { topGainer: null, topLoser: null };
+    
+    // sort by cumulativeReturn descending
+    const sorted = [...validMetrics].sort((a, b) => b.cumulativeReturn - a.cumulativeReturn);
+    
+    return {
+      topGainer: sorted[0],
+      topLoser: sorted[sorted.length - 1]
+    };
+  }, [assets]);
+
+  if (loading) {
+    return (
+      <View style={styles.screen}>
+        <View style={styles.dashboardAmbient} pointerEvents="none" />
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={theme.primary} />
+        </View>
+      </View>
+    );
+  }
+
+  const currentNetWorth = latest ? formatMoney(snapshotDisplayTotalInDisplay(latest, displayCurrency, fxRates?.rates ?? null), displayCurrency) : '—';
+  
+  // Dynamic poster elements based on active tab
+  let posterValue = '';
+  let posterPct = '';
+  if (chartTab === 'trend') {
+    if (periodChange) {
+      const pnl = formatInsightsPnlParts(periodChange.diff, periodChange.pct, displayCurrency);
+      posterValue = pnl.amountText;
+      posterPct = pnl.pctText;
+    } else {
+      posterValue = '—';
     }
-  }, [donutSlices, selectedDistributionCategory]);
+  } else if (chartTab === 'distribution') {
+    posterValue = currentNetWorth;
+  } else {
+    posterValue = 'ROI';
+  }
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.pageBg }]}>
-      <View style={styles.decorWrap} pointerEvents="none">
-        <View
-          style={[
-            styles.decorBlob,
-            {
-              width: 240,
-              height: 300,
-              top: -50,
-              left: -70,
-              backgroundColor: decorColors[0],
-            },
-          ]}
-        />
-        <View
-          style={[
-            styles.decorBlob,
-            {
-              width: 260,
-              height: 280,
-              top: 140,
-              right: -90,
-              backgroundColor: decorColors[1],
-            },
-          ]}
-        />
-        <View
-          style={[
-            styles.decorBlob,
-            {
-              width: 200,
-              height: 220,
-              bottom: 100,
-              left: 10,
-              backgroundColor: decorColors[2],
-            },
-          ]}
-        />
-      </View>
+    <View style={styles.screen}>
+      <View style={styles.dashboardAmbient} pointerEvents="none" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
-          {
-            paddingTop: insets.top + 16,
-            paddingBottom: insets.bottom + 32,
-            backgroundColor: 'transparent',
-          },
+          { paddingBottom: insets.bottom + 32 }
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefreshInsights}
-            tintColor={theme.primary}
-            colors={[theme.primary]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefreshInsights} tintColor={theme.primary} />
         }
       >
-        <GlassSurface borderRadius={36} intensity={54} variant="editorial">
-          <View style={styles.heroCardInner}>
-          <Text style={[styles.cardKicker, { color: textSecondary }]}>
-            {latest && typeof latest.totalValueCny === 'number'
-              ? `净值（${displayCurrency}）`
-              : '净值'}
-          </Text>
-          {loading ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="large" color={theme.primary} />
-              <Text style={[styles.hint, { color: textSecondary }]}>
-                加载中…
-              </Text>
+        {/* Editorial Masthead */}
+        <View style={styles.heroPoster}>
+          <View style={[styles.supportBlock, { backgroundColor: supportBlockColor }]} />
+          <View style={[styles.mastheadBlock, { backgroundColor: mastheadBlockColor }]}>
+            <Text style={styles.mastheadTitle}>DAYBREAK</Text>
+            <Text style={styles.mastheadSub}>INSIGHTS & ANALYSIS</Text>
+
+            <View style={styles.heroNetWorthRow}>
+              <Text style={styles.heroMetricLabel}>NET WORTH</Text>
+              <Text style={styles.heroMetricValue}>{currentNetWorth}</Text>
             </View>
-          ) : !hasSnapshotTrend && !hasAssets ? (
-            <Text style={[styles.emptyText, { color: textSecondary }]}>
-              暂无快照与持仓。请先在总览添加资产并同步行情，之后将显示走势与分布。
-            </Text>
-          ) : hasSnapshotTrend ? (
-            <>
-              <Text style={[styles.currentValue, { color: BALANCE_INK }]}>
-                {latest
-                  ? formatMoney(
-                      snapshotDisplayTotalInDisplay(
-                        latest,
-                        displayCurrency,
-                        fxRates?.rates ?? null
-                      ),
-                      displayCurrency
-                    )
-                  : ''}
-              </Text>
-              <Text style={[styles.unconvertedHint, { color: textMuted }]}>
-                {latest && typeof latest.totalValueCny === 'number'
-                  ? typeof latest.fxRateDate === 'string'
-                    ? `汇率基准日 ${latest.fxRateDate}`
-                    : displayCurrency === 'CNY'
-                      ? '已按中间价折算为人民币'
-                      : `已按中间价折算为 ${displayCurrency}`
-                  : '历史或未同步汇率时为各币种数值直接相加'}
-              </Text>
-              {dailyChange && latest ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="在净值归因中查看当日盈亏明细"
-                  onPress={() => {
-                    router.push({
-                      pathname: '/settings-attribution',
-                      params: { focusDate: latest.date },
-                    });
-                  }}
-                  style={styles.changeRow}
-                >
-                  <View style={styles.changeRowLeft}>
-                    <Text style={[styles.changeLabel, { color: textSecondary }]}>
-                      今日盈亏
-                    </Text>
-                    <View style={styles.changeValues}>
-                      {(() => {
-                        const pnl = formatInsightsPnlParts(
-                          dailyChange.diff,
-                          dailyChange.pct,
-                          displayCurrency
-                        );
-                        const deltaC = financeDeltaColor(
-                          dailyChange.diff,
-                          textSecondary
-                        );
-                        return (
-                          <>
-                            <Text style={[styles.changeAmount, { color: deltaC }]}>
-                              {pnl.amountText}
-                            </Text>
-                            <Text style={[styles.changePct, { color: deltaC }]}>
-                              {pnl.pctText}
-                            </Text>
-                          </>
-                        );
-                      })()}
-                    </View>
-                  </View>
-                  <MaterialIcons
-                    name="chevron-right"
-                    size={22}
-                    color={textMuted}
-                  />
-                </Pressable>
-              ) : null}
-            </>
-          ) : (
-            <Text style={[styles.snapshotFallback, { color: textSecondary }]}>
-              暂无净值快照。在总览同步行情后可查看资产变动曲线；下方可查看当前持仓分布。
-            </Text>
-          )}
           </View>
-        </GlassSurface>
+        </View>
 
-        {!loading && showChartChrome && (
-          <GlassSurface borderRadius={32} intensity={50} variant="editorial">
-            <View style={styles.cardGlassInner}>
-                  <View style={styles.tabRow}>
-                    {INSIGHTS_CHART_TABS.map((tab) => {
-                      const disabled =
-                        tab.id === 'trend' ? !hasSnapshotTrend : !hasAssets;
-                      return (
-                        <Pressable
-                          key={tab.id}
-                          accessibilityRole="button"
-                          disabled={disabled}
-                          onPress={() => setChartTab(tab.id)}
-                          style={({ pressed }) => [
-                            styles.tabChip,
-                            chartTab === tab.id && styles.tabChipActive,
-                            disabled && styles.tabChipDisabled,
-                            pressed && !disabled && styles.tabChipPressed,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.tabChipText,
-                              chartTab === tab.id && styles.tabChipTextActive,
-                              disabled && styles.tabChipTextDisabled,
-                            ]}
-                          >
-                            {tab.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
+        {/* Segmented Tabs */}
+        <View style={[styles.segmentedBar, { backgroundColor: segmentedBarBg }]}>
+          {INSIGHTS_CHART_TABS.map((tab) => {
+            const disabled = tab.id === 'trend' ? !hasAnySnapshots : !hasAssets;
+            const active = chartTab === tab.id;
+            return (
+              <Pressable
+                key={tab.id}
+                disabled={disabled}
+                onPress={() => setChartTab(tab.id)}
+                style={styles.segmentedTab}
+              >
+                {active && <View style={styles.segmentedActivePill} />}
+                <Text style={[
+                  styles.segmentedText,
+                  { color: active ? inkColor : (disabled ? rgbaFromHex(inkColor, 0.3) : inkSoft) }
+                ]}>
+                  {tab.id === 'trend' ? '资产变动' : tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Poster Chart Area */}
+        <View style={styles.chartPoster}>
+
+          {chartTab === 'trend' && (
+             <View style={{ flex: 1, justifyContent: 'flex-end', paddingTop: 10 }}>
+                {periodChange && (
+                  <View style={{ position: 'absolute', bottom: 20, right: 24, alignItems: 'flex-end', zIndex: 0, opacity: 0.85 }} pointerEvents="none">
+                    <Text style={[styles.chartPosterValue, { fontSize: 32, width: 'auto', textAlign: 'right', lineHeight: 36 }]}>
+                      {posterValue}
+                    </Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: inkColor, letterSpacing: 0, textAlign: 'right' }}>
+                      {posterPct}
+                    </Text>
                   </View>
+                )}
+                <InsightsTrendChart
+                  chartWidth={chartWidth}
+                  chartHeight={chartHeight - 10} // leave space for top value
+                  trendModel={trendModel}
+                  styles={styles}
+                  textSecondary={textSecondary}
+                  textMuted={textMuted}
+                  orderedSnapshots={trendRangeSnapshots}
+                  trendTip={trendTip}
+                  theme={theme}
+                  timeframe={trendTimeframe}
+                  onTimeframeChange={setTrendTimeframe}
+                  customRange={trendCustomRange}
+                  onCustomRangeChange={setTrendCustomRange}
+                  hasChartData={hasSnapshotTrend}
+                  emptyHint={hasAnySnapshots ? '当前时间段无记录' : '暂无走势数据'}
+                  emptyHintColor={inkSoft}
+                  displayCurrency={displayCurrency}
+                  usdRatesForTooltip={fxRates?.rates ?? null}
+                  onDataPointClick={({ index, x, y }) => setTrendTip({ index, x, y })}
+                />
+             </View>
+          )}
 
-                  <View
-                    style={[
-                      styles.chartSurface,
-                      {
-                        minHeight:
-                          chartTab === 'returns'
-                            ? undefined
-                            : chartBlockMinHeight,
-                        overflow: 'hidden',
-                      },
-                    ]}
-                  >
-                    {chartTab === 'trend' && (
-                      <InsightsTrendChart
-                        chartWidth={chartWidth}
-                        chartHeight={chartHeight}
-                        trendModel={trendModel}
-                        styles={styles}
-                        textSecondary={textSecondary}
-                        textMuted={textMuted}
-                        orderedSnapshots={trendRangeSnapshots}
-                        trendTip={trendTip}
-                        theme={theme}
-                        timeframe={trendTimeframe}
-                        onTimeframeChange={setTrendTimeframe}
-                        customRange={trendCustomRange}
-                        onCustomRangeChange={setTrendCustomRange}
-                        hasChartData={hasSnapshotTrend}
-                        emptyHint={
-                          hasAnySnapshots
-                            ? '该时间范围内暂无净值快照，可切换区间或更长范围'
-                            : '暂无走势数据'
-                        }
-                        emptyHintColor={textMuted}
-                        displayCurrency={displayCurrency}
-                        usdRatesForTooltip={fxRates?.rates ?? null}
-                        onDataPointClick={({ index, x, y }) => {
-                          setTrendTip({ index, x, y });
-                        }}
-                      />
-                    )}
-
-                    {chartTab === 'distribution' && donutSlices.length > 0 && (
-                      <View style={styles.donutBlock}>
-                        <View style={styles.donutInteractiveRow}>
-                          <View
-                            style={[
-                              styles.donutWing,
-                              styles.donutWingLeft,
-                              !distributionPanelOpen && styles.donutWingBalanced,
-                              distributionPanelOpen &&
-                                distributionPanelSide === 'left' &&
-                                styles.donutWingMajor,
-                              distributionPanelOpen &&
-                                distributionPanelSide === 'right' &&
-                                styles.donutWingMinor,
-                            ]}
-                          >
-                            {selectedDistributionCategory &&
-                            distributionPanelSide === 'left' ? (
-                              <DistributionBreakdown
-                                category={selectedDistributionCategory}
-                                assets={assets}
-                                styles={styles}
-                                primary={theme.primary}
-                                textSecondary={textSecondary}
-                                usdRates={fxRates?.rates ?? null}
-                                displayCurrency={displayCurrency}
-                              />
-                            ) : null}
-                          </View>
-                          <View
-                            style={[
-                              styles.donutCenter,
-                              { width: effectiveDonutWidth },
-                            ]}
-                          >
-                            <DistributionDonut
-                              slices={donutSlices}
-                              width={effectiveDonutWidth}
-                              ringSize={donutRingHeight}
-                              selectedCategory={selectedDistributionCategory}
-                              onToggleCategory={toggleDistributionCategory}
-                            />
-                          </View>
-                          <View
-                            style={[
-                              styles.donutWing,
-                              styles.donutWingRight,
-                              !distributionPanelOpen && styles.donutWingBalanced,
-                              distributionPanelOpen &&
-                                distributionPanelSide === 'right' &&
-                                styles.donutWingMajor,
-                              distributionPanelOpen &&
-                                distributionPanelSide === 'left' &&
-                                styles.donutWingMinor,
-                            ]}
-                          >
-                            {selectedDistributionCategory &&
-                            distributionPanelSide === 'right' ? (
-                              <DistributionBreakdown
-                                category={selectedDistributionCategory}
-                                assets={assets}
-                                styles={styles}
-                                primary={theme.primary}
-                                textSecondary={textSecondary}
-                                usdRates={fxRates?.rates ?? null}
-                                displayCurrency={displayCurrency}
-                              />
-                            ) : null}
-                          </View>
-                        </View>
-                        <Text style={[styles.donutHint, { color: textMuted }]}>
-                          {distributionUsesFx
-                            ? '点击环上色块查看大类明细'
-                            : '点击环上色块查看大类明细（各币种直接相加）'}
-                        </Text>
-                        <View style={styles.donutLegend}>
-                          {donutSlices.map((s) => {
-                            const pct =
-                              donutTotal > 0 ? (s.value / donutTotal) * 100 : 0;
-                            const pctLabel =
-                              pct < 0.1 && pct > 0
-                                ? '<0.1%'
-                                : `${pct.toFixed(1)}%`;
-                            const active =
-                              selectedDistributionCategory === s.category;
-                            return (
-                              <Pressable
-                                key={s.category}
-                                accessibilityRole="button"
-                                accessibilityState={{ selected: active }}
-                                onPress={() =>
-                                  toggleDistributionCategory(s.category)
-                                }
-                                style={({ pressed }) => [
-                                  styles.donutLegendRow,
-                                  active && styles.donutLegendRowActive,
-                                  pressed && styles.donutLegendRowPressed,
-                                ]}
-                              >
-                                <View
-                                  style={[
-                                    styles.legendDot,
-                                    { backgroundColor: s.color },
-                                  ]}
-                                />
-                                <Text
-                                  style={[
-                                    styles.donutLegendName,
-                                    { color: theme.primary },
-                                  ]}
-                                >
-                                  {s.name}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.donutLegendPct,
-                                    { color: textSecondary },
-                                  ]}
-                                >
-                                  {pctLabel}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </View>
-                    )}
-
-                    {chartTab === 'distribution' && donutSlices.length === 0 && (
-                      <View
-                        style={[styles.chartPlaceholder, { minHeight: chartHeight }]}
-                      >
-                        <Text style={[styles.placeholderText, { color: textMuted }]}>
-                          暂无持仓或市值均为 0
-                        </Text>
-                      </View>
-                    )}
-
-                    {chartTab === 'returns' && hasAssets && (
-                      <View style={{ paddingTop: 4, paddingBottom: 6 }}>
-                        <ReturnScatterPanel
-                          assets={assets}
-                          theme={theme}
-                          styles={styles}
-                          textSecondary={textSecondary}
-                          textMuted={textMuted}
-                        />
-                      </View>
-                    )}
-
-                    {chartTab === 'returns' && !hasAssets && (
-                      <View
-                        style={[styles.chartPlaceholder, { minHeight: chartHeight }]}
-                      >
-                        <Text style={[styles.placeholderText, { color: textMuted }]}>
-                          暂无资产数据
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+          {chartTab === 'distribution' && donutSlices.length > 0 && (
+            <View style={styles.donutBlock}>
+              <View style={styles.donutInteractiveRow}>
+                <View style={[styles.donutWing, styles.donutWingLeft, !distributionPanelOpen && styles.donutWingBalanced, distributionPanelOpen && distributionPanelSide === 'left' && styles.donutWingMajor, distributionPanelOpen && distributionPanelSide === 'right' && styles.donutWingMinor]}>
+                  {selectedDistributionCategory && distributionPanelSide === 'left' && (
+                    <DistributionBreakdown category={selectedDistributionCategory} assets={assets} styles={styles} primary={inkColor} textSecondary={inkSoft} usdRates={fxRates?.rates ?? null} displayCurrency={displayCurrency} />
+                  )}
+                </View>
+                <View style={[styles.donutCenter, { width: effectiveDonutWidth }]}>
+                  <DistributionDonut slices={donutSlices} width={effectiveDonutWidth} ringSize={donutRingHeight} selectedCategory={selectedDistributionCategory} onToggleCategory={toggleDistributionCategory} />
+                </View>
+                <View style={[styles.donutWing, styles.donutWingRight, !distributionPanelOpen && styles.donutWingBalanced, distributionPanelOpen && distributionPanelSide === 'right' && styles.donutWingMajor, distributionPanelOpen && distributionPanelSide === 'left' && styles.donutWingMinor]}>
+                  {selectedDistributionCategory && distributionPanelSide === 'right' && (
+                    <DistributionBreakdown category={selectedDistributionCategory} assets={assets} styles={styles} primary={inkColor} textSecondary={inkSoft} usdRates={fxRates?.rates ?? null} displayCurrency={displayCurrency} />
+                  )}
+                </View>
+              </View>
+              <View style={styles.donutLegend}>
+                {donutSlices.map((s) => {
+                  const pct = donutTotal > 0 ? (s.value / donutTotal) * 100 : 0;
+                  const active = selectedDistributionCategory === s.category;
+                  return (
+                    <Pressable key={s.category} onPress={() => toggleDistributionCategory(s.category)} style={[styles.donutLegendRow, active && styles.donutLegendRowActive]}>
+                      <View style={[styles.legendDot, { backgroundColor: s.color }]} />
+                      <Text style={[styles.donutLegendName, { color: inkColor }]}>{s.name}</Text>
+                      <Text style={[styles.donutLegendPct, { color: inkColor }]}>{pct.toFixed(1)}%</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
-          </GlassSurface>
+          )}
+
+          {chartTab === 'returns' && hasAssets && (
+             <ReturnScatterPanel
+                assets={assets}
+                theme={theme}
+                styles={styles}
+                textSecondary={inkSoft}
+                textMuted={rgbaFromHex(inkColor, 0.4)}
+             />
+          )}
+
+          {!hasAssets && chartTab !== 'trend' && (
+             <View style={styles.chartPlaceholder}>
+               <Text style={[styles.placeholderText, { color: inkSoft }]}>暂无数据</Text>
+             </View>
+          )}
+        </View>
+
+        {/* Bottom Summary Row */}
+        {chartTab === 'returns' ? (
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryWinnerBlock, { backgroundColor: rgbaFromHex(theme.categoryAccents.Stock ?? inkColor, 0.28) }]}>
+               <Text style={[styles.summaryLabel, { color: inkColor }]}>TOP GAINER:</Text>
+               <View style={styles.summaryValueRow}>
+                  <Text style={[styles.summaryName, { color: inkColor, flex: 1, marginRight: 8 }]} numberOfLines={1}>{topGainer ? topGainer.name : '—'}</Text>
+                  <Text style={[styles.summaryPct, { color: inkColor }]}>{topGainer ? `${topGainer.cumulativeReturn >= 0 ? '+' : ''}${(topGainer.cumulativeReturn * 100).toFixed(2)}%` : '—'}</Text>
+               </View>
+            </View>
+            <View style={[styles.summaryLoserBlock, { backgroundColor: inkColor }]}>
+               <Text style={[styles.summaryLabel, { color: theme.pageBg }]}>TOP LOSER:</Text>
+               <View style={styles.summaryValueRow}>
+                  <Text style={[styles.summaryName, { color: theme.pageBg, flex: 1, marginRight: 8 }]} numberOfLines={1}>{topLoser ? topLoser.name : '—'}</Text>
+                  <Text style={[styles.summaryPct, { color: theme.pageBg }]}>{topLoser ? `${topLoser.cumulativeReturn >= 0 ? '+' : ''}${(topLoser.cumulativeReturn * 100).toFixed(2)}%` : '—'}</Text>
+               </View>
+            </View>
+          </View>
+        ) : (
+          <View style={{ marginHorizontal: 16, marginTop: 16, gap: 0, paddingBottom: 16 }}>
+             {goalRows.map((row) => (
+                <GoalProgressCard
+                  key={row.id}
+                  row={row}
+                  styles={styles}
+                  textSecondary={textSecondary}
+                  textMuted={textMuted}
+                  primary={inkColor}
+                  ringTrackColor={rgbaFromHex(inkColor, 0.08)}
+                />
+             ))}
+          </View>
         )}
 
-        {!loading && hasAssets ? (
-          <GlassSurface borderRadius={30} intensity={48} variant="editorial">
-            <View style={styles.goalsGlassInner}>
-              <Text
-                style={[styles.goalsSectionTitle, { color: theme.primary }]}
-              >
-                目标进度
-              </Text>
-              {goalRows.length === 0 ? (
-                <Text style={[styles.goalsEmpty, { color: textMuted }]}>
-                  在资产编辑中展开「用途与目标」并填写目标金额后，将在此显示完成度。
-                </Text>
-              ) : (
-                goalRows.map((row: GoalProgressDisplayRow) => (
-                  <GoalProgressCard
-                    key={row.id}
-                    row={row}
-                    styles={styles}
-                    textSecondary={textSecondary}
-                    textMuted={textMuted}
-                    primary={theme.primary}
-                    ringTrackColor={ringTrackColor}
-                  />
-                ))
-              )}
-            </View>
-          </GlassSurface>
-        ) : null}
       </ScrollView>
     </View>
   );

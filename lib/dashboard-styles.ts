@@ -196,7 +196,7 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       paddingHorizontal: 12,
     },
     categoryDeltaCell: {
-      width: '60%',
+      width: '30%',
       justifyContent: 'center',
       alignItems: 'flex-start',
       paddingVertical: 16,

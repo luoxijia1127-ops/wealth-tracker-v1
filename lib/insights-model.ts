@@ -52,7 +52,7 @@ export const INSIGHTS_CHART_TABS: {
 ];
 
 /** 净值曲线时间范围（相对「锚定日」向前回溯）；CUSTOM 用起止日截取 */
-export type TrendTimeframe = '7D' | '1M' | '3M' | '1Y' | 'CUSTOM';
+export type TrendTimeframe = '7D' | '1M' | '3M' | '1Y' | 'ALL' | 'CUSTOM';
 
 export type TrendCustomRange = { start: string; end: string };
 
@@ -64,10 +64,11 @@ export const TREND_TIMEFRAME_OPTIONS: {
   { id: '1M', label: '1月' },
   { id: '3M', label: '3月' },
   { id: '1Y', label: '1年' },
+  { id: 'ALL', label: '全部' },
   { id: 'CUSTOM', label: '自定义' },
 ];
 
-const TREND_LOOKBACK_DAYS: Record<Exclude<TrendTimeframe, 'CUSTOM'>, number> = {
+const TREND_LOOKBACK_DAYS: Record<Exclude<TrendTimeframe, 'CUSTOM' | 'ALL'>, number> = {
   '7D': 7,
   '1M': 31,
   '3M': 92,
@@ -102,6 +103,7 @@ export function filterSnapshotsByTimeframe(
   customRange?: TrendCustomRange | null
 ): Snapshot[] {
   const upToToday = orderedAsc.filter((s) => s.date <= anchorDate);
+  if (tf === 'ALL') return upToToday;
   if (tf === 'CUSTOM') {
     let start =
       customRange?.start ?? addCalendarDaysYmd(anchorDate, -30);

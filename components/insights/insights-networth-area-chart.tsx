@@ -323,28 +323,26 @@ export function InsightsNetWorthAreaChart({
             </SvgText>
           ))}
         </G>
-        <G opacity={axisLabelOpacity}>
-          <SvgText
-            x={PAD_L}
-            y={height - 8}
-            fontSize={9}
-            fill={axisLabelColor}
-            textAnchor="start"
-            fontWeight="500"
-          >
-            {xLabels.start}
-          </SvgText>
-          <SvgText
-            x={width - PAD_R}
-            y={height - 8}
-            fontSize={9}
-            fill={axisLabelColor}
-            textAnchor="end"
-            fontWeight="500"
-          >
-            {xLabels.end}
-          </SvgText>
-        </G>
+        <SvgText
+          x={PAD_L}
+          y={height - 18}
+          fontSize={10}
+          fill={axisLabelColor}
+          textAnchor="start"
+          fontWeight="600"
+        >
+          {xLabels.start}
+        </SvgText>
+        <SvgText
+          x={width - PAD_R}
+          y={height - 18}
+          fontSize={10}
+          fill={axisLabelColor}
+          textAnchor="end"
+          fontWeight="600"
+        >
+          {xLabels.end}
+        </SvgText>
         {hitPoints.map((p) => (
           <Circle
             key={`hit-${p.index}`}

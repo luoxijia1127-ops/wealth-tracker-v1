@@ -1,37 +1,30 @@
 /**
- * Insights 页样式工厂：随配色主题变化。
+ * Insights 页样式工厂：随配色主题变化，杂志海报风。
  */
 
 import { AppFont } from '@/lib/app-fonts';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
-import { editorialSurfaceFill } from '@/lib/editorial-theme';
+import { editorialAmbientWash, editorialSurfaceFill } from '@/lib/editorial-theme';
 import { StyleSheet } from 'react-native';
 
-/**
- * @param appearance 与系统浅色/深色一致；深色下选项键、区间 chip 等用饱和色块 + 可读文字。
- */
 export function createInsightsStyles(
   t: AppPaletteTheme,
   appearance: 'light' | 'dark' = 'light'
 ) {
   const sf = (alpha: number) => editorialSurfaceFill(t, alpha);
   const isDark = appearance === 'dark';
-  /** Tab/区间选中底：浅色用 primary（多为深字色），深色用 chartLine（多为饱和色，配 pickTextOnAccent） */
-  const accentFill = isDark ? t.chartLine : t.primary;
-  const onAccentLabel = pickTextOnAccent(accentFill);
-
+  
   const p = t.primary;
   const p06 = rgbaFromHex(p, 0.06);
-  const p07 = rgbaFromHex(p, 0.07);
   const p08 = rgbaFromHex(p, 0.08);
   const p10 = rgbaFromHex(p, 0.1);
   const p14 = rgbaFromHex(p, 0.14);
-  const p18 = rgbaFromHex(p, 0.18);
 
   return StyleSheet.create({
     screen: {
       flex: 1,
+      backgroundColor: t.pageBg,
     },
     decorWrap: {
       ...StyleSheet.absoluteFillObject,
@@ -41,31 +34,214 @@ export function createInsightsStyles(
       position: 'absolute',
       borderRadius: 999,
     },
+    dashboardAmbient: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: editorialAmbientWash(t),
+    },
     scroll: {
       flex: 1,
+      backgroundColor: 'transparent',
     },
     scrollContent: {
-      paddingHorizontal: 24,
-      paddingBottom: 20,
-      gap: 20,
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      gap: 0,
     },
-    /** 外层由 GlassSurface 承担圆角与模糊，内层仅留白 */
-    heroCardInner: {
-      paddingVertical: 26,
-      paddingHorizontal: 22,
+    
+    /** Hero Poster Stage */
+    heroPoster: {
+      position: 'relative',
+      height: 180,
+      width: '100%',
       backgroundColor: 'transparent',
     },
-    /** 外层由 GlassSurface 承担模糊与描边，此处仅内边距 */
-    cardGlassInner: {
-      padding: 22,
-      backgroundColor: 'transparent',
+    mastheadBlock: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      paddingHorizontal: 28,
+      paddingTop: 56,
+      zIndex: 2,
     },
-    cardKicker: {
+    supportBlock: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      width: '32%',
+      height: '100%',
+      zIndex: 1,
+    },
+    mastheadTitle: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 48,
+      lineHeight: 52,
+      letterSpacing: -1.6,
+      textTransform: 'uppercase',
+      color: p,
+    },
+    mastheadSub: {
+      fontFamily: AppFont.medium,
+      fontSize: 11,
+      letterSpacing: 1.8,
+      textTransform: 'uppercase',
+      color: p,
+      marginTop: 4,
+    },
+    heroNetWorthRow: {
+      position: 'absolute',
+      bottom: 20,
+      left: 28,
+      right: 28,
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+    },
+    heroMetricLabel: {
+      fontFamily: AppFont.medium,
       fontSize: 12,
-      fontWeight: '600',
-      letterSpacing: 0.4,
-      marginBottom: 8,
+      letterSpacing: 1.8,
+      textTransform: 'uppercase',
+      color: p,
     },
+    heroMetricValue: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 32,
+      fontWeight: '800',
+      letterSpacing: -0.8,
+      color: p,
+    },
+
+    /** Segmented Tabs */
+    segmentedBar: {
+      flexDirection: 'row',
+      paddingHorizontal: 24,
+      paddingVertical: 16,
+      backgroundColor: 'transparent',
+      gap: 0,
+      justifyContent: 'space-between',
+    },
+    segmentedTab: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    segmentedActivePill: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      left: 4,
+      right: 4,
+      borderRadius: 6,
+      backgroundColor: '#FFFFFF',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    segmentedText: {
+      fontFamily: AppFont.medium,
+      fontSize: 11,
+      fontWeight: '600',
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      zIndex: 2,
+    },
+    
+    /** Chart Poster */
+    chartPoster: {
+      position: 'relative',
+      marginHorizontal: 16,
+      backgroundColor: rgbaFromHex(p, 0.03),
+      borderWidth: 1,
+      borderColor: rgbaFromHex(p, 0.08),
+      minHeight: 320,
+      overflow: 'hidden',
+    },
+    chartPosterHeader: {
+      position: 'absolute',
+      top: 16,
+      left: 20,
+      right: 20,
+      zIndex: 10,
+      alignItems: 'center',
+    },
+    chartPosterValue: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 46,
+      lineHeight: 52,
+      letterSpacing: -1.2,
+      color: p,
+      textAlign: 'center',
+    },
+    chartPosterOverlayTitle: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 42,
+      letterSpacing: -1.0,
+      color: p,
+      position: 'absolute',
+      right: 20,
+      bottom: 60,
+      zIndex: 10,
+      textAlign: 'right',
+    },
+    chartPosterOverlaySubtitle: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 48,
+      letterSpacing: -1.0,
+      color: p,
+      position: 'absolute',
+      right: 20,
+      bottom: 16,
+      zIndex: 10,
+      textAlign: 'right',
+    },
+
+    /** Summary Blocks (Winner/Loser) */
+    summaryRow: {
+      flexDirection: 'row',
+      marginHorizontal: 16,
+      marginTop: 16,
+      minHeight: 72,
+    },
+    summaryWinnerBlock: {
+      flex: 1,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      justifyContent: 'center',
+    },
+    summaryLoserBlock: {
+      flex: 1,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      justifyContent: 'center',
+    },
+    summaryLabel: {
+      fontFamily: AppFont.medium,
+      fontSize: 10,
+      letterSpacing: 1.5,
+      textTransform: 'uppercase',
+      marginBottom: 6,
+    },
+    summaryValueRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
+    },
+    summaryName: {
+      fontSize: 16,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    summaryPct: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+
+    /** Old styles mapped */
     centered: {
       minHeight: 160,
       justifyContent: 'center',
@@ -78,72 +254,78 @@ export function createInsightsStyles(
     emptyText: {
       fontSize: 15,
       lineHeight: 22,
+      paddingHorizontal: 24,
+      paddingVertical: 24,
+      textAlign: 'center',
     },
-    snapshotFallback: {
-      fontSize: 14,
-      lineHeight: 21,
-      marginBottom: 16,
-    },
-    currentValue: {
-      fontSize: 40,
-      fontWeight: '800',
-      letterSpacing: -0.85,
-      marginBottom: 6,
-    },
-    unconvertedHint: {
-      fontSize: 12,
-      marginBottom: 6,
-      lineHeight: 17,
-    },
-    changeRow: {
+    timeframeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-      marginTop: 12,
-      marginBottom: 4,
+      justifyContent: 'center',
+      width: '100%',
+      gap: 16,
+      position: 'absolute',
+      bottom: 12,
+      zIndex: 20,
     },
-    changeRowLeft: {
-      flex: 1,
-      minWidth: 0,
-      flexDirection: 'row',
-      flexWrap: 'wrap',
+    timeframeChip: {
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+    },
+    timeframeChipText: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+    },
+    timeframeChipTextActiveDark: {
+      color: p,
+      textDecorationLine: 'underline',
+    },
+    chartPlaceholder: {
+      justifyContent: 'center',
       alignItems: 'center',
-      gap: 10,
+      paddingVertical: 24,
+      minHeight: 200,
     },
-    changeLabel: {
+    placeholderText: {
       fontSize: 14,
       fontWeight: '500',
     },
-    changeValues: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'baseline',
-      gap: 8,
+    trendChartWrap: {
+      position: 'relative',
+      paddingTop: 60,
     },
-    changeAmount: {
-      fontSize: 16,
-      fontWeight: '700',
-      letterSpacing: -0.25,
+    trendTooltip: {
+      position: 'absolute',
+      paddingVertical: 6,
+      paddingHorizontal: 8,
+      backgroundColor: p,
+      zIndex: 30,
     },
-    changePct: {
-      fontSize: 12,
+    trendTooltipDate: {
+      color: t.pageBg,
+      fontSize: 10,
       fontWeight: '600',
     },
-    chartSection: {
-      marginTop: 0,
+    trendTooltipValue: {
+      color: t.pageBg,
+      fontSize: 11,
+      fontWeight: '700',
+      marginTop: 2,
     },
+
+    /** Goals Section */
     goalsGlassInner: {
       paddingVertical: 20,
-      paddingHorizontal: 20,
+      paddingHorizontal: 24,
       backgroundColor: 'transparent',
     },
     goalsSectionTitle: {
-      fontFamily: AppFont.displaySemiBold,
-      fontSize: 18,
-      fontWeight: '600',
+      fontFamily: AppFont.displayBold,
+      fontSize: 22,
       marginBottom: 14,
-      letterSpacing: -0.25,
+      letterSpacing: -0.2,
+      textTransform: 'uppercase',
     },
     goalsEmpty: {
       fontSize: 13,
@@ -152,36 +334,36 @@ export function createInsightsStyles(
     goalCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : sf(0.58),
-      borderRadius: 22,
+      backgroundColor: rgbaFromHex(p, 0.04),
       paddingVertical: 14,
       paddingHorizontal: 14,
       marginBottom: 12,
       gap: 12,
-      borderWidth: 0,
     },
     goalCardPressed: {
-      opacity: 0.92,
+      opacity: 0.8,
     },
     goalIconWrap: {
       width: 48,
       height: 48,
-      borderRadius: 24,
       alignItems: 'center',
       justifyContent: 'center',
     },
     goalCardMid: {
       flex: 1,
       minWidth: 0,
-      gap: 3,
+      gap: 4,
     },
     goalCardLabel: {
       fontSize: 13,
-      fontWeight: '600',
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
     goalCardAssetName: {
       fontSize: 11,
       fontWeight: '500',
+      textTransform: 'uppercase',
     },
     goalCardValues: {
       fontSize: 15,
@@ -197,336 +379,131 @@ export function createInsightsStyles(
     goalRingPct: {
       fontSize: 12,
       fontWeight: '800',
-      color: t.primary,
+      color: p,
     },
-    tabRow: {
-      flexDirection: 'row',
-      gap: 10,
-      marginBottom: 16,
-    },
-    tabChip: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-      borderRadius: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : sf(0.48),
-      borderWidth: 0,
-    },
-    tabChipActive: {
-      backgroundColor: accentFill,
-    },
-    tabChipPressed: {
-      opacity: 0.88,
-    },
-    tabChipDisabled: {
-      opacity: 0.4,
-    },
-    tabChipText: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: isDark ? 'rgba(255,255,255,0.88)' : rgbaFromHex(p, 0.65),
-    },
-    tabChipTextActive: {
-      color: onAccentLabel,
-    },
-    tabChipTextDisabled: {
-      color: isDark ? 'rgba(255,255,255,0.35)' : rgbaFromHex(p, 0.5),
-    },
-    /** 已落在外层 GlassSurface 内，仅轻量衬底以区分图表区 */
-    chartSurface: {
-      borderRadius: 26,
-      overflow: 'hidden',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : sf(0.42),
-      borderWidth: 0,
-    },
-    /** 五个区间等分整行，视觉居中对称（略下移，避免贴 chartSurface 顶圆角裁切两侧芯片角） */
-    timeframeRow: {
-      flexDirection: 'row',
-      alignItems: 'stretch',
-      justifyContent: 'center',
-      width: '100%',
-      gap: 6,
-      marginTop: 10,
-      marginBottom: 12,
-      paddingHorizontal: 0,
-    },
-    timeframeChip: {
-      flex: 1,
-      minWidth: 0,
-      paddingVertical: 8,
-      paddingHorizontal: 4,
-      borderRadius: 14,
-      borderWidth: 0,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : sf(0.52),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    timeframeChipActive: {
-      backgroundColor: p08,
-    },
-    /** 净值曲线区间选中（与 tab 共用 accentFill + onAccentLabel） */
-    timeframeChipActiveDark: {
-      backgroundColor: accentFill,
-    },
-    timeframeChipText: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: isDark ? 'rgba(255,255,255,0.78)' : rgbaFromHex(p, 0.55),
-    },
-    timeframeChipTextActive: {
-      color: t.primary,
-    },
-    timeframeChipTextActiveDark: {
-      color: onAccentLabel,
-    },
-    inlineLegendRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 6,
-      marginBottom: 6,
-    },
-    legendDot: {
-      width: 9,
-      height: 9,
-      borderRadius: 5,
-    },
-    legendLabel: {
-      fontSize: 13,
-      fontWeight: '500',
-    },
-    chart: {
-      marginLeft: 0,
-      marginRight: 0,
-      paddingTop: 28,
-      paddingRight: 0,
-      paddingBottom: 4,
-      borderRadius: 18,
-    },
-    trendChartWrap: {
-      position: 'relative',
-      paddingLeft: 0,
-      paddingRight: 0,
-      paddingBottom: 6,
-    },
-    trendTooltip: {
-      position: 'absolute',
-      borderRadius: 14,
-      paddingVertical: 8,
-      paddingHorizontal: 10,
-      backgroundColor: 'rgba(17,24,39,0.92)',
-      maxWidth: 180,
-    },
-    trendTooltipDate: {
-      color: '#FFFFFF',
-      fontSize: 11,
-      fontWeight: '600',
-    },
-    trendTooltipValue: {
-      color: '#FFFFFF',
-      fontSize: 12,
-      fontWeight: '700',
-      marginTop: 2,
-    },
-    chartPlaceholder: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 24,
-    },
-    placeholderText: {
-      fontSize: 14,
-      fontWeight: '500',
-    },
+
+    /** Distribution Donut specifics */
     donutBlock: {
-      paddingBottom: 4,
+      paddingBottom: 24,
+      paddingTop: 16,
     },
     donutInteractiveRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'center',
       paddingVertical: 12,
-      paddingHorizontal: 0,
     },
-    donutWing: {
-      minWidth: 0,
-    },
-    donutWingBalanced: {
-      flex: 1,
-      maxWidth: '50%',
-    },
-    donutWingMajor: {
-      flex: 10,
-    },
-    donutWingMinor: {
-      flex: 1,
-    },
-    donutWingLeft: {
-      alignItems: 'flex-end',
-      paddingRight: 2,
-    },
-    donutWingRight: {
-      alignItems: 'flex-start',
-      paddingLeft: 2,
-    },
-    donutCenter: {
-      flexShrink: 0,
-      alignItems: 'center',
-    },
+    donutWing: { minWidth: 0 },
+    donutWingBalanced: { flex: 1, maxWidth: '50%' },
+    donutWingMajor: { flex: 10 },
+    donutWingMinor: { flex: 1 },
+    donutWingLeft: { alignItems: 'flex-end', paddingRight: 2 },
+    donutWingRight: { alignItems: 'flex-start', paddingLeft: 2 },
+    donutCenter: { flexShrink: 0, alignItems: 'center' },
     breakdownCard: {
-      borderRadius: 20,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : sf(0.5),
+      backgroundColor: rgbaFromHex(p, 0.04),
       paddingHorizontal: 12,
       paddingTop: 12,
       paddingBottom: 10,
       maxHeight: 248,
       width: '100%',
-      alignSelf: 'stretch',
-      borderWidth: 0,
     },
     breakdownTitle: {
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
       marginBottom: 8,
     },
-    breakdownScroll: {
-      maxHeight: 196,
-    },
+    breakdownScroll: { maxHeight: 196 },
     breakdownRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
       paddingVertical: 9,
-      borderBottomWidth: 0,
     },
     breakdownName: {
       flex: 1,
-      minWidth: 0,
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '600',
-      lineHeight: 17,
-      paddingRight: 4,
+      textTransform: 'uppercase',
     },
     breakdownValue: {
       flexShrink: 0,
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '600',
       textAlign: 'right',
     },
     donutHint: {
-      fontSize: 11,
+      fontSize: 10,
       textAlign: 'center',
       marginTop: 2,
       marginBottom: 12,
-      paddingHorizontal: 8,
     },
     donutLegend: {
-      paddingHorizontal: 8,
+      paddingHorizontal: 16,
       paddingBottom: 12,
-      gap: 6,
+      gap: 2,
     },
     donutLegendRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      paddingVertical: 9,
-      paddingHorizontal: 10,
-      borderRadius: 14,
+      gap: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      backgroundColor: rgbaFromHex(p, 0.02),
+      marginBottom: 2,
     },
     donutLegendRowActive: {
-      backgroundColor: p10,
+      backgroundColor: rgbaFromHex(p, 0.08),
     },
-    donutLegendRowPressed: {
-      opacity: 0.88,
-    },
+    donutLegendRowPressed: { opacity: 0.8 },
     donutLegendName: {
       flex: 1,
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: 13,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
     donutLegendPct: {
-      fontSize: 13,
-      fontWeight: '600',
-      minWidth: 48,
+      fontSize: 14,
+      fontWeight: '800',
       textAlign: 'right',
     },
-    /** 投资回报面板 */
+    legendDot: { width: 12, height: 12 },
+
+    /** ROI specifics */
     returnPanelCard: {
-      borderRadius: 28,
-      paddingVertical: 18,
+      paddingVertical: 16,
       paddingHorizontal: 16,
-      backgroundColor: isDark ? t.surfaceWhite : sf(0.58),
-      borderWidth: 0,
-      shadowColor: '#1e1b4b',
-      shadowOffset: { width: 0, height: 12 },
-      shadowOpacity: isDark ? 0.28 : 0.08,
-      shadowRadius: 28,
-      elevation: 3,
-    },
-    returnKicker: {
-      fontSize: 11,
-      fontWeight: '600',
-      letterSpacing: 0.35,
-      textTransform: 'uppercase' as const,
-      marginBottom: 6,
-    },
-    returnTitle: {
-      fontSize: 17,
-      fontWeight: '800',
-      letterSpacing: -0.3,
-      marginBottom: 14,
     },
     returnFilterRow: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginBottom: 10,
-      alignItems: 'center',
+      marginBottom: 12,
     },
     returnSearchInput: {
       flex: 1,
-      minWidth: 140,
-      borderRadius: 16,
       paddingVertical: 12,
       paddingHorizontal: 14,
-      fontSize: 14,
-      fontWeight: '500',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : sf(0.55),
-      borderWidth: 0,
+      fontSize: 12,
+      fontWeight: '600',
+      backgroundColor: rgbaFromHex(p, 0.04),
+      textTransform: 'uppercase',
     },
-    returnChip: {
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderRadius: 999,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : p08,
-    },
-    /** 投资回报：六类同一行均分 */
     returnCategoryRow: {
       flexDirection: 'row',
-      width: '100%',
       gap: 4,
-      alignItems: 'stretch',
-      marginBottom: 10,
+      marginBottom: 12,
     },
     returnChipInRow: {
       flex: 1,
-      minWidth: 0,
-      paddingVertical: 7,
-      paddingHorizontal: 2,
-      borderRadius: 999,
+      paddingVertical: 8,
       alignItems: 'center',
-      justifyContent: 'center',
-    },
-    returnChipText: {
-      fontSize: 12,
-      fontWeight: '700',
     },
     returnChipTextInRow: {
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: '700',
-      textAlign: 'center',
-      width: '100%',
+      textTransform: 'uppercase',
     },
     returnToggleRow: {
       flexDirection: 'row',
@@ -536,78 +513,65 @@ export function createInsightsStyles(
     },
     returnChartWrap: {
       position: 'relative',
-      marginBottom: 8,
+      marginBottom: 16,
+      paddingTop: 16,
+      paddingBottom: 16,
+      backgroundColor: rgbaFromHex(p, 0.02),
     },
     returnTooltip: {
       position: 'absolute',
       zIndex: 20,
-      borderRadius: 12,
       paddingVertical: 10,
       paddingHorizontal: 12,
-      backgroundColor: 'rgba(17,24,39,0.94)',
+      backgroundColor: p,
       maxWidth: 260,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.25,
-      shadowRadius: 8,
-      elevation: 8,
     },
     returnTooltipLine: {
-      color: '#F9FAFB',
-      fontSize: 11,
-      lineHeight: 16,
+      color: t.pageBg,
+      fontSize: 10,
       marginBottom: 2,
     },
     returnTooltipTitle: {
-      color: '#FFFFFF',
-      fontSize: 13,
+      color: t.pageBg,
+      fontSize: 12,
       fontWeight: '800',
-      marginBottom: 6,
-    },
-    returnAxisLabel: {
-      fontSize: 10,
-      fontWeight: '600',
+      textTransform: 'uppercase',
+      marginBottom: 4,
     },
     returnTableScroll: {
-      borderRadius: 18,
-      borderWidth: 0,
-      overflow: 'hidden',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : sf(0.5),
+      backgroundColor: rgbaFromHex(p, 0.03),
     },
-    /** 表体默认约 4 行可见高度，其余纵向滚动查看 */
-    returnTableBodyScroll: {
-      maxHeight: 130,
-    },
+    returnTableBodyScroll: { maxHeight: 180 },
     returnTableHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 8,
-      borderBottomWidth: 0,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : rgbaFromHex(p, 0.06),
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      backgroundColor: rgbaFromHex(p, 0.08),
       minWidth: 720,
     },
     returnTableRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 8,
-      borderBottomWidth: 0,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: rgbaFromHex(p, 0.04),
       minWidth: 720,
     },
     returnTh: {
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
     returnTd: {
       fontSize: 12,
       fontWeight: '600',
     },
     returnFooterHint: {
-      fontSize: 11,
-      lineHeight: 17,
+      fontSize: 10,
       marginTop: 10,
-      color: rgbaFromHex(p, 0.48),
     },
   });
 }

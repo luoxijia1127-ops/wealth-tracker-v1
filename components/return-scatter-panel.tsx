@@ -573,10 +573,10 @@ export function ReturnScatterPanel({
             fontSize={11}
             fontWeight="600"
           >
-            持有时间（天）
+            HOLDING DAYS
           </SvgText>
 
-          <SvgText x={padL} y={padT + plotH + 18} fill={textMuted} fontSize={9}>
+          <SvgText x={padL} y={padT + plotH + 18} fill={textMuted} fontSize={10} fontWeight="600">
             {Math.round(model.xMin)}d
           </SvgText>
           <SvgText
@@ -584,19 +584,21 @@ export function ReturnScatterPanel({
             y={padT + plotH + 18}
             textAnchor="end"
             fill={textMuted}
-            fontSize={9}
+            fontSize={10}
+            fontWeight="600"
           >
             {Math.round(model.xMax)}d
           </SvgText>
-          <SvgText x={padL - 2} y={padT + 4} textAnchor="end" fill={textMuted} fontSize={9}>
+          <SvgText x={padL - 6} y={padT + 4} textAnchor="end" fill={textMuted} fontSize={10} fontWeight="600">
             {pctFmt(model.yMax, 0)}
           </SvgText>
           <SvgText
-            x={padL - 2}
+            x={padL - 6}
             y={padT + plotH}
             textAnchor="end"
             fill={textMuted}
-            fontSize={9}
+            fontSize={10}
+            fontWeight="600"
           >
             {pctFmt(model.yMin, 0)}
           </SvgText>
