@@ -1,18 +1,22 @@
 /**
- * 设置页网格入口：圆形图标底 + 短标签，便于后续扩展更多方块。
+ * 设置页入口：支持紧凑工具块、大字号列表行等。
  */
 
+import { AppFont } from '@/lib/app-fonts';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { rgbaFromHex } from '@/lib/color-utils';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { ComponentProps } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export type SettingsGridTileProps = {
   label: string;
   icon: ComponentProps<typeof MaterialIcons>['name'];
   theme: AppPaletteTheme;
   onPress: () => void;
+  variant?: 'tool' | 'secondary' | 'list';
+  color?: string;
+  textColor?: string;
 };
 
 export function SettingsGridTile({
@@ -20,51 +24,117 @@ export function SettingsGridTile({
   icon,
   theme,
   onPress,
+  variant = 'tool',
+  color,
+  textColor,
 }: SettingsGridTileProps) {
+  const p = theme.primary;
+  const isList = variant === 'list';
+  const isTool = variant === 'tool';
+  const isSecondary = variant === 'secondary';
+
+  if (isList) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.listRow,
+          pressed && styles.pressed,
+        ]}
+      >
+        <MaterialIcons name={icon} size={28} color={p} style={{ width: 40 }} />
+        <Text style={[styles.listLabel, { color: p }]}>{label}</Text>
+      </Pressable>
+    );
+  }
+
+  // compact tool or secondary block
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => ({
-        width: '33.333%',
-        alignItems: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: 6,
-        opacity: pressed ? 0.88 : 1,
-      })}
+      style={({ pressed }) => [
+        styles.compactTile,
+        isSecondary && styles.secondaryTile,
+        pressed && styles.pressed,
+      ]}
     >
       <View
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: rgbaFromHex(theme.surfaceWhite, 0.62),
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 0,
-          shadowColor: '#1e1b4b',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.08,
-          shadowRadius: 14,
-          elevation: 2,
-        }}
+        style={[
+          styles.iconWrap,
+          isSecondary && styles.iconWrapSecondary,
+          { borderColor: rgbaFromHex(textColor ?? p, 0.4) }
+        ]}
       >
-        <MaterialIcons name={icon} size={26} color={theme.primary} />
+        <MaterialIcons name={icon} size={isSecondary ? 24 : 28} color={textColor ?? p} />
       </View>
       <Text
         numberOfLines={2}
-        style={{
-          marginTop: 10,
-          fontSize: 12,
-          fontWeight: '600',
-          color: rgbaFromHex(theme.primary, 0.82),
-          textAlign: 'center',
-          lineHeight: 16,
-        }}
+        style={[
+          styles.compactLabel,
+          { color: textColor ?? p },
+          isSecondary && styles.secondaryLabel,
+        ]}
       >
         {label}
       </Text>
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  pressed: {
+    opacity: 0.75,
+  },
+  compactTile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    minWidth: '33%',
+  },
+  secondaryTile: {
+    minWidth: '45%',
+  },
+  iconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  iconWrapSecondary: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  compactLabel: {
+    fontFamily: AppFont.medium,
+    marginTop: 8,
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  secondaryLabel: {
+    fontSize: 11,
+    marginTop: 6,
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
+  },
+  listLabel: {
+    fontFamily: AppFont.displayBold,
+    fontSize: 32,
+    letterSpacing: -0.6,
+    marginLeft: 12,
+  },
+});

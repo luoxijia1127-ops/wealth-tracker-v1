@@ -1,12 +1,10 @@
 /**
- * 「更多」：账号卡 + 工具 / 设置 / 数据 / 支持 分区网格。
+ * 「更多」：海报风分区网格。
  */
 
-import { GlassSurface } from '@/components/glass-surface';
 import { SettingsGridTile } from '@/components/settings-grid-tile';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { usePurchasesEntitlement } from '@/contexts/purchases-context';
-import { editorialDecorBlobs } from '@/lib/editorial-theme';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -15,6 +13,7 @@ import type { ComponentProps } from 'react';
 import { useMemo } from 'react';
 import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 
 type Tile = {
   id: string;
@@ -30,7 +29,9 @@ export default function SettingsScreen() {
   const { ready: purchasesReady, isPro } = usePurchasesEntitlement();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
 
-  const decorColors = useMemo(() => editorialDecorBlobs(theme), [theme]);
+  const p = theme.primary;
+  const toolsBg = rgbaFromHex(theme.swatches[1] ?? p, 0.28);
+  const secondaryBg = rgbaFromHex(theme.swatches[2] ?? p, 0.16);
 
   const openMembership = () => {
     router.push('/paywall');
@@ -84,223 +85,106 @@ export default function SettingsScreen() {
     [router]
   );
 
-  const dataTiles: Tile[] = useMemo(
-    () => [
-      {
-        id: 'export',
-        label: '导出数据',
-        icon: 'save-alt',
-        onPress: () => router.push('/settings-export'),
-      },
-      {
-        id: 'archived',
-        label: '已归档',
-        icon: 'inventory-2',
-        onPress: () => router.push('/settings-archived'),
-      },
-      {
-        id: 'trash',
-        label: '最近删除',
-        icon: 'delete-outline',
-        onPress: () => router.push('/settings-trash'),
-      },
-    ],
-    [router]
-  );
-
-  const onFeedback = () => {
-    router.push('/settings-help');
-  };
-
-  const onRate = () => {
-    Alert.alert(
-      '好评鼓励',
-      '若喜欢 Nest，可在 App Store 搜索应用名并留下评价，感谢支持。'
-    );
-  };
-
-  const onShareApp = async () => {
-    try {
-      await Share.share({
-        message: '推荐 Nest：本地资产与净值记账。',
-        title: 'Nest',
-      });
-    } catch {
-      Alert.alert('分享失败', '请重试。');
-    }
-  };
-
-  const supportTiles: Tile[] = [
-    {
-      id: 'privacy',
-      label: '隐私政策',
-      icon: 'privacy-tip',
-      onPress: () => router.push('/settings-privacy'),
-    },
-    {
-      id: 'terms',
-      label: '用户协议',
-      icon: 'description',
-      onPress: () => router.push('/settings-terms'),
-    },
-    { id: 'feedback', label: '意见反馈', icon: 'feedback', onPress: onFeedback },
-    { id: 'rate', label: '好评鼓励', icon: 'star-outline', onPress: onRate },
-    {
-      id: 'share',
-      label: '分享给朋友',
-      icon: 'share',
-      onPress: () => void onShareApp(),
-    },
-  ];
-
-  const renderGrid = (tiles: Tile[]) => (
-    <View style={styles.gridWrap}>
-      {tiles.map((item) => (
-        <SettingsGridTile
-          key={item.id}
-          label={item.label}
-          icon={item.icon}
-          theme={theme}
-          onPress={item.onPress}
-        />
-      ))}
-    </View>
-  );
-
   return (
     <View style={styles.screen}>
       <View style={styles.screenAmbient} pointerEvents="none" />
-      <View style={styles.decorWrap} pointerEvents="none">
-        <View
-          style={[
-            styles.decorBlob,
-            {
-              width: 220,
-              height: 320,
-              top: -40,
-              left: -60,
-              backgroundColor: decorColors[0],
-            },
-          ]}
-        />
-        <View
-          style={[
-            styles.decorBlob,
-            {
-              width: 280,
-              height: 260,
-              top: 120,
-              right: -80,
-              backgroundColor: decorColors[1],
-            },
-          ]}
-        />
-        <View
-          style={[
-            styles.decorBlob,
-            {
-              width: 200,
-              height: 200,
-              bottom: 80,
-              left: 20,
-              backgroundColor: decorColors[2],
-            },
-          ]}
-        />
-      </View>
 
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: insets.top + 8,
+            paddingTop: insets.top,
             paddingBottom: insets.bottom + 28,
             backgroundColor: 'transparent',
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.headerRow, { paddingHorizontal: 12 }]}>
-          <View style={{ width: 46 }} />
-          <Text style={styles.headerTitle}>更多</Text>
-          <View style={{ width: 46 }} />
+        <View style={styles.mastheadBlock}>
+          <Text style={styles.masthead}>DAYBREAK</Text>
+          <Text style={styles.kicker}>EDITORIAL SETTINGS</Text>
         </View>
 
-        <GlassSurface
-          borderRadius={32}
-          intensity={54}
-          variant="editorial"
-          style={styles.profileGlassOuter}
-        >
-          <View style={styles.profileCardInner}>
-            <View style={[styles.profileTopRow, { marginBottom: 0 }]}>
+        <View style={styles.posterStage}>
+          <Pressable style={styles.accountBlock} onPress={openMembership}>
+            <View>
               <View style={styles.avatar}>
-                <MaterialIcons name="person" size={28} color={theme.primary} />
+                <MaterialIcons name="person" size={32} color={p} />
               </View>
-              <View style={styles.profileNameBlock}>
-                <Text style={styles.profileName}>本地账本</Text>
-                <Text style={styles.profileSub} numberOfLines={3}>
-                  本地账户 · 数据仅保存在本机，不上传服务器。
-                  {purchasesReady
-                    ? isPro
-                      ? '\n会员：主列表资产数量不限。'
-                      : `\n免费版：主列表最多 ${FREE_ASSET_LIMIT} 条资产；订阅后可无限添加。`
-                    : ''}
-                </Text>
+              <Text style={styles.profileName}>本地账本</Text>
+              <Text style={styles.profileSub}>
+                本地账户 · 数据仅保存在本机，不上传服务器。
+                {purchasesReady
+                  ? isPro
+                    ? '\n\n会员：主列表资产数量不限。'
+                    : `\n\n免费版：主列表最多 ${FREE_ASSET_LIMIT} 条资产；订阅后可无限添加。`
+                  : ''}
+              </Text>
+            </View>
+            <View style={styles.profileCta}>
+              <Text style={styles.profileCtaText}>会员</Text>
+            </View>
+          </Pressable>
+
+          <View style={styles.rightColumn}>
+            <View style={styles.toolsBlock}>
+              <Text style={styles.toolsHeader}>TOOLS</Text>
+              <View style={styles.toolsGrid}>
+                {toolTiles.map(t => (
+                  <SettingsGridTile
+                    key={t.id}
+                    label={t.label}
+                    icon={t.icon}
+                    theme={theme}
+                    onPress={t.onPress}
+                    variant="tool"
+                    color={toolsBg}
+                    textColor={pickTextOnAccent(toolsBg)}
+                  />
+                ))}
               </View>
-              <Pressable
-                onPress={openMembership}
-                style={({ pressed }) => [
-                  styles.profileCta,
-                  pressed && { opacity: 0.9 },
-                ]}
-              >
-                <Text style={styles.profileCtaText}>会员</Text>
-              </Pressable>
+            </View>
+            
+            <View style={styles.secondaryBlock}>
+              <View style={styles.secondaryGrid}>
+                <SettingsGridTile
+                  label="数据"
+                  icon="description"
+                  theme={theme}
+                  onPress={() => router.push('/settings-data-hub')}
+                  variant="secondary"
+                  color={secondaryBg}
+                  textColor={pickTextOnAccent(secondaryBg)}
+                />
+                <SettingsGridTile
+                  label="支持"
+                  icon="lightbulb-outline"
+                  theme={theme}
+                  onPress={() => router.push('/settings-support-hub')}
+                  variant="secondary"
+                  color={secondaryBg}
+                  textColor={pickTextOnAccent(secondaryBg)}
+                />
+              </View>
             </View>
           </View>
-        </GlassSurface>
+        </View>
 
-        <GlassSurface
-          borderRadius={30}
-          intensity={48}
-          variant="editorial"
-          style={styles.sectionGlassOuter}
-        >
-          <Text style={styles.sectionLabel}>工具</Text>
-          {renderGrid(toolTiles)}
-        </GlassSurface>
+        <View style={styles.preferencesBlock}>
+          <Text style={styles.sectionMasthead}>PREFERENCES</Text>
+          {settingsTiles.map(t => (
+            <SettingsGridTile
+              key={t.id}
+              label={t.label}
+              icon={t.icon}
+              theme={theme}
+              onPress={t.onPress}
+              variant="list"
+            />
+          ))}
+        </View>
 
-        <GlassSurface
-          borderRadius={30}
-          intensity={48}
-          variant="editorial"
-          style={styles.sectionGlassOuter}
-        >
-          <Text style={styles.sectionLabel}>设置</Text>
-          {renderGrid(settingsTiles)}
-        </GlassSurface>
-
-        <GlassSurface
-          borderRadius={30}
-          intensity={48}
-          variant="editorial"
-          style={styles.sectionGlassOuter}
-        >
-          <Text style={styles.sectionLabel}>数据</Text>
-          {renderGrid(dataTiles)}
-        </GlassSurface>
-
-        <GlassSurface
-          borderRadius={30}
-          intensity={48}
-          variant="editorial"
-          style={styles.sectionGlassOuter}
-        >
-          <Text style={styles.sectionLabel}>支持</Text>
-          {renderGrid(supportTiles)}
-        </GlassSurface>
       </ScrollView>
     </View>
   );

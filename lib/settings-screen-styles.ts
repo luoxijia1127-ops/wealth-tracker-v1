@@ -1,18 +1,21 @@
 /**
- * 设置 /「我的」页样式：与 design.json 大卡片、暖色画布一致。
+ * 设置 /「我的」页样式：Editorial Poster 海报风。
  */
 
-import type { AppPaletteTheme } from '@/lib/app-palette';
 import { AppFont } from '@/lib/app-fonts';
-import { editorialAmbientWash, editorialSurfaceFill } from '@/lib/editorial-theme';
-import { rgbaFromHex } from '@/lib/color-utils';
-import { Platform, StyleSheet } from 'react-native';
+import type { AppPaletteTheme } from '@/lib/app-palette';
+import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
+import { editorialAmbientWash } from '@/lib/editorial-theme';
+import { StyleSheet } from 'react-native';
 
 export function createSettingsScreenStyles(t: AppPaletteTheme) {
-  const sf = (a: number) => editorialSurfaceFill(t, a);
   const p = t.primary;
   const p65 = rgbaFromHex(p, 0.65);
   const p50 = rgbaFromHex(p, 0.5);
+
+  const accountBg = rgbaFromHex(t.swatches[0] ?? p, 0.85);
+  const toolsBg = rgbaFromHex(t.swatches[1] ?? p, 0.28);
+  const secondaryBg = rgbaFromHex(t.swatches[2] ?? p, 0.16);
 
   return StyleSheet.create({
     screen: {
@@ -24,178 +27,147 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
       backgroundColor: editorialAmbientWash(t),
     },
     scrollContent: {
-      paddingBottom: 32,
+      paddingBottom: 40,
     },
-    decorWrap: {
-      ...StyleSheet.absoluteFillObject,
-      overflow: 'hidden',
+    
+    /** Masthead (Top) */
+    mastheadBlock: {
+      paddingHorizontal: 24,
+      paddingTop: 64,
+      paddingBottom: 24,
+      backgroundColor: 'transparent',
     },
-    decorBlob: {
-      position: 'absolute',
-      borderRadius: 999,
-    },
-    headerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 8,
-      marginBottom: 18,
-      minHeight: 48,
-    },
-    headerSideBtn: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: sf(0.62),
-      borderWidth: 0,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#1e1b4b',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.08,
-          shadowRadius: 18,
-        },
-        android: { elevation: 2 },
-        default: {},
-      }),
-    },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
+    masthead: {
       fontFamily: AppFont.displayBold,
-      fontSize: 24,
-      fontWeight: '700',
-      letterSpacing: -0.5,
+      fontSize: 54,
+      lineHeight: 58,
+      letterSpacing: -2.0,
+      textTransform: 'uppercase',
       color: p,
     },
-    /** 外层 GlassSurface 负责模糊与圆角，此处仅内边距 */
-    profileCardInner: {
-      paddingVertical: 20,
-      paddingHorizontal: 18,
+    kicker: {
+      fontFamily: AppFont.medium,
+      fontSize: 14,
+      letterSpacing: 2.0,
+      textTransform: 'uppercase',
+      color: p,
+      marginTop: 4,
     },
-    profileGlassOuter: {
-      marginHorizontal: 20,
+
+    /** Poster Collage Stage (Middle) */
+    posterStage: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      minHeight: 340,
+      gap: 12,
+    },
+    
+    /** Left Column: Account */
+    accountBlock: {
+      flex: 5.8,
+      backgroundColor: accountBg,
+      paddingHorizontal: 20,
+      paddingVertical: 24,
+      justifyContent: 'space-between',
+    },
+    accountTitle: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 36,
+      letterSpacing: -1.0,
+      color: pickTextOnAccent(accountBg),
       marginBottom: 20,
     },
-    profileTopRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 18,
-      gap: 12,
-    },
     avatar: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      backgroundColor: sf(0.85),
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: rgbaFromHex(p, 0.1),
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 0,
-    },
-    profileNameBlock: {
-      flex: 1,
-      minWidth: 0,
+      marginBottom: 20,
     },
     profileName: {
-      fontSize: 18,
-      fontWeight: '800',
-      color: p,
-      letterSpacing: -0.3,
+      fontFamily: AppFont.bold,
+      fontSize: 20,
+      color: pickTextOnAccent(accountBg),
+      marginBottom: 8,
     },
     profileSub: {
-      fontSize: 12,
-      fontWeight: '500',
-      color: p65,
-      marginTop: 4,
+      fontFamily: AppFont.medium,
+      fontSize: 13,
+      lineHeight: 18,
+      color: rgbaFromHex(pickTextOnAccent(accountBg), 0.8),
+      marginBottom: 24,
     },
     profileCta: {
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      borderRadius: 16,
+      alignSelf: 'flex-start',
+      paddingVertical: 8,
+      paddingHorizontal: 16,
       backgroundColor: t.ctaPillBg,
-      borderWidth: 0,
+      borderRadius: 16,
     },
     profileCtaText: {
-      fontSize: 13,
-      fontWeight: '800',
+      fontFamily: AppFont.bold,
+      fontSize: 12,
       color: t.ctaPillText,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
-    statsRow: {
-      flexDirection: 'row',
-      borderRadius: 20,
-      backgroundColor: sf(0.58),
-      paddingVertical: 14,
-      paddingHorizontal: 8,
-      marginBottom: 14,
-      borderWidth: 0,
-    },
-    statCell: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 4,
-    },
-    statValue: {
-      fontSize: 17,
-      fontWeight: '800',
-      color: p,
-      letterSpacing: -0.4,
-    },
-    statLabel: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: p50,
-      marginTop: 4,
-      textAlign: 'center',
-    },
-    metaRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingTop: 4,
+
+    /** Right Column: Tools & Secondary */
+    rightColumn: {
+      flex: 4.2,
       gap: 12,
     },
-    metaLeft: {
+    toolsBlock: {
       flex: 1,
-      minWidth: 0,
+      backgroundColor: toolsBg,
+      paddingHorizontal: 12,
+      paddingVertical: 16,
     },
-    metaMuted: {
-      fontSize: 12,
-      fontWeight: '500',
-      color: p50,
+    toolsHeader: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 28,
+      letterSpacing: -0.5,
+      color: p,
+      marginBottom: 12,
+      textAlign: 'center',
     },
-    metaLink: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingVertical: 6,
-      paddingHorizontal: 8,
-    },
-    metaLinkText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: p65,
-    },
-    sectionGlassOuter: {
-      marginHorizontal: 20,
-      marginBottom: 14,
-    },
-    sectionLabel: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: p65,
-      marginBottom: 10,
-      paddingHorizontal: 18,
-      paddingTop: 16,
-      letterSpacing: 0.2,
-    },
-    gridWrap: {
+    toolsGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      paddingHorizontal: 14,
-      paddingBottom: 12,
+      justifyContent: 'center',
+      gap: 8,
+    },
+    
+    secondaryBlock: {
+      backgroundColor: secondaryBg,
+      paddingHorizontal: 12,
+      paddingVertical: 16,
+      minHeight: 120,
+      justifyContent: 'center',
+    },
+    secondaryGrid: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 12,
+    },
+
+    /** Preferences (Bottom Full Width) */
+    preferencesBlock: {
+      marginTop: 24,
+      marginHorizontal: 16,
+      backgroundColor: rgbaFromHex(t.surfaceWhite, 0.72),
+      paddingTop: 24,
+      paddingBottom: 16,
+    },
+    sectionMasthead: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 32,
+      letterSpacing: -1.0,
+      color: p,
+      paddingHorizontal: 24,
+      marginBottom: 16,
     },
   });
 }
