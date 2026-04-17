@@ -3,35 +3,35 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { AppFont } from '@/lib/app-fonts';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { formatMoney } from '@/lib/asset-value';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { FINANCE_UP } from '@/lib/finance-colors';
 import type { InsightsStyles } from '@/lib/insights-styles';
 import {
-    CUMULATIVE_CHART_CAP,
-    CUMULATIVE_CHART_FLOOR,
-    clampCumulativeForAxis,
-    computeAllReturnMetrics,
-    isPlottableMetric,
-    type InvestmentReturnMetric,
+  CUMULATIVE_CHART_CAP,
+  CUMULATIVE_CHART_FLOOR,
+  clampCumulativeForAxis,
+  computeAllReturnMetrics,
+  isPlottableMetric,
+  type InvestmentReturnMetric,
 } from '@/lib/investment-return-metrics';
 import {
-    ASSET_CATEGORY_ORDER,
-    CATEGORY_LABEL_ZH,
-    type AssetCategory,
-    type SimpleAsset,
+  ASSET_CATEGORY_ORDER,
+  CATEGORY_LABEL_ZH,
+  type AssetCategory,
+  type SimpleAsset,
 } from '@/types/asset';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-    Platform,
-    Pressable,
-    ScrollView,
-    Switch,
-    Text,
-    TextInput,
-    View,
-    useWindowDimensions,
+  Platform,
+  Pressable,
+  Switch,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
 } from 'react-native';
 import { Circle, G, Line, Svg, Text as SvgText } from 'react-native-svg';
 
@@ -207,11 +207,36 @@ export function ReturnScatterPanel({
 
   const metrics = useMemo(() => computeAllReturnMetrics(_assets), [_assets]);
 
+  /** 用户持仓中实际出现的大类（顺序与资产分布一致，最多 6 个） */
+  const userCategories = useMemo(() => {
+    const present = new Set<AssetCategory>();
+    for (const a of _assets) {
+      const c = (a.category ?? 'Cash') as AssetCategory;
+      if (ASSET_CATEGORY_ORDER.includes(c)) present.add(c);
+    }
+    return ASSET_CATEGORY_ORDER.filter((c) => present.has(c));
+  }, [_assets]);
+
+  useEffect(() => {
+    setCatFilter((prev) => {
+      if (prev === null) return null;
+      const next = new Set<AssetCategory>();
+      for (const c of prev) {
+        if (userCategories.includes(c)) next.add(c);
+      }
+      if (next.size === 0 || next.size === userCategories.length) return null;
+      return next;
+    });
+  }, [userCategories]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const cats = catFilter;
     return metrics.filter((m) => {
-      if (cats && cats.size > 0 && !cats.has(m.category)) return false;
+      if (cats !== null) {
+        if (cats.size === 0) return false;
+        if (!cats.has(m.category)) return false;
+      }
       if (q.length > 0 && !m.name.toLowerCase().includes(q)) return false;
       if (hideInvalid && m.reason !== 'ok') return false;
       return true;
@@ -254,7 +279,10 @@ export function ReturnScatterPanel({
     const q = search.trim().toLowerCase();
     const cats = catFilter;
     return metrics.filter((m) => {
-      if (cats && cats.size > 0 && !cats.has(m.category)) return false;
+      if (cats !== null) {
+        if (cats.size === 0) return false;
+        if (!cats.has(m.category)) return false;
+      }
       if (q.length > 0 && !m.name.toLowerCase().includes(q)) return false;
       return isPlottableMetric(m);
     });
@@ -277,18 +305,22 @@ export function ReturnScatterPanel({
     const q = search.trim().toLowerCase();
     const cats = catFilter;
     return metrics.filter((m) => {
-      if (cats && cats.size > 0 && !cats.has(m.category)) return false;
+      if (cats !== null) {
+        if (cats.size === 0) return false;
+        if (!cats.has(m.category)) return false;
+      }
       if (q.length > 0 && !m.name.toLowerCase().includes(q)) return false;
       return !isPlottableMetric(m);
     }).length;
   }, [metrics, search, catFilter]);
 
   const toggleCategory = (c: AssetCategory) => {
+    if (!userCategories.includes(c)) return;
     setCatFilter((prev) => {
-      const next = new Set(prev ?? [...ASSET_CATEGORY_ORDER]);
+      const next = new Set(prev ?? userCategories);
       if (next.has(c)) next.delete(c);
       else next.add(c);
-      if (next.size === ASSET_CATEGORY_ORDER.length) return null;
+      if (next.size === userCategories.length) return null;
       return next;
     });
   };
@@ -320,87 +352,29 @@ export function ReturnScatterPanel({
 
   return (
     <View style={styles.returnPanelCard}>
-      <Text style={[styles.returnKicker, { color: textMuted }]}>
-        收益分析
-      </Text>
-      <Text style={[styles.returnTitle, { color: theme.primary }]}>
-        投资回报
-      </Text>
-
-      <View style={styles.returnFilterRow}>
-        <TextInput
-          style={[styles.returnSearchInput, { color: theme.primary }]}
-          placeholder="搜索资产名称"
-          placeholderTextColor={placeholderMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
-      <View style={styles.returnCategoryRow}>
-        {ASSET_CATEGORY_ORDER.map((c) => {
-          const active = !catFilter || catFilter.has(c);
-          const accent = theme.categoryAccents[c];
-          return (
-            <Pressable
-              key={c}
-              onPress={() => toggleCategory(c)}
-              style={({ pressed }) => [
-                styles.returnChipInRow,
-                active
-                  ? {
-                      backgroundColor: accent,
-                      borderWidth: 0,
-                    }
-                  : {
-                      backgroundColor: rgbaFromHex(accent, 0.14),
-                      borderWidth: 1.5,
-                      borderColor: rgbaFromHex(accent, 0.42),
-                      opacity: 0.92,
-                    },
-                pressed && { opacity: 0.88 },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.returnChipTextInRow,
-                  {
-                    color: active ? pickTextOnAccent(accent) : textSecondary,
-                  },
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.82}
-              >
-                {CATEGORY_LABEL_ZH[c]}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={styles.returnToggleRow}>
-        <Text style={{ color: textSecondary, fontSize: 13, fontWeight: '600' }}>
-          隐藏无效数据
+      <View style={styles.returnMastheadBlock}>
+        <Text style={[styles.returnKicker, { color: textSecondary }]}>
+          INVESTMENT
         </Text>
-        <Switch
-          value={hideInvalid}
-          onValueChange={setHideInvalid}
-          trackColor={{
-            false: rgbaFromHex(theme.primary, 0.2),
-            true: rgbaFromHex(theme.primary, 0.45),
-          }}
-          thumbColor={
-            appearance === 'dark' ? rgbaFromHex(theme.primary, 0.95) : '#FFFFFF'
-          }
-        />
+        <Text style={[styles.returnTitle, { color: theme.primary }]}>
+          ROI ANALYSIS
+        </Text>
+        <Text style={[styles.returnSubTitle, { color: textSecondary }]}>
+          PERSONAL ASSET MANAGEMENT
+        </Text>
       </View>
 
-      <View style={[styles.returnChartWrap, { flexDirection: 'row', alignItems: 'stretch' }]}>
+      <View style={styles.returnChartWrap}>
         <View
           style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
             width: yLabelCol,
             justifyContent: 'center',
             alignItems: 'center',
+            zIndex: 10,
           }}
         >
           <Text
@@ -409,15 +383,16 @@ export function ReturnScatterPanel({
               width: chartH - 20,
               textAlign: 'center',
               fontSize: 11,
-              fontWeight: '700',
+              fontFamily: AppFont.semiBold,
               color: textSecondary,
+              letterSpacing: 0.5,
             }}
             numberOfLines={1}
           >
-            累计收益率
+            Cumulative Return (%)
           </Text>
         </View>
-        <Svg width={chartW} height={chartH}>
+        <Svg width={chartW + yLabelCol} height={chartH} style={{ marginLeft: yLabelCol }}>
           <G opacity={0.9}>
             {gridYs.map((t) => {
               const y = padT + t * plotH;
@@ -428,9 +403,8 @@ export function ReturnScatterPanel({
                   y1={y}
                   x2={padL + plotW}
                   y2={y}
-                  stroke={theme.chartGridStroke}
+                  stroke={rgbaFromHex(theme.primary, 0.15)}
                   strokeWidth={1}
-                  strokeDasharray="4 6"
                 />
               );
             })}
@@ -443,9 +417,8 @@ export function ReturnScatterPanel({
                   y1={padT}
                   x2={x}
                   y2={padT + plotH}
-                  stroke={theme.chartGridStroke}
+                  stroke={rgbaFromHex(theme.primary, 0.15)}
                   strokeWidth={1}
-                  strokeDasharray="4 6"
                 />
               );
             })}
@@ -454,7 +427,7 @@ export function ReturnScatterPanel({
               y1={padT}
               x2={padL + plotW}
               y2={padT}
-              stroke={rgbaFromHex(theme.primary, 0.2)}
+              stroke={rgbaFromHex(theme.primary, 0.3)}
               strokeWidth={1}
             />
             <Line
@@ -462,7 +435,7 @@ export function ReturnScatterPanel({
               y1={padT + plotH}
               x2={padL + plotW}
               y2={padT + plotH}
-              stroke={rgbaFromHex(theme.primary, 0.2)}
+              stroke={rgbaFromHex(theme.primary, 0.3)}
               strokeWidth={1}
             />
             <Line
@@ -470,7 +443,7 @@ export function ReturnScatterPanel({
               y1={padT}
               x2={padL}
               y2={padT + plotH}
-              stroke={rgbaFromHex(theme.primary, 0.2)}
+              stroke={rgbaFromHex(theme.primary, 0.3)}
               strokeWidth={1}
             />
             <Line
@@ -478,7 +451,7 @@ export function ReturnScatterPanel({
               y1={padT}
               x2={padL + plotW}
               y2={padT + plotH}
-              stroke={rgbaFromHex(theme.primary, 0.2)}
+              stroke={rgbaFromHex(theme.primary, 0.3)}
               strokeWidth={1}
             />
 
@@ -515,9 +488,7 @@ export function ReturnScatterPanel({
               model.avgDays !== null && (
                 <SvgText
                   x={
-                    avgLineX < padL + plotW * 0.58
-                      ? avgLineX + 5
-                      : avgLineX - 5
+                    avgLineX < padL + plotW * 0.58 ? avgLineX + 5 : avgLineX - 5
                   }
                   y={padT + 13}
                   textAnchor={
@@ -525,7 +496,7 @@ export function ReturnScatterPanel({
                   }
                   fill={RETURN_AVG_HOLDING_LINE}
                   fontSize={10}
-                  fontWeight="700"
+                  fontFamily={AppFont.semiBold}
                 >
                   {`平均 ${model.avgDays.toFixed(0)} 天`}
                 </SvgText>
@@ -540,67 +511,100 @@ export function ReturnScatterPanel({
                   textAnchor="end"
                   fill={RETURN_AVG_RETURN_LINE}
                   fontSize={10}
-                  fontWeight="700"
+                  fontFamily={AppFont.semiBold}
                 >
                   {`平均 ${pctFmt(model.avgCumRaw)}`}
                 </SvgText>
               )}
 
-            {model.points.map((p) => (
-              <G key={p.id}>
-                <Circle
-                  cx={p.x}
-                  cy={p.y}
-                  r={p.r}
-                  fill={p.color}
-                  fillOpacity={0.88}
-                  stroke={scatterPointStroke}
-                  strokeWidth={1.5}
-                  onPress={() => {
-                    setTipId((id) => (id === p.id ? null : p.id));
-                    setTipPos({ x: p.x, y: p.y });
-                  }}
-                />
-              </G>
-            ))}
+            {model.points.map((p) => {
+              // Add a subtle drop shadow effect by rendering a slightly offset darker circle underneath
+              return (
+                <G key={p.id}>
+                  <Circle
+                    cx={p.x}
+                    cy={p.y + 2}
+                    r={p.r}
+                    fill={rgbaFromHex(theme.primary, 0.15)}
+                  />
+                  <Circle
+                    cx={p.x}
+                    cy={p.y}
+                    r={p.r}
+                    fill={p.color}
+                    fillOpacity={0.88}
+                    stroke={rgbaFromHex(theme.primary, 0.1)}
+                    strokeWidth={1}
+                    onPress={() => {
+                      setTipId((id) => (id === p.id ? null : p.id));
+                      setTipPos({ x: p.x, y: p.y });
+                    }}
+                  />
+                  {p.r > 12 && (
+                    <SvgText
+                      x={p.x}
+                      y={p.y + 3}
+                      textAnchor="middle"
+                      fill={pickTextOnAccent(p.color)}
+                      fontSize={Math.max(8, Math.min(11, p.r * 0.45))}
+                      fontWeight="600"
+                      pointerEvents="none"
+                    >
+                      {p.m.name.length > 5 ? p.m.name.slice(0, 5) : p.m.name}
+                    </SvgText>
+                  )}
+                </G>
+              );
+            })}
           </G>
 
           <SvgText
-            x={chartW / 2}
-            y={chartH - 8}
+            x={padL + plotW / 2}
+            y={chartH - 6}
             textAnchor="middle"
             fill={textSecondary}
             fontSize={11}
-            fontWeight="600"
+            fontFamily={AppFont.semiBold}
+            letterSpacing={0.5}
           >
-            HOLDING DAYS
+            Holding Period (Days)
           </SvgText>
 
-          <SvgText x={padL} y={padT + plotH + 18} fill={textMuted} fontSize={10} fontWeight="600">
-            {Math.round(model.xMin)}d
+          <SvgText x={padL} y={padT + plotH + 16} fill={textMuted} fontSize={10} fontFamily={AppFont.medium}>
+            {Math.round(model.xMin)}
           </SvgText>
           <SvgText
             x={padL + plotW}
-            y={padT + plotH + 18}
+            y={padT + plotH + 16}
             textAnchor="end"
             fill={textMuted}
             fontSize={10}
-            fontWeight="600"
+            fontFamily={AppFont.medium}
           >
-            {Math.round(model.xMax)}d
+            {Math.round(model.xMax)}
           </SvgText>
-          <SvgText x={padL - 6} y={padT + 4} textAnchor="end" fill={textMuted} fontSize={10} fontWeight="600">
-            {pctFmt(model.yMax, 0)}
+          <SvgText x={padL - 8} y={padT + 4} textAnchor="end" fill={textMuted} fontSize={10} fontFamily={AppFont.medium}>
+            {Math.round(model.yMax * 100)}
           </SvgText>
           <SvgText
-            x={padL - 6}
+            x={padL - 8}
             y={padT + plotH}
             textAnchor="end"
             fill={textMuted}
             fontSize={10}
-            fontWeight="600"
+            fontFamily={AppFont.medium}
           >
-            {pctFmt(model.yMin, 0)}
+            {Math.round(model.yMin * 100)}
+          </SvgText>
+          <SvgText
+            x={padL - 8}
+            y={padT + plotH / 2 + 4}
+            textAnchor="end"
+            fill={textMuted}
+            fontSize={10}
+            fontFamily={AppFont.medium}
+          >
+            0
           </SvgText>
         </Svg>
 
@@ -650,66 +654,127 @@ export function ReturnScatterPanel({
           })()}
       </View>
 
-      <View style={styles.returnTableScroll}>
-        <ScrollView
-          horizontal
-          nestedScrollEnabled
-          showsHorizontalScrollIndicator
-        >
-          <View>
-            <View style={styles.returnTableHeader}>
-              <Text style={[styles.returnTh, { width: 120, color: theme.primary }]}>资产</Text>
-              {( ['holdingDays', 'cumulativeReturn', 'annualizedReturn', 'buyAmount'] as SortKey[]).map((k) => (
-                <Pressable key={k} onPress={() => cycleSort(k)} style={{ width: 96 }}>
-                  <Text style={[styles.returnTh, { color: theme.primary }]}>
-                    {k === 'holdingDays'
-                      ? '持有天'
-                      : k === 'cumulativeReturn'
-                        ? '累计'
-                        : k === 'annualizedReturn'
-                          ? '年化'
-                          : '买入'}
-                    {sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-                  </Text>
-                </Pressable>
-              ))}
-              <Text style={[styles.returnTh, { width: 88, color: theme.primary }]}>状态</Text>
+      <View style={styles.returnFilterRow}>
+        <View style={styles.returnSearchIcon}>
+           <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={placeholderMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <Circle cx={11} cy={11} r={8} />
+              <Line x1={21} y1={21} x2={16.65} y2={16.65} />
+           </Svg>
+        </View>
+        <TextInput
+          style={styles.returnSearchInput}
+          placeholder="Search Assets..."
+          placeholderTextColor={placeholderMuted}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
+      {userCategories.length > 0 ? (
+        <View style={styles.returnCategoryRow}>
+          {userCategories.map((c) => {
+            const accent = theme.categoryAccents[c] ?? theme.primary;
+            const inFilter =
+              catFilter === null || (catFilter !== null && catFilter.has(c));
+            return (
+              <Pressable
+                key={c}
+                onPress={() => toggleCategory(c)}
+                style={({ pressed }) => [
+                  styles.returnChipInRow,
+                  inFilter
+                    ? {
+                        backgroundColor: accent,
+                        borderColor: 'transparent',
+                      }
+                    : {
+                        backgroundColor: 'transparent',
+                        borderColor: rgbaFromHex(accent, 0.42),
+                      },
+                  !inFilter && catFilter !== null ? { opacity: 0.48 } : null,
+                  pressed && inFilter && { opacity: 0.88 },
+                  pressed && !inFilter && { opacity: 0.4 },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.returnChipColorDot,
+                    {
+                      backgroundColor: accent,
+                      opacity: inFilter ? 1 : 0.55,
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.returnChipTextInRow,
+                    {
+                      color: inFilter
+                        ? pickTextOnAccent(accent)
+                        : rgbaFromHex(theme.primary, 0.92),
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  {CATEGORY_LABEL_ZH[c]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      <View style={styles.returnToggleRow}>
+        <Text style={{ color: textMuted, fontSize: 11, fontFamily: AppFont.medium, textTransform: 'uppercase', letterSpacing: 0.5, marginRight: 8 }}>
+          Hide Invalid
+        </Text>
+        <Switch
+          value={hideInvalid}
+          onValueChange={setHideInvalid}
+          trackColor={{
+            false: rgbaFromHex(theme.primary, 0.15),
+            true: rgbaFromHex(theme.primary, 0.35),
+          }}
+          thumbColor={appearance === 'dark' ? rgbaFromHex(theme.primary, 0.9) : '#FFFFFF'}
+          style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+        />
+      </View>
+
+      <View style={styles.returnListContainer}>
+        {sortedTable.map((m, i) => {
+          const accent = theme.categoryAccents[m.category] ?? theme.primary;
+          // Use index to alternate background color styles for a collage feel
+          const blockBg = i % 3 === 0 
+            ? rgbaFromHex(accent, 0.25)
+            : i % 3 === 1 
+              ? rgbaFromHex(accent, 0.15)
+              : rgbaFromHex(accent, 0.35);
+              
+          return (
+            <View key={m.assetId} style={styles.returnListItem}>
+              <View style={styles.returnListItemLeft}>
+                <Text style={styles.returnListItemName} numberOfLines={1}>{m.name}</Text>
+                <Text style={styles.returnListItemMeta}>
+                  Holding: {m.holdingDays} Days
+                  {m.reason !== 'ok' ? ` · ${reasonLabel(m)}` : ''}
+                </Text>
+              </View>
+              <View style={[styles.returnListItemRightBlock, { backgroundColor: blockBg }]}>
+                <Text style={styles.returnListItemValue}>
+                  {m.cumulativeReturn > 0 ? '+' : ''}{(m.cumulativeReturn * 100).toFixed(1)}%
+                </Text>
+                <Text style={styles.returnListItemValueLabel}>Cumulative Return</Text>
+              </View>
             </View>
-            <ScrollView
-              nestedScrollEnabled
-              showsVerticalScrollIndicator
-              style={styles.returnTableBodyScroll}
-            >
-              {sortedTable.map((m) => (
-                <View key={m.assetId} style={styles.returnTableRow}>
-                  <Text style={[styles.returnTd, { width: 120, color: theme.primary }]} numberOfLines={2}>
-                    {m.name}
-                  </Text>
-                  <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
-                    {m.holdingDays}
-                  </Text>
-                  <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
-                    {pctFmt(m.cumulativeReturn)}
-                  </Text>
-                  <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
-                    {m.annualizedReturn !== null ? pctFmt(m.annualizedReturn) : '—'}
-                  </Text>
-                  <Text style={[styles.returnTd, { width: 96, color: textSecondary }]}>
-                    {formatMoney(m.buyAmount, m.currency)}
-                  </Text>
-                  <Text style={[styles.returnTd, { width: 88, color: textMuted, fontSize: 11 }]}>
-                    {m.reason === 'ok' ? '有效' : reasonLabel(m)}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </ScrollView>
+          );
+        })}
       </View>
 
       {excludedCount > 0 ? (
         <Text style={[styles.returnFooterHint, { color: textMuted }]}>
-          当前筛选下，有 {excludedCount} 条资产因数据无效或未满足作图条件而未显示在图中（仍可在表中查看，关闭「隐藏无效」）。
+          {excludedCount} items hidden due to invalid metrics or filters.
         </Text>
       ) : null}
     </View>

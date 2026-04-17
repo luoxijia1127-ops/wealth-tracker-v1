@@ -38,46 +38,62 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       paddingTop: 0,
       gap: 0,
     },
-    /** Hero 舞台层 */
+    /** Hero 舞台层（避免子视图溢出被裁切） */
     heroStage: {
       position: 'relative',
       height: 445,
       width: '100%',
       backgroundColor: 'transparent',
+      overflow: 'visible',
     },
+    /** 在黄底之上、Dashboard 字之下，避免挡住标题 */
     heroAddHitAbs: {
       position: 'absolute',
       right: 12,
-      zIndex: 20,
+      zIndex: 25,
       padding: 10,
     },
     headerAddFabPressed: {
       opacity: 0.8,
     },
-    /** 左上：杂志大标题 */
-    heroPeachBlock: {
+    /**
+     * 左上：杂志大标题 — 拆成「黄底 / 文字」两层，便于紫色块压在黄底下面、字永远在最上。
+     * 勿用窄 width + 大 padding，否则「Dashboard」会被水平裁切；用 right 为「+」留白。
+     */
+    heroMastheadYellowBg: {
       position: 'absolute',
       top: 0,
       left: 0,
-      width: '74%',
-      height: 165,
-      paddingHorizontal: 28,
-      paddingTop: 56,
-      zIndex: 3,
+      right: 52,
+      height: 200,
+      zIndex: 5,
     },
-    /** 右上：背景遮挡块 */
+    heroMastheadTextLayer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 52,
+      minHeight: 200,
+      paddingLeft: 28,
+      paddingRight: 12,
+      paddingBottom: 12,
+      zIndex: 30,
+      backgroundColor: 'transparent',
+      overflow: 'visible',
+    },
+    /** 右上：偏紫的色块（压在黄底下面） */
     heroBlueTopBlock: {
       position: 'absolute',
       top: 0,
       right: 0,
       width: '32%',
       height: 240,
-      zIndex: 1,
+      zIndex: 0,
     },
-    /** 中右：今日涨跌 */
+    /** 中右：今日涨跌（在黄底之下或与中层色块一致，低于 Dashboard 字层） */
     heroChangeBlock: {
       position: 'absolute',
-      top: 165,
+      top: 200,
       right: 0,
       width: '68%',
       height: 140,
@@ -85,15 +101,15 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       paddingVertical: 16,
       justifyContent: 'center',
       alignItems: 'flex-end',
-      zIndex: 2,
+      zIndex: 3,
     },
     /** 中左底：总资产 */
     heroTotalBlock: {
       position: 'absolute',
       left: 32,
       right: 0,
-      top: 305,
-      height: 140,
+      top: 265,
+      height: 180,
       paddingHorizontal: 28,
       paddingVertical: 20,
       justifyContent: 'center',
@@ -103,15 +119,17 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     /** 文案排版 */
     masthead: {
       fontFamily: AppFont.displayBold,
-      fontSize: 48,
-      lineHeight: 52,
+      fontSize: 60,
+      /** 必须 ≥ fontSize，否则行盒会裁切上下笔画 */
+      lineHeight: 68,
       letterSpacing: -1.6,
       textTransform: 'uppercase',
       color: p,
+      width: '100%',
     },
     kicker: {
       fontFamily: AppFont.medium,
-      fontSize: 11,
+      fontSize: 15,
       letterSpacing: 1.8,
       textTransform: 'uppercase',
       color: p,
@@ -123,7 +141,7 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       letterSpacing: -0.6,
     },
     changeValueSmall: {
-      fontSize: 32,
+      fontSize: 48,
       fontWeight: '800',
       letterSpacing: -0.4,
     },
@@ -141,13 +159,13 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       alignSelf: 'flex-end',
     },
     totalValueInt: {
-      fontSize: 54,
+      fontSize: 48,
       fontWeight: '800',
       letterSpacing: -1.2,
       color: p,
     },
     totalValueDec: {
-      fontSize: 28,
+      fontSize: 32,
       fontWeight: '800',
       letterSpacing: -0.4,
       color: p,
@@ -160,14 +178,31 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       color: p,
       textAlign: 'right',
     },
-    /** 杂志底色单行拆解 */
-    magHeroCurrencyLine: {
-      fontSize: 12,
+    /** 总净值下方：分币种横排，中间小圆点；换行不溢出右缘 */
+    heroCurrencyBreakdownRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      alignSelf: 'stretch',
+      width: '100%',
+      maxWidth: '100%',
+      minWidth: 0,
+      marginTop: 6,
+      overflow: 'hidden',
+    },
+    heroCurrencyBreakdownDot: {
+      fontSize: 11,
+      fontWeight: '700',
+      lineHeight: 16,
+    },
+    magHeroCurrencyInline: {
+      fontSize: 11,
       fontWeight: '700',
       letterSpacing: 0,
+      lineHeight: 16,
+      flexShrink: 1,
       textAlign: 'right',
-      color: p55,
-      marginTop: 4,
     },
 
     /** 资产分类列表 */
@@ -236,16 +271,16 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       textAlign: 'center',
     },
     assetListContainer: {
-      paddingVertical: 6,
-      paddingHorizontal: 24,
-      backgroundColor: rgbaFromHex(p, 0.03),
+      flex: 1,
+      paddingBottom: 16,
+      paddingRight: 24,
+      paddingLeft: 12,
     },
     assetRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: rgbaFromHex(p, 0.06),
+      paddingVertical: 14,
+      borderBottomWidth: 1,
     },
     assetRowPressed: {
       opacity: 0.7,
@@ -253,29 +288,32 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     assetRowMiddleCol: {
       flex: 1,
       justifyContent: 'center',
+      paddingRight: 16,
     },
     assetName: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: p,
-      marginBottom: 2,
+      fontFamily: AppFont.semiBold,
+      fontSize: 14,
+      letterSpacing: 0.2,
+      marginBottom: 4,
     },
     assetHoldings: {
-      fontSize: 12,
-      color: p55,
+      fontFamily: AppFont.medium,
+      fontSize: 11,
+      letterSpacing: 0.5,
     },
     assetRowRightCol: {
       alignItems: 'flex-end',
     },
     assetValue: {
+      fontFamily: AppFont.bold,
       fontSize: 15,
-      fontWeight: '700',
-      color: p,
+      letterSpacing: -0.2,
     },
     assetQuoteDate: {
-      fontSize: 11,
-      color: p40,
-      marginTop: 2,
+      fontFamily: AppFont.medium,
+      fontSize: 10,
+      marginTop: 4,
+      letterSpacing: 0.2,
     },
   });
 }

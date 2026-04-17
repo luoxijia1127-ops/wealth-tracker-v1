@@ -20,6 +20,7 @@ export function createInsightsStyles(
   const p08 = rgbaFromHex(p, 0.08);
   const p10 = rgbaFromHex(p, 0.1);
   const p14 = rgbaFromHex(p, 0.14);
+  const p65 = rgbaFromHex(p, 0.65);
 
   return StyleSheet.create({
     screen: {
@@ -48,10 +49,9 @@ export function createInsightsStyles(
       gap: 0,
     },
     
-    /** Hero Poster Stage */
+    /** Hero Poster Stage — 高度由 insights 页按屏高约 25% 传入 */
     heroPoster: {
       position: 'relative',
-      height: 180,
       width: '100%',
       backgroundColor: 'transparent',
     },
@@ -472,106 +472,192 @@ export function createInsightsStyles(
     },
     legendDot: { width: 12, height: 12 },
 
-    /** ROI specifics */
+    /** ROI specifics - Editorial Poster Redesign */
     returnPanelCard: {
-      paddingVertical: 16,
-      paddingHorizontal: 16,
+      paddingVertical: 24,
+      paddingHorizontal: 24,
     },
+    returnMastheadBlock: {
+      marginBottom: 28,
+    },
+    returnKicker: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 24,
+      letterSpacing: -0.4,
+      textTransform: 'uppercase',
+      color: p,
+      marginBottom: -4,
+    },
+    returnTitle: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 54,
+      lineHeight: 60,
+      letterSpacing: -1.8,
+      textTransform: 'uppercase',
+      color: p,
+      marginBottom: 4,
+    },
+    returnSubTitle: {
+      fontFamily: AppFont.medium,
+      fontSize: 13,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      color: p65,
+    },
+    
+    /** Search Input */
     returnFilterRow: {
       flexDirection: 'row',
-      marginBottom: 12,
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderColor: rgbaFromHex(p, 0.2),
+      borderRadius: 999,
+      paddingHorizontal: 16,
+      marginBottom: 16,
+      minHeight: 46,
+    },
+    returnSearchIcon: {
+      marginRight: 8,
     },
     returnSearchInput: {
       flex: 1,
+      fontSize: 15,
+      fontFamily: AppFont.medium,
+      color: p,
       paddingVertical: 12,
-      paddingHorizontal: 14,
-      fontSize: 12,
-      fontWeight: '600',
-      backgroundColor: rgbaFromHex(p, 0.04),
-      textTransform: 'uppercase',
     },
+    
+    /** Category Filter — 仅用户已有大类，单行均分、与资产分布色块一致 */
     returnCategoryRow: {
       flexDirection: 'row',
-      gap: 4,
-      marginBottom: 12,
+      alignItems: 'stretch',
+      width: '100%',
+      marginBottom: 24,
+      gap: 6,
     },
     returnChipInRow: {
       flex: 1,
-      paddingVertical: 8,
+      minWidth: 0,
+      flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 8,
+      paddingHorizontal: 4,
+      borderRadius: 999,
+      borderWidth: 1.5,
+    },
+    returnChipColorDot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      marginRight: 4,
+      flexShrink: 0,
     },
     returnChipTextInRow: {
-      fontSize: 10,
-      fontWeight: '700',
-      textTransform: 'uppercase',
+      fontSize: 12,
+      fontFamily: AppFont.semiBold,
+      letterSpacing: 0.1,
+      flexShrink: 1,
     },
+    
+    /** Hidden switch & minor controls */
     returnToggleRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      marginBottom: 12,
+      justifyContent: 'flex-end',
+      marginBottom: 16,
     },
+    
+    /** Scatter Chart */
     returnChartWrap: {
       position: 'relative',
-      marginBottom: 16,
+      marginBottom: 28,
       paddingTop: 16,
-      paddingBottom: 16,
-      backgroundColor: rgbaFromHex(p, 0.02),
+      paddingBottom: 24,
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: rgbaFromHex(p, 0.1),
     },
     returnTooltip: {
       position: 'absolute',
       zIndex: 20,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      backgroundColor: p,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      backgroundColor: rgbaFromHex(p, 0.95),
+      borderRadius: 8,
       maxWidth: 260,
     },
     returnTooltipLine: {
       color: t.pageBg,
-      fontSize: 10,
-      marginBottom: 2,
+      fontSize: 11,
+      marginBottom: 4,
     },
     returnTooltipTitle: {
       color: t.pageBg,
-      fontSize: 12,
-      fontWeight: '800',
+      fontSize: 14,
+      fontFamily: AppFont.semiBold,
+      textTransform: 'uppercase',
+      marginBottom: 6,
+    },
+
+    /** Editorial Ranked List (Replaces Data Table) */
+    returnListContainer: {
+      gap: 20,
+      marginTop: 12,
+    },
+    returnListItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    returnListItemLeft: {
+      flex: 1,
+      minWidth: 0,
+      paddingRight: 16,
+      justifyContent: 'center',
+    },
+    returnListItemName: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 32,
+      letterSpacing: -0.6,
+      color: p,
       textTransform: 'uppercase',
       marginBottom: 4,
     },
-    returnTableScroll: {
-      backgroundColor: rgbaFromHex(p, 0.03),
+    returnListItemMeta: {
+      fontFamily: AppFont.medium,
+      fontSize: 14,
+      color: p65,
     },
-    returnTableBodyScroll: { maxHeight: 180 },
-    returnTableHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    returnListItemRightBlock: {
       paddingVertical: 12,
-      paddingHorizontal: 12,
-      backgroundColor: rgbaFromHex(p, 0.08),
-      minWidth: 720,
-    },
-    returnTableRow: {
-      flexDirection: 'row',
+      paddingHorizontal: 16,
+      minWidth: 120,
       alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: rgbaFromHex(p, 0.04),
-      minWidth: 720,
+      justifyContent: 'center',
+      minHeight: 76,
     },
-    returnTh: {
-      fontSize: 10,
-      fontWeight: '800',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+    returnListItemValue: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 36,
+      letterSpacing: -1.0,
+      color: p,
+      lineHeight: 40,
     },
-    returnTd: {
-      fontSize: 12,
-      fontWeight: '600',
+    returnListItemValueLabel: {
+      fontFamily: AppFont.medium,
+      fontSize: 11,
+      color: rgbaFromHex(p, 0.7),
+      marginTop: 4,
     },
+    
     returnFooterHint: {
-      fontSize: 10,
-      marginTop: 10,
+      fontSize: 12,
+      fontFamily: AppFont.medium,
+      marginTop: 24,
+      textAlign: 'center',
+      lineHeight: 18,
     },
   });
 }

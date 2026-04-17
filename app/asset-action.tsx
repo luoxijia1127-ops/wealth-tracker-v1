@@ -48,7 +48,6 @@ import {
 } from '@/lib/eastmoney-suggest';
 import { FINANCE_DOWN, FINANCE_UP } from '@/lib/finance-colors';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
-import { createInsightsStyles } from '@/lib/insights-styles';
 import type { UnifiedSuggestItem } from '@/lib/instrument-search';
 import { tryApplyListedAdjustTrade } from '@/lib/listed-adjust-trade';
 import { createAddModalStyles } from '@/lib/modal-styles';
@@ -217,10 +216,6 @@ export default function AssetActionScreen() {
   const { id } = useGlobalSearchParams<{ id?: string }>();
   const { theme, appearance } = useAppPalette();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
-  const tabStyles = useMemo(
-    () => createInsightsStyles(theme, appearance),
-    [theme, appearance]
-  );
   const placeholderColor = useMemo(
     () => rgbaFromHex(theme.primary, 0.42),
     [theme.primary]
@@ -1085,22 +1080,22 @@ export default function AssetActionScreen() {
 
         {held ? (
           <>
-            <View style={tabStyles.tabRow}>
+            <View style={styles.tabRow}>
               {LISTED_TABS.map((tab) => (
                 <Pressable
                   key={tab.id}
                   accessibilityRole="button"
                   onPress={() => setListedPanel(tab.id)}
                   style={({ pressed }) => [
-                    tabStyles.tabChip,
-                    listedPanel === tab.id && tabStyles.tabChipActive,
-                    pressed && tabStyles.tabChipPressed,
+                    styles.tabChip,
+                    listedPanel === tab.id && styles.tabChipActive,
+                    pressed && styles.tabChipPressed,
                   ]}
                 >
                   <Text
                     style={[
-                      tabStyles.tabChipText,
-                      listedPanel === tab.id && tabStyles.tabChipTextActive,
+                      styles.tabChipText,
+                      listedPanel === tab.id && styles.tabChipTextActive,
                     ]}
                   >
                     {tab.label}
@@ -1767,22 +1762,22 @@ export default function AssetActionScreen() {
           </>
         ) : cashLike ? (
           <>
-            <View style={tabStyles.tabRow}>
+            <View style={styles.tabRow}>
               {CASH_TABS.map((tab) => (
                 <Pressable
                   key={tab.id}
                   accessibilityRole="button"
                   onPress={() => setCashPanel(tab.id)}
                   style={({ pressed }) => [
-                    tabStyles.tabChip,
-                    cashPanel === tab.id && tabStyles.tabChipActive,
-                    pressed && tabStyles.tabChipPressed,
+                    styles.tabChip,
+                    cashPanel === tab.id && styles.tabChipActive,
+                    pressed && styles.tabChipPressed,
                   ]}
                 >
                   <Text
                     style={[
-                      tabStyles.tabChipText,
-                      cashPanel === tab.id && tabStyles.tabChipTextActive,
+                      styles.tabChipText,
+                      cashPanel === tab.id && styles.tabChipTextActive,
                     ]}
                   >
                     {tab.label}

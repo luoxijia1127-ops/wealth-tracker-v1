@@ -48,7 +48,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import * as ExpoStatusBar from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -170,33 +170,53 @@ function DashboardHeroUpperHalf({
   const mastheadInk = magazineStrongOnBlock(theme);
   const showMultiBand = netWorthSummary.hasMultiple;
 
-  const pctTextOnly = dailyChange !== null
-    ? formatInsightsPnlParts(dailyChange.diff, dailyChange.pct, displayCurrency).pctText
-    : '+0.00%';
+  const { pctText } = formatInsightsPnlParts(
+    dailyChange?.diff ?? 0,
+    dailyChange?.pct ?? 0,
+    displayCurrency
+  );
 
   const deltaZeroColor = rgbaFromHex(mastheadInk, 0.55);
-  const deltaColor = dailyChange !== null
-    ? financeDeltaColor(dailyChange.diff, deltaZeroColor)
-    : deltaZeroColor;
+  const deltaColor =
+    dailyChange !== null
+      ? financeDeltaColor(dailyChange.pct, deltaZeroColor)
+      : deltaZeroColor;
 
-  const breakdownLines = netWorthSummary.lines.split('\n').map((s) => s.trim()).filter(Boolean);
+  const breakdownParts = netWorthSummary.lines.split('\n').map((s) => s.trim()).filter(Boolean);
 
   return (
     <View style={styles.heroStage}>
+      {/* 紫色块最底；黄色块叠在上面；文字层最顶（见 dashboard-styles zIndex） */}
       <View style={[styles.heroBlueTopBlock, { backgroundColor: blocks.blockB }]} />
-      <View style={[styles.heroPeachBlock, { backgroundColor: blocks.blockA, paddingTop: insets.top + 24 }]}>
-        <Text style={[styles.masthead, { color: mastheadInk }]}>Dashboard</Text>
+      <View style={[styles.heroMastheadYellowBg, { backgroundColor: blocks.blockA }]} />
+      <View style={[styles.heroMastheadTextLayer, { paddingTop: insets.top + 24 }]}>
+        <Text
+          style={[styles.masthead, { color: mastheadInk }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+        >
+          Dashboard
+        </Text>
         <Text style={[styles.kicker, { color: mastheadInk }]}>PORTFOLIO SUMMARY</Text>
       </View>
 
-      <View style={[styles.heroChangeBlock, { backgroundColor: blocks.blockB }]}>
-        <Text style={[styles.changeValue, { color: deltaColor }]} numberOfLines={1} adjustsFontSizeToFit>
-          {pctTextOnly}
-        </Text>
-        <Text style={[styles.metricLabel, { color: mastheadInk }]}>TODAY'S CHANGE</Text>
-      </View>
+      <View style={[styles.heroChangeBlock, { backgroundColor: blocks.blockB }]} />
 
       <View style={[styles.heroTotalBlock, { backgroundColor: blocks.blockA }]}>
+        <Pressable 
+          onPress={() => router.push('/settings-attribution')}
+          style={{ alignItems: 'flex-end', marginBottom: 8 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 0 }}>
+            <Text style={[styles.totalValueInt, { color: deltaColor }]} numberOfLines={1} adjustsFontSizeToFit>
+              {pctText}
+            </Text>
+            <MaterialIcons name="chevron-right" size={28} color={deltaColor} style={{ marginLeft: 2, marginBottom: 2 }} />
+          </View>
+          <Text style={[styles.metricLabel, { color: mastheadInk, marginTop: 2 }]}>TODAY'S CHANGE</Text>
+        </Pressable>
+        
         {netWorthDisplay !== null && Number.isFinite(netWorthDisplay) ? (
           <AssetPrimaryValue amount={netWorthDisplay} currency={displayCurrency} accentColor={mastheadInk} styles={styles} hero />
         ) : (
@@ -206,12 +226,31 @@ function DashboardHeroUpperHalf({
         )}
         <Text style={[styles.metricLabel, { color: mastheadInk }]}>TOTAL VALUE</Text>
         {showMultiBand ? (
-          <View style={{ marginTop: 4 }}>
-            {breakdownLines.map((line, i) => (
-              <Text key={`${i}-${line}`} style={[styles.magHeroCurrencyLine, { color: rgbaFromHex(mastheadInk, 0.75) }]}>
-                {line}
-              </Text>
-            ))}
+          <View style={styles.heroCurrencyBreakdownRow}>
+            {breakdownParts.flatMap((part, i) => {
+              const dotColor = rgbaFromHex(mastheadInk, 0.42);
+              const partColor = rgbaFromHex(mastheadInk, 0.78);
+              const row: React.ReactElement[] = [];
+              if (i > 0) {
+                row.push(
+                  <Text key={`dot-${i}`} style={[styles.heroCurrencyBreakdownDot, { color: dotColor }]}>
+                    {' · '}
+                  </Text>
+                );
+              }
+              row.push(
+                <Text
+                  key={`part-${i}`}
+                  style={[styles.magHeroCurrencyInline, { color: partColor }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.82}
+                >
+                  {part}
+                </Text>
+              );
+              return row;
+            })}
           </View>
         ) : null}
       </View>
@@ -298,31 +337,45 @@ function CategoryCollageRow({
       </Pressable>
 
       {isExpanded ? (
-        <View style={styles.assetListContainer}>
-          {assets.map((a) => {
-            const cur = getAssetCurrency(a);
-            const amt = getAssetDisplayValue(a);
-            return (
-              <Pressable
-                key={a.id}
-                style={({ pressed }) => [styles.assetRow, pressed && styles.assetRowPressed]}
-                onPress={() => onEdit(a)}
-              >
-                <View style={styles.assetRowMiddleCol}>
-                  <Text style={[styles.assetName, { color: mastheadInk }]}>{a.name}</Text>
-                  {a.account?.trim() ? (
-                    <Text style={[styles.assetHoldings, { color: rgbaFromHex(mastheadInk, 0.6) }]}>{a.account}</Text>
-                  ) : null}
-                </View>
-                <View style={styles.assetRowRightCol}>
-                  <Text style={[styles.assetValue, { color: mastheadInk }]}>{formatMoney(amt, cur)}</Text>
-                  {a.markPriceDate ? (
-                    <Text style={[styles.assetQuoteDate, { color: rgbaFromHex(mastheadInk, 0.5) }]}>{a.markPriceDate}</Text>
-                  ) : null}
-                </View>
-              </Pressable>
-            );
-          })}
+        <View style={{ flexDirection: 'row', backgroundColor: mainBgColor || rowBgColor }}>
+          <View style={{ width: '20%' }} />
+          <View style={styles.assetListContainer}>
+            {assets.map((a, i) => {
+              const cur = getAssetCurrency(a);
+              const amt = getAssetDisplayValue(a);
+              const isLast = i === assets.length - 1;
+              return (
+                <Pressable
+                  key={a.id}
+                  style={({ pressed }) => [
+                    styles.assetRow, 
+                    pressed && styles.assetRowPressed,
+                    { borderBottomColor: isLast ? 'transparent' : rgbaFromHex(mastheadInk, 0.08) }
+                  ]}
+                  onPress={() => onEdit(a)}
+                >
+                  <View style={{ width: 3, height: 14, backgroundColor: accent, marginRight: 12, opacity: 0.8 }} />
+                  <View style={styles.assetRowMiddleCol}>
+                    <Text style={[styles.assetName, { color: mastheadInk }]}>{a.name}</Text>
+                    {(a.account?.trim() || (typeof a.shares === 'number' && a.shares > 0)) ? (
+                      <Text style={[styles.assetHoldings, { color: rgbaFromHex(mastheadInk, 0.5) }]}>
+                        {[
+                          a.account?.trim(), 
+                          (typeof a.shares === 'number' && a.shares > 0) ? `${a.shares} 份` : null
+                        ].filter(Boolean).join(' · ')}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View style={styles.assetRowRightCol}>
+                    <Text style={[styles.assetValue, { color: mastheadInk }]}>{formatMoney(amt, cur)}</Text>
+                    {a.markPriceDate ? (
+                      <Text style={[styles.assetQuoteDate, { color: rgbaFromHex(mastheadInk, 0.4) }]}>{a.markPriceDate}</Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       ) : null}
     </View>

@@ -86,6 +86,12 @@ export default function Insights() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
+  /** 表头（DAYBREAK + 净值）约占整屏高度 25% */
+  const heroPosterHeight = useMemo(() => {
+    const h = Math.round(windowHeight * 0.25);
+    return h > 0 ? h : 180;
+  }, [windowHeight]);
+
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [assets, setAssets] = useState<SimpleAsset[]>([]);
   const [fxRates, setFxRates] = useState<FxUsdMidRates | null>(null);
@@ -324,7 +330,7 @@ export default function Insights() {
         }
       >
         {/* Editorial Masthead */}
-        <View style={styles.heroPoster}>
+        <View style={[styles.heroPoster, { height: heroPosterHeight }]}>
           <View style={[styles.supportBlock, { backgroundColor: supportBlockColor }]} />
           <View style={[styles.mastheadBlock, { backgroundColor: mastheadBlockColor }]}>
             <Text style={styles.mastheadTitle}>DAYBREAK</Text>
@@ -367,7 +373,17 @@ export default function Insights() {
           {chartTab === 'trend' && (
              <View style={{ flex: 1, justifyContent: 'flex-end', paddingTop: 10 }}>
                 {periodChange && (
-                  <View style={{ position: 'absolute', bottom: 20, right: 24, alignItems: 'flex-end', zIndex: 0, opacity: 0.85 }} pointerEvents="none">
+                  <View
+                    style={{
+                      position: 'absolute',
+                      bottom: 52,
+                      right: 24,
+                      alignItems: 'flex-end',
+                      zIndex: 0,
+                      opacity: 0.85,
+                    }}
+                    pointerEvents="none"
+                  >
                     <Text style={[styles.chartPosterValue, { fontSize: 32, width: 'auto', textAlign: 'right', lineHeight: 36 }]}>
                       {posterValue}
                     </Text>
@@ -450,25 +466,13 @@ export default function Insights() {
           )}
         </View>
 
-        {/* Bottom Summary Row */}
-        {chartTab === 'returns' ? (
+        {chartTab !== 'returns' && (
           <View style={styles.summaryRow}>
-            <View style={[styles.summaryWinnerBlock, { backgroundColor: rgbaFromHex(theme.categoryAccents.Stock ?? inkColor, 0.28) }]}>
-               <Text style={[styles.summaryLabel, { color: inkColor }]}>TOP GAINER:</Text>
-               <View style={styles.summaryValueRow}>
-                  <Text style={[styles.summaryName, { color: inkColor, flex: 1, marginRight: 8 }]} numberOfLines={1}>{topGainer ? topGainer.name : '—'}</Text>
-                  <Text style={[styles.summaryPct, { color: inkColor }]}>{topGainer ? `${topGainer.cumulativeReturn >= 0 ? '+' : ''}${(topGainer.cumulativeReturn * 100).toFixed(2)}%` : '—'}</Text>
-               </View>
-            </View>
-            <View style={[styles.summaryLoserBlock, { backgroundColor: inkColor }]}>
-               <Text style={[styles.summaryLabel, { color: theme.pageBg }]}>TOP LOSER:</Text>
-               <View style={styles.summaryValueRow}>
-                  <Text style={[styles.summaryName, { color: theme.pageBg, flex: 1, marginRight: 8 }]} numberOfLines={1}>{topLoser ? topLoser.name : '—'}</Text>
-                  <Text style={[styles.summaryPct, { color: theme.pageBg }]}>{topLoser ? `${topLoser.cumulativeReturn >= 0 ? '+' : ''}${(topLoser.cumulativeReturn * 100).toFixed(2)}%` : '—'}</Text>
-               </View>
-            </View>
+            {/* Kept only for non-returns layout handling if needed */}
           </View>
-        ) : (
+        )}
+        
+        {chartTab !== 'returns' && (
           <View style={{ marginHorizontal: 16, marginTop: 16, gap: 0, paddingBottom: 16 }}>
              {goalRows.map((row) => (
                 <GoalProgressCard

@@ -763,6 +763,37 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       fontWeight: '700',
       color: p,
     },
+    tabRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: sf(0.4),
+      borderRadius: 24,
+      padding: 4,
+      marginBottom: 20,
+    },
+    tabChip: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: 20,
+    },
+    tabChipActive: {
+      backgroundColor: p,
+    },
+    tabChipPressed: {
+      opacity: 0.8,
+    },
+    tabChipText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: p65,
+    },
+    tabChipTextActive: {
+      color: t.pageBg,
+      fontWeight: '700',
+    },
   });
 }
 
