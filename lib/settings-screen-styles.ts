@@ -13,7 +13,10 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
   const p65 = rgbaFromHex(p, 0.65);
   const p50 = rgbaFromHex(p, 0.5);
 
-  const accountBg = rgbaFromHex(t.swatches[0] ?? p, 1);
+  const accountSwatch = t.swatches[0] ?? p;
+  /** 背景用 rgba；对比色必须用 hex 调用 pickTextOnAccent（勿传 rgba 字符串） */
+  const accountBg = rgbaFromHex(accountSwatch, 1);
+  const accountInk = pickTextOnAccent(accountSwatch);
   const toolsSwatch = t.swatches[1] ?? p;
   const secondarySwatch = t.swatches[2] ?? p;
   const toolsBg = rgbaFromHex(toolsSwatch, 1);
@@ -76,7 +79,7 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
       fontFamily: AppFont.displayBold,
       fontSize: 36,
       letterSpacing: -1.0,
-      color: pickTextOnAccent(accountBg),
+      color: accountInk,
       marginBottom: 20,
     },
     avatar: {
@@ -91,14 +94,14 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
     profileName: {
       fontFamily: AppFont.bold,
       fontSize: 20,
-      color: pickTextOnAccent(accountBg),
+      color: accountInk,
       marginBottom: 8,
     },
     profileSub: {
       fontFamily: AppFont.medium,
       fontSize: 13,
       lineHeight: 18,
-      color: rgbaFromHex(pickTextOnAccent(accountBg), 0.8),
+      color: rgbaFromHex(accountInk, 0.8),
       marginBottom: 24,
     },
     profileCta: {

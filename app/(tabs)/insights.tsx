@@ -12,7 +12,7 @@ import { InsightsTrendChart } from '@/components/insights/insights-trend-tab';
 import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { formatMoney, formatMoneyDisplayParts } from '@/lib/asset-value';
-import { rgbaFromHex } from '@/lib/color-utils';
+import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
 import { themeFinanceDeltaColor } from '@/lib/finance-colors';
@@ -443,10 +443,19 @@ export default function Insights() {
                 style={styles.segmentedTab}
               >
                 {active && <View style={styles.segmentedActivePill} />}
-                <Text style={[
-                  styles.segmentedText,
-                  { color: active ? inkColor : (disabled ? rgbaFromHex(inkColor, 0.3) : inkSoft) }
-                ]}>
+                <Text
+                  style={[
+                    styles.segmentedText,
+                    {
+                      /** 选中态药丸为白底，字色须按白底对比（深色模式 primary 常为浅色） */
+                      color: active
+                        ? pickTextOnAccent('#FFFFFF')
+                        : disabled
+                          ? rgbaFromHex(inkColor, 0.3)
+                          : inkSoft,
+                    },
+                  ]}
+                >
                   {tab.id === 'trend' ? '资产变动' : tab.label}
                 </Text>
               </Pressable>
