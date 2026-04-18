@@ -3,13 +3,17 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { AppFont } from '@/lib/app-fonts';
 import { ASSET_CURRENCY_OPTIONS } from '@/lib/asset-currency';
 import { rgbaFromHex } from '@/lib/color-utils';
 import {
   loadDisplayCurrency,
   saveDisplayCurrency,
 } from '@/lib/display-currency-preference';
-import { useCallback, useEffect, useState } from 'react';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -20,9 +24,20 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+const LIST_ROW = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  paddingVertical: 14,
+  paddingHorizontal: 24,
+  borderBottomWidth: StyleSheet.hairlineWidth,
+  borderBottomColor: 'rgba(0,0,0,0.06)',
+};
+
 export default function SettingsDisplayCurrencyScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { theme } = useAppPalette();
+  const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const [code, setCode] = useState<string>('CNY');
   const [loading, setLoading] = useState(true);
 
@@ -48,54 +63,94 @@ export default function SettingsDisplayCurrencyScreen() {
   const muted = rgbaFromHex(p, 0.55);
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.pageBg }}
-      contentContainerStyle={{
-        paddingTop: 12,
-        paddingBottom: insets.bottom + 24,
-        paddingHorizontal: 20,
-      }}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text
+    <View style={styles.screen}>
+      <View style={styles.screenAmbient} pointerEvents="none" />
+
+      <View
         style={{
-          fontSize: 14,
-          fontWeight: '500',
-          color: muted,
-          marginBottom: 16,
-          lineHeight: 20,
+          paddingTop: insets.top,
+          paddingHorizontal: 16,
+          paddingBottom: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
         }}
       >
-        用于总览与洞察中的净值汇总与分布分析；各资产仍以各自币种记录，多持仓按中间价折为该货币。
-      </Text>
-      {loading ? (
-        <ActivityIndicator color={p} />
-      ) : (
-        <View style={{ gap: 10 }}>
-          {ASSET_CURRENCY_OPTIONS.map((o) => {
-            const selected = code === o.code;
-            return (
-              <Pressable
-                key={o.code}
-                onPress={() => void onPick(o.code)}
-                style={({ pressed }) => ({
-                  borderRadius: 16,
-                  paddingVertical: 14,
-                  paddingHorizontal: 16,
-                  backgroundColor: '#FFFFFF',
-                  borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
-                  borderColor: selected ? p : 'rgba(0,0,0,0.08)',
-                  opacity: pressed ? 0.92 : 1,
-                })}
-              >
-                <Text style={{ fontSize: 17, fontWeight: '700', color: p }}>
-                  {o.symbol} {o.code}
-                </Text>
-              </Pressable>
-            );
-          })}
+        <Pressable
+          onPress={() => router.back()}
+          style={{ width: 44, height: 44, justifyContent: 'center' }}
+        >
+          <Ionicons name="arrow-back" size={28} color={theme.primary} />
+        </Pressable>
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: insets.bottom + 28,
+            backgroundColor: 'transparent',
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.mastheadBlock, { paddingTop: 16 }]}>
+          <Text style={styles.masthead}>CURRENCY</Text>
+          <Text style={styles.kicker}>DISPLAY & INSIGHTS</Text>
         </View>
-      )}
-    </ScrollView>
+
+        <View style={styles.preferencesBlock}>
+          <Text
+            style={{
+              fontFamily: AppFont.medium,
+              fontSize: 13,
+              lineHeight: 19,
+              color: muted,
+              paddingHorizontal: 24,
+              marginBottom: 8,
+            }}
+          >
+            用于总览与洞察中的净值汇总与分布分析；各资产仍以各自币种记录，多持仓按中间价折为该货币。
+          </Text>
+          {loading ? (
+            <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+              <ActivityIndicator color={p} />
+            </View>
+          ) : (
+            <View>
+              {ASSET_CURRENCY_OPTIONS.map((o) => {
+                const selected = code === o.code;
+                return (
+                  <Pressable
+                    key={o.code}
+                    onPress={() => void onPick(o.code)}
+                    style={({ pressed }) => [
+                      LIST_ROW,
+                      selected && { backgroundColor: rgbaFromHex(p, 0.06) },
+                      { opacity: pressed ? 0.88 : 1 },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontFamily: AppFont.semiBold,
+                        fontSize: 17,
+                        letterSpacing: -0.25,
+                        color: p,
+                      }}
+                    >
+                      {o.symbol} {o.code}
+                    </Text>
+                    {selected ? (
+                      <Ionicons name="checkmark-circle" size={22} color={p} />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }

@@ -44,7 +44,7 @@ export function SettingsGridTile({
           pressed && styles.pressed,
         ]}
       >
-        <MaterialIcons name={icon} size={28} color={p} style={{ width: 40 }} />
+        <MaterialIcons name={icon} size={22} color={p} style={{ width: 36 }} />
         <Text style={[styles.listLabel, { color: p }]}>{label}</Text>
       </Pressable>
     );
@@ -126,15 +126,15 @@ const styles = StyleSheet.create({
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 18,
+    paddingVertical: 14,
     paddingHorizontal: 24,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0,0,0,0.06)',
   },
   listLabel: {
-    fontFamily: AppFont.displayBold,
-    fontSize: 32,
-    letterSpacing: -0.6,
-    marginLeft: 12,
+    fontFamily: AppFont.semiBold,
+    fontSize: 21,
+    letterSpacing: -0.25,
+    marginLeft: 10,
   },
 });

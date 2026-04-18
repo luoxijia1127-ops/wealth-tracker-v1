@@ -19,3 +19,18 @@ export function financeDeltaColor(
   if (v < 0) return FINANCE_DOWN;
   return zeroColor;
 }
+
+/**
+ * 涨跌色与当前应用配色一致（`AppPaletteTheme.statusPositive` / `statusNegative`），
+ * 用于总览等需与主题统一的场景；A 股经典红绿请仍用 {@link financeDeltaColor}。
+ */
+export function themeFinanceDeltaColor(
+  v: number,
+  statusPositive: string,
+  statusNegative: string,
+  zeroColor: string
+): string {
+  if (v > 0) return statusPositive;
+  if (v < 0) return statusNegative;
+  return zeroColor;
+}

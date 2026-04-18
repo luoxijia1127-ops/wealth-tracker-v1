@@ -13,9 +13,11 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
   const p65 = rgbaFromHex(p, 0.65);
   const p50 = rgbaFromHex(p, 0.5);
 
-  const accountBg = rgbaFromHex(t.swatches[0] ?? p, 0.85);
-  const toolsBg = rgbaFromHex(t.swatches[1] ?? p, 0.28);
-  const secondaryBg = rgbaFromHex(t.swatches[2] ?? p, 0.16);
+  const accountBg = rgbaFromHex(t.swatches[0] ?? p, 1);
+  const toolsSwatch = t.swatches[1] ?? p;
+  const secondarySwatch = t.swatches[2] ?? p;
+  const toolsBg = rgbaFromHex(toolsSwatch, 1);
+  const secondaryBg = rgbaFromHex(secondarySwatch, 1);
 
   return StyleSheet.create({
     screen: {
@@ -129,7 +131,7 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
       fontFamily: AppFont.displayBold,
       fontSize: 28,
       letterSpacing: -0.5,
-      color: p,
+      color: pickTextOnAccent(toolsSwatch),
       marginBottom: 12,
       textAlign: 'center',
     },

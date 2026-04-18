@@ -26,7 +26,7 @@ import {
   magazineBlocks,
   magazineStrongOnBlock,
 } from '@/lib/editorial-reference-layout';
-import { financeDeltaColor } from '@/lib/finance-colors';
+import { themeFinanceDeltaColor } from '@/lib/finance-colors';
 import {
   ensureFxUsdRatesHistoryBackfill,
   getCachedFxUsdRates,
@@ -179,7 +179,12 @@ function DashboardHeroUpperHalf({
   const deltaZeroColor = rgbaFromHex(mastheadInk, 0.55);
   const deltaColor =
     dailyChange !== null
-      ? financeDeltaColor(dailyChange.pct, deltaZeroColor)
+      ? themeFinanceDeltaColor(
+          dailyChange.pct,
+          theme.statusPositive,
+          theme.statusNegative,
+          deltaZeroColor
+        )
       : deltaZeroColor;
 
   const breakdownParts = netWorthSummary.lines.split('\n').map((s) => s.trim()).filter(Boolean);

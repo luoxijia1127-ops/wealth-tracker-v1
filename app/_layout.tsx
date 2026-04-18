@@ -92,7 +92,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-palette"
             options={{
-              headerShown: true,
+              headerShown: false,
               headerBackTitle: '返回',
               title: '应用配色',
               headerShadowVisible: false,
@@ -164,7 +164,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-display-currency"
             options={{
-              headerShown: true,
+              headerShown: false,
               headerBackTitle: '返回',
               title: '默认货币',
               headerShadowVisible: false,
@@ -173,7 +173,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-language"
             options={{
-              headerShown: true,
+              headerShown: false,
               headerBackTitle: '返回',
               title: '语言设置',
               headerShadowVisible: false,

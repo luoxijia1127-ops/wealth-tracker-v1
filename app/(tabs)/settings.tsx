@@ -30,8 +30,10 @@ export default function SettingsScreen() {
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
 
   const p = theme.primary;
-  const toolsBg = rgbaFromHex(theme.swatches[1] ?? p, 0.28);
-  const secondaryBg = rgbaFromHex(theme.swatches[2] ?? p, 0.16);
+  const toolsSwatch = theme.swatches[1] ?? p;
+  const secondarySwatch = theme.swatches[2] ?? p;
+  const toolsBg = rgbaFromHex(toolsSwatch, 0.52);
+  const secondaryBg = rgbaFromHex(secondarySwatch, 0.4);
 
   const openMembership = () => {
     router.push('/paywall');
@@ -140,7 +142,7 @@ export default function SettingsScreen() {
                     onPress={t.onPress}
                     variant="tool"
                     color={toolsBg}
-                    textColor={pickTextOnAccent(toolsBg)}
+                    textColor={pickTextOnAccent(toolsSwatch)}
                   />
                 ))}
               </View>
@@ -155,7 +157,7 @@ export default function SettingsScreen() {
                   onPress={() => router.push('/settings-data-hub')}
                   variant="secondary"
                   color={secondaryBg}
-                  textColor={pickTextOnAccent(secondaryBg)}
+                  textColor={pickTextOnAccent(secondarySwatch)}
                 />
                 <SettingsGridTile
                   label="支持"
@@ -164,7 +166,7 @@ export default function SettingsScreen() {
                   onPress={() => router.push('/settings-support-hub')}
                   variant="secondary"
                   color={secondaryBg}
-                  textColor={pickTextOnAccent(secondaryBg)}
+                  textColor={pickTextOnAccent(secondarySwatch)}
                 />
               </View>
             </View>

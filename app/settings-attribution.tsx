@@ -50,7 +50,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function fmtMoney(n: number): string {
   const r = Math.round(n);
-  const sign = r > 0 ? '+' : '';
+  const sign = r > 0 ? '+' : r < 0 ? '-' : '';
   return `${sign}¥${Math.abs(r).toLocaleString()}`;
 }
 
