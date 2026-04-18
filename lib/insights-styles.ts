@@ -62,7 +62,8 @@ export function createInsightsStyles(
       width: '100%',
       height: '100%',
       paddingHorizontal: 28,
-      paddingTop: 56,
+      /** 下移主标题与副标题（DAYBREAK / INSIGHTS & ANALYSIS） */
+      paddingTop: 86,
       zIndex: 2,
     },
     supportBlock: {
@@ -75,19 +76,19 @@ export function createInsightsStyles(
     },
     mastheadTitle: {
       fontFamily: AppFont.displayBold,
-      fontSize: 48,
-      lineHeight: 52,
-      letterSpacing: -1.6,
+      fontSize: 60,
+      lineHeight: 60,
+      letterSpacing: -1.75,
       textTransform: 'uppercase',
       color: p,
     },
     mastheadSub: {
       fontFamily: AppFont.medium,
-      fontSize: 11,
-      letterSpacing: 1.8,
+      fontSize: 13,
+      letterSpacing: 1.65,
       textTransform: 'uppercase',
       color: p,
-      marginTop: 4,
+      marginTop: 6,
     },
     heroNetWorthRow: {
       position: 'absolute',
@@ -100,16 +101,16 @@ export function createInsightsStyles(
     },
     heroMetricLabel: {
       fontFamily: AppFont.medium,
-      fontSize: 12,
-      letterSpacing: 1.8,
+      fontSize: 14,
+      letterSpacing: 1.65,
       textTransform: 'uppercase',
       color: p,
     },
     heroMetricValue: {
       fontFamily: AppFont.displayBold,
-      fontSize: 32,
+      fontSize: 38,
       fontWeight: '800',
-      letterSpacing: -0.8,
+      letterSpacing: -0.9,
       color: p,
     },
 
@@ -157,7 +158,8 @@ export function createInsightsStyles(
       backgroundColor: rgbaFromHex(p, 0.03),
       borderWidth: 1,
       borderColor: rgbaFromHex(p, 0.08),
-      minHeight: 320,
+      /** 与趋势图最小高度对齐，减少主图与下方目标卡片之间的空白 */
+      minHeight: 288,
       overflow: 'hidden',
     },
     chartPosterHeader: {
@@ -384,8 +386,8 @@ export function createInsightsStyles(
 
     /** Distribution Donut specifics */
     donutBlock: {
-      paddingBottom: 24,
-      paddingTop: 16,
+      paddingBottom: 12,
+      paddingTop: 12,
     },
     donutInteractiveRow: {
       flexDirection: 'row',
@@ -513,19 +515,20 @@ export function createInsightsStyles(
       borderWidth: 1.5,
       borderColor: rgbaFromHex(p, 0.2),
       borderRadius: 999,
-      paddingHorizontal: 16,
+      paddingHorizontal: 14,
       marginBottom: 16,
-      minHeight: 46,
+      minHeight: 36,
     },
     returnSearchIcon: {
       marginRight: 8,
     },
     returnSearchInput: {
       flex: 1,
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: AppFont.medium,
       color: p,
-      paddingVertical: 12,
+      paddingVertical: 6,
+      minHeight: 0,
     },
     
     /** Category Filter — 仅用户已有大类，单行均分、与资产分布色块一致 */
@@ -543,30 +546,15 @@ export function createInsightsStyles(
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 8,
-      paddingHorizontal: 4,
+      paddingHorizontal: 6,
       borderRadius: 999,
       borderWidth: 1.5,
-    },
-    returnChipColorDot: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      marginRight: 4,
-      flexShrink: 0,
     },
     returnChipTextInRow: {
       fontSize: 12,
       fontFamily: AppFont.semiBold,
       letterSpacing: 0.1,
       flexShrink: 1,
-    },
-    
-    /** Hidden switch & minor controls */
-    returnToggleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      marginBottom: 16,
     },
     
     /** Scatter Chart */
@@ -603,19 +591,27 @@ export function createInsightsStyles(
 
     /** Editorial Ranked List (Replaces Data Table) */
     returnListContainer: {
-      gap: 20,
-      marginTop: 12,
+      gap: 0,
+      marginTop: 8,
     },
     returnListItem: {
+      position: 'relative',
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-start',
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: rgbaFromHex(p, 0.14),
+    },
+    returnListItemLast: {
+      borderBottomWidth: 0,
     },
     returnListItemLeft: {
       flex: 1,
       minWidth: 0,
-      paddingRight: 16,
+      paddingRight: 0,
       justifyContent: 'center',
+      zIndex: 2,
     },
     returnListItemName: {
       fontFamily: AppFont.displayBold,
@@ -623,41 +619,73 @@ export function createInsightsStyles(
       letterSpacing: -0.6,
       color: p,
       textTransform: 'uppercase',
-      marginBottom: 4,
+      marginBottom: 2,
     },
     returnListItemMeta: {
       fontFamily: AppFont.medium,
       fontSize: 14,
       color: p65,
     },
+    /**
+     * 色块：宽度由面板传入；绝对定位贴右，左侧可被名称层叠（见 returnListItemLeft paddingRight）
+     */
     returnListItemRightBlock: {
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      minWidth: 120,
-      alignItems: 'center',
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      bottom: 0,
+      paddingVertical: 8,
+      paddingLeft: 10,
+      paddingRight: 12,
+      alignItems: 'flex-end',
       justifyContent: 'center',
-      minHeight: 76,
+      minHeight: 58,
+      zIndex: 1,
     },
     returnListItemValue: {
       fontFamily: AppFont.displayBold,
       fontSize: 36,
       letterSpacing: -1.0,
       color: p,
-      lineHeight: 40,
+      lineHeight: 38,
+      textAlign: 'right',
+      alignSelf: 'stretch',
     },
     returnListItemValueLabel: {
       fontFamily: AppFont.medium,
       fontSize: 11,
       color: rgbaFromHex(p, 0.7),
-      marginTop: 4,
+      marginTop: 2,
+      textAlign: 'right',
+      alignSelf: 'stretch',
     },
     
+    /** 底部：hidden 说明（左）+ Hide Invalid 开关（右） */
+    returnFooterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 20,
+      gap: 12,
+    },
     returnFooterHint: {
+      flex: 1,
+      minWidth: 0,
       fontSize: 12,
       fontFamily: AppFont.medium,
-      marginTop: 24,
-      textAlign: 'center',
+      textAlign: 'left',
       lineHeight: 18,
+    },
+    returnFooterSwitchWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexShrink: 0,
+      gap: 8,
+    },
+    returnFooterSwitchLabel: {
+      fontSize: 11,
+      fontFamily: AppFont.medium,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
   });
 }

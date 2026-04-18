@@ -31,6 +31,7 @@ import {
   formatInsightsPnlParts,
   getCentroidForCategory,
   getDailyChangeInDisplay,
+  getTrendPeriodNavChangeInDisplay,
   INSIGHTS_CHART_TABS,
   snapshotDisplayTotalInDisplay,
   toTrendChartModel,
@@ -86,10 +87,10 @@ export default function Insights() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
-  /** 表头（DAYBREAK + 净值）约占整屏高度 25% */
+  /** 表头（DAYBREAK + 净值）约占整屏高度 27%（与 insights-styles 大字匹配） */
   const heroPosterHeight = useMemo(() => {
-    const h = Math.round(windowHeight * 0.25);
-    return h > 0 ? h : 180;
+    const h = Math.round(windowHeight * 0.27);
+    return h > 0 ? h : 196;
   }, [windowHeight]);
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
@@ -238,17 +239,27 @@ export default function Insights() {
     [orderedSnapshots, displayCurrency, fxRates]
   );
   
-  // Calculate period change for the Trend chart (first to last snapshot in the range)
+  /**
+   * 资产变动图角标：相对「区间起始日历日」的净值变动（期末 − 期初）及比例。
+   * 例：锚定今日 4/18、选 7 天则起始日 4/11；期初取 date≤4/11 的最近快照，期末取区间内最后一条。
+   */
   const periodChange = useMemo(() => {
-    if (trendRangeSnapshots.length < 2) return null;
-    const first = trendRangeSnapshots[0]!;
-    const last = trendRangeSnapshots[trendRangeSnapshots.length - 1]!;
-    const v1 = snapshotDisplayTotalInDisplay(first, displayCurrency, fxRates?.rates ?? null);
-    const v2 = snapshotDisplayTotalInDisplay(last, displayCurrency, fxRates?.rates ?? null);
-    const diff = v2 - v1;
-    const pct = v1 > 0 ? diff / v1 : 0;
-    return { diff, pct };
-  }, [trendRangeSnapshots, displayCurrency, fxRates]);
+    const anchor = getShanghaiDateString();
+    return getTrendPeriodNavChangeInDisplay(
+      orderedSnapshots,
+      trendTimeframe,
+      anchor,
+      trendTimeframe === 'CUSTOM' ? trendCustomRange : null,
+      displayCurrency,
+      fxRates?.rates ?? null
+    );
+  }, [
+    orderedSnapshots,
+    trendTimeframe,
+    trendCustomRange,
+    displayCurrency,
+    fxRates,
+  ]);
 
   const distributionPanelOpen = !!selectedDistributionCategory;
 
@@ -337,7 +348,7 @@ export default function Insights() {
             <Text style={styles.mastheadSub}>INSIGHTS & ANALYSIS</Text>
 
             <View style={styles.heroNetWorthRow}>
-              <Text style={styles.heroMetricLabel}>NET WORTH</Text>
+              <Text style={styles.heroMetricLabel}>TOTAL VALUE</Text>
               <Text style={styles.heroMetricValue}>{currentNetWorth}</Text>
             </View>
           </View>
@@ -389,6 +400,19 @@ export default function Insights() {
                     </Text>
                     <Text style={{ fontSize: 14, fontWeight: '700', color: inkColor, letterSpacing: 0, textAlign: 'right' }}>
                       {posterPct}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '500',
+                        color: inkSoft,
+                        textAlign: 'right',
+                        marginTop: 6,
+                        maxWidth: 220,
+                        lineHeight: 14,
+                      }}
+                    >
+                      区间内最新净值 vs 起点日（或该日前最近快照）
                     </Text>
                   </View>
                 )}
@@ -467,13 +491,7 @@ export default function Insights() {
         </View>
 
         {chartTab !== 'returns' && (
-          <View style={styles.summaryRow}>
-            {/* Kept only for non-returns layout handling if needed */}
-          </View>
-        )}
-        
-        {chartTab !== 'returns' && (
-          <View style={{ marginHorizontal: 16, marginTop: 16, gap: 0, paddingBottom: 16 }}>
+          <View style={{ marginHorizontal: 16, marginTop: 8, gap: 0, paddingBottom: 16 }}>
              {goalRows.map((row) => (
                 <GoalProgressCard
                   key={row.id}

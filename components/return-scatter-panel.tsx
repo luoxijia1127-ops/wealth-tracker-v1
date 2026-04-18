@@ -33,13 +33,42 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { Circle, G, Line, Svg, Text as SvgText } from 'react-native-svg';
+import { Circle, G, Line, Rect, Svg, Text as SvgText } from 'react-native-svg';
 
 type SortKey = 'holdingDays' | 'cumulativeReturn' | 'annualizedReturn' | 'buyAmount';
 
 function pctFmt(ratio: number, digits = 2): string {
   if (!Number.isFinite(ratio)) return '—';
   return `${(ratio * 100).toFixed(digits)}%`;
+}
+
+/** 列表右侧色块宽度：在能放下比例文案的前提下，|收益率| 越大越宽（相对当前列表最大值） */
+function formatListCumulativePct(m: InvestmentReturnMetric): string {
+  return `${m.cumulativeReturn > 0 ? '+' : ''}${(m.cumulativeReturn * 100).toFixed(1)}%`;
+}
+
+function estimateReturnPctBlockMinWidth(m: InvestmentReturnMetric): number {
+  const pct = formatListCumulativePct(m);
+  // 与 returnListItemValue fontSize 36 大致匹配；+ 左右 padding（见 styles）
+  return Math.ceil(28 + pct.length * 19);
+}
+
+/** 名称可压入色块左侧的像素，右侧保留为数字 + 英文标签区，避免盖住比例 */
+const RETURN_LIST_NAME_OVERLAP_INTO_BLOCK_PX = 40;
+
+function returnListRightBlockWidth(
+  m: InvestmentReturnMetric,
+  maxAbsReturn: number,
+  maxCol: number
+): number {
+  const abs = Math.abs(m.cumulativeReturn);
+  const denom = maxAbsReturn > 1e-15 ? maxAbsReturn : 1e-15;
+  const minVisual = 108;
+  const minForPct = Math.max(estimateReturnPctBlockMinWidth(m), 100);
+  const minForLabel = 104;
+  const floor = Math.max(minVisual, minForPct, minForLabel);
+  const proportional = minVisual + (abs / denom) * (maxCol - minVisual);
+  return Math.min(maxCol, Math.round(Math.max(floor, proportional)));
 }
 
 function reasonLabel(m: InvestmentReturnMetric): string {
@@ -52,10 +81,15 @@ function reasonLabel(m: InvestmentReturnMetric): string {
       return '累计亏损≥100%（年化不可用）';
     case 'unsupported':
       return '不支持或数据不足';
+    case 'zero_return':
+      return '累计收益 0%';
     default:
       return '—';
   }
 }
+
+/** 名称可压入色块左侧的宽度（pt），右侧留出不动，避免盖住比例数字与英文标签 */
+const RETURN_LIST_NAME_OVERLAP_INTO_BLOCK = 36;
 
 /** 与散点图内平均参考线一致 */
 const RETURN_AVG_HOLDING_LINE = '#F59E0B';
@@ -275,6 +309,21 @@ export function ReturnScatterPanel({
     return arr;
   }, [filtered, sortKey, sortDir]);
 
+  /** 当前列表内最大 |累计收益率|（小数）与色块列允许的最大宽度，用于按绝对值比例分配列宽 */
+  const returnListRightColumnSizing = useMemo(() => {
+    let maxAbs = 0;
+    for (const m of sortedTable) {
+      const a = Math.abs(m.cumulativeReturn);
+      if (Number.isFinite(a) && a > maxAbs) maxAbs = a;
+    }
+    if (!(maxAbs > 1e-15)) maxAbs = 1e-15;
+    const maxCol = Math.max(
+      128,
+      Math.min(226, Math.round(windowWidth * 0.38))
+    );
+    return { maxAbsReturn: maxAbs, maxCol };
+  }, [sortedTable, windowWidth]);
+
   const chartRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     const cats = catFilter;
@@ -350,6 +399,14 @@ export function ReturnScatterPanel({
   const gridXs = [0.25, 0.5, 0.75];
   const gridYs = [0.25, 0.5, 0.75];
 
+  /** 平均持有天数字条在框上方时，左侧 Y 轴标题下移避免与条重叠 */
+  const showAvgHoldingAboveChart =
+    avgLineX !== null &&
+    model.avgDays !== null &&
+    avgLineX >= padL &&
+    avgLineX <= padL + plotW;
+  const chartTopInsetForYLabel = showAvgHoldingAboveChart ? 26 : 0;
+
   return (
     <View style={styles.returnPanelCard}>
       <View style={styles.returnMastheadBlock}>
@@ -365,11 +422,52 @@ export function ReturnScatterPanel({
       </View>
 
       <View style={styles.returnChartWrap}>
+        {showAvgHoldingAboveChart && (
+            <View
+              style={{
+                height: 0,
+                marginBottom: 4,
+                marginLeft: yLabelCol,
+                width: chartW + yLabelCol,
+                position: 'relative',
+                zIndex: 6,
+              }}
+              pointerEvents="none"
+            >
+              {(() => {
+                const stripW = chartW + yLabelCol;
+                const labelW = 92;
+                const labelLeft = Math.max(
+                  0,
+                  Math.min(avgLineX - labelW / 2, stripW - labelW)
+                );
+                return (
+                  <Text
+                    style={{
+                      position: 'absolute',
+                      left: labelLeft,
+                      top: 2,
+                      width: labelW,
+                      textAlign: 'center',
+                      fontSize: 12,
+                      fontFamily: AppFont.semiBold,
+                      color: RETURN_AVG_HOLDING_LINE,
+                      letterSpacing: 0.2,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {`平均 ${model.avgDays.toFixed(0)} 天`}
+                  </Text>
+                );
+              })()}
+            </View>
+          )}
+
         <View
           style={{
             position: 'absolute',
             left: 0,
-            top: 0,
+            top: chartTopInsetForYLabel,
             bottom: 0,
             width: yLabelCol,
             justifyContent: 'center',
@@ -382,7 +480,7 @@ export function ReturnScatterPanel({
               transform: [{ rotate: '-90deg' }],
               width: chartH - 20,
               textAlign: 'center',
-              fontSize: 11,
+              fontSize: 13,
               fontFamily: AppFont.semiBold,
               color: textSecondary,
               letterSpacing: 0.5,
@@ -392,8 +490,23 @@ export function ReturnScatterPanel({
             Cumulative Return (%)
           </Text>
         </View>
-        <Svg width={chartW + yLabelCol} height={chartH} style={{ marginLeft: yLabelCol }}>
-          <G opacity={0.9}>
+        <Svg
+          width={chartW + yLabelCol}
+          height={chartH}
+          style={{ marginLeft: yLabelCol }}
+        >
+          <Rect
+            x={0}
+            y={0}
+            width={chartW + yLabelCol}
+            height={chartH}
+            fill="transparent"
+            onPress={() => {
+              setTipId(null);
+              setTipPos(null);
+            }}
+          />
+          <G opacity={0.9} pointerEvents="box-none">
             {gridYs.map((t) => {
               const y = padT + t * plotH;
               return (
@@ -482,25 +595,6 @@ export function ReturnScatterPanel({
                 />
               )}
 
-            {avgLineX !== null &&
-              avgLineX >= padL &&
-              avgLineX <= padL + plotW &&
-              model.avgDays !== null && (
-                <SvgText
-                  x={
-                    avgLineX < padL + plotW * 0.58 ? avgLineX + 5 : avgLineX - 5
-                  }
-                  y={padT + 13}
-                  textAnchor={
-                    avgLineX < padL + plotW * 0.58 ? 'start' : 'end'
-                  }
-                  fill={RETURN_AVG_HOLDING_LINE}
-                  fontSize={10}
-                  fontFamily={AppFont.semiBold}
-                >
-                  {`平均 ${model.avgDays.toFixed(0)} 天`}
-                </SvgText>
-              )}
             {avgLineY !== null &&
               avgLineY >= padT &&
               avgLineY <= padT + plotH &&
@@ -656,7 +750,7 @@ export function ReturnScatterPanel({
 
       <View style={styles.returnFilterRow}>
         <View style={styles.returnSearchIcon}>
-           <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={placeholderMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={placeholderMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <Circle cx={11} cy={11} r={8} />
               <Line x1={21} y1={21} x2={16.65} y2={16.65} />
            </Svg>
@@ -696,15 +790,6 @@ export function ReturnScatterPanel({
                   pressed && !inFilter && { opacity: 0.4 },
                 ]}
               >
-                <View
-                  style={[
-                    styles.returnChipColorDot,
-                    {
-                      backgroundColor: accent,
-                      opacity: inFilter ? 1 : 0.55,
-                    },
-                  ]}
-                />
                 <Text
                   style={[
                     styles.returnChipTextInRow,
@@ -726,22 +811,6 @@ export function ReturnScatterPanel({
         </View>
       ) : null}
 
-      <View style={styles.returnToggleRow}>
-        <Text style={{ color: textMuted, fontSize: 11, fontFamily: AppFont.medium, textTransform: 'uppercase', letterSpacing: 0.5, marginRight: 8 }}>
-          Hide Invalid
-        </Text>
-        <Switch
-          value={hideInvalid}
-          onValueChange={setHideInvalid}
-          trackColor={{
-            false: rgbaFromHex(theme.primary, 0.15),
-            true: rgbaFromHex(theme.primary, 0.35),
-          }}
-          thumbColor={appearance === 'dark' ? rgbaFromHex(theme.primary, 0.9) : '#FFFFFF'}
-          style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-        />
-      </View>
-
       <View style={styles.returnListContainer}>
         {sortedTable.map((m, i) => {
           const accent = theme.categoryAccents[m.category] ?? theme.primary;
@@ -751,19 +820,51 @@ export function ReturnScatterPanel({
             : i % 3 === 1 
               ? rgbaFromHex(accent, 0.15)
               : rgbaFromHex(accent, 0.35);
-              
+          const blockW = returnListRightBlockWidth(
+            m,
+            returnListRightColumnSizing.maxAbsReturn,
+            returnListRightColumnSizing.maxCol
+          );
+          const nameReserveRight = Math.max(
+            8,
+            blockW - RETURN_LIST_NAME_OVERLAP_INTO_BLOCK_PX
+          );
+
           return (
-            <View key={m.assetId} style={styles.returnListItem}>
-              <View style={styles.returnListItemLeft}>
-                <Text style={styles.returnListItemName} numberOfLines={1}>{m.name}</Text>
+            <View
+              key={m.assetId}
+              style={[
+                styles.returnListItem,
+                i === sortedTable.length - 1 ? styles.returnListItemLast : null,
+              ]}
+            >
+              <View
+                style={[styles.returnListItemLeft, { paddingRight: nameReserveRight }]}
+              >
+                <Text style={styles.returnListItemName} numberOfLines={1}>
+                  {m.name}
+                </Text>
                 <Text style={styles.returnListItemMeta}>
                   Holding: {m.holdingDays} Days
                   {m.reason !== 'ok' ? ` · ${reasonLabel(m)}` : ''}
                 </Text>
               </View>
-              <View style={[styles.returnListItemRightBlock, { backgroundColor: blockBg }]}>
-                <Text style={styles.returnListItemValue}>
-                  {m.cumulativeReturn > 0 ? '+' : ''}{(m.cumulativeReturn * 100).toFixed(1)}%
+              <View
+                style={[
+                  styles.returnListItemRightBlock,
+                  {
+                    backgroundColor: blockBg,
+                    width: blockW,
+                  },
+                ]}
+              >
+                <Text
+                  style={styles.returnListItemValue}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.62}
+                >
+                  {formatListCumulativePct(m)}
                 </Text>
                 <Text style={styles.returnListItemValueLabel}>Cumulative Return</Text>
               </View>
@@ -772,11 +873,32 @@ export function ReturnScatterPanel({
         })}
       </View>
 
-      {excludedCount > 0 ? (
-        <Text style={[styles.returnFooterHint, { color: textMuted }]}>
-          {excludedCount} items hidden due to invalid metrics or filters.
-        </Text>
-      ) : null}
+      <View style={styles.returnFooterRow}>
+        {excludedCount > 0 ? (
+          <Text style={[styles.returnFooterHint, { color: textMuted }]} numberOfLines={2}>
+            {excludedCount} items hidden due to invalid metrics or filters.
+          </Text>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
+        <View style={styles.returnFooterSwitchWrap}>
+          <Text style={[styles.returnFooterSwitchLabel, { color: textMuted }]}>
+            Hide Invalid
+          </Text>
+          <Switch
+            value={hideInvalid}
+            onValueChange={setHideInvalid}
+            trackColor={{
+              false: rgbaFromHex(theme.primary, 0.15),
+              true: rgbaFromHex(theme.primary, 0.35),
+            }}
+            thumbColor={
+              appearance === 'dark' ? rgbaFromHex(theme.primary, 0.9) : '#FFFFFF'
+            }
+            style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+          />
+        </View>
+      </View>
     </View>
   );
 }

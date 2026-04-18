@@ -20,6 +20,7 @@ export type InvestmentReturnReason =
   | 'no_buy'
   | 'bad_days'
   | 'bad_return_base'
+  | 'zero_return'
   | 'unsupported';
 
 export type InvestmentReturnMetric = {
@@ -170,6 +171,7 @@ export function computeInvestmentReturnMetric(
     let reason: InvestmentReturnReason = 'ok';
     if (!(holdingDays > 0)) reason = 'bad_days';
     else if (1 + totalReturn <= 0) reason = 'bad_return_base';
+    else if (Math.abs(totalReturn) < 1e-12) reason = 'zero_return';
     return {
       ...base,
       buyAmount: basis,
@@ -229,6 +231,7 @@ export function computeInvestmentReturnMetric(
   let reason: InvestmentReturnReason = 'ok';
   if (!(holdingDays > 0)) reason = 'bad_days';
   else if (1 + totalReturn <= 0) reason = 'bad_return_base';
+  else if (Math.abs(totalReturn) < 1e-12) reason = 'zero_return';
 
   return {
     ...base,
@@ -256,7 +259,8 @@ export function isPlottableMetric(m: InvestmentReturnMetric): boolean {
   if (
     m.reason === 'unsupported' ||
     m.reason === 'no_buy' ||
-    m.reason === 'bad_days'
+    m.reason === 'bad_days' ||
+    m.reason === 'zero_return'
   ) {
     return false;
   }

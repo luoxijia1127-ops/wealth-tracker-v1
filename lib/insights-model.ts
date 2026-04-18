@@ -120,6 +120,78 @@ export function filterSnapshotsByTimeframe(
   return upToToday.filter((s) => s.date >= minDate);
 }
 
+/**
+ * 资产变动图角标：所选时段内「最新净值」相对「时段起点日」的变动（与锚定日一致，一般为今日）。
+ *
+ * - **期末**：区间内 `date <= 锚定日` 的最后一条快照（例：今日 4/18 有快照则用其净值）。
+ * - **期初**：全历史中 `date <= 区间起始日` 的最后一条（例：选 7 天则起点为锚定日−7 天对应日，
+ *   若该日无快照则用该日之前最近一条）。若仍无（区间内才有首条），则取区间内最早一条。
+ * - **金额**：`期末 − 期初`；**比例**：`(期末 − 期初) / 期初 × 100`（例：10→100 → +90、+900%）。
+ *
+ * `ALL`：期初、期末分别为区间内首末快照。
+ */
+export function getTrendPeriodNavChangeInDisplay(
+  orderedAsc: Snapshot[],
+  tf: TrendTimeframe,
+  anchorDate: string,
+  customRange: TrendCustomRange | null,
+  displayCurrency: string,
+  usdRates: FxUsdMidRates['rates'] | null
+): { diff: number; pct: number } | null {
+  const rangeFiltered = filterSnapshotsByTimeframe(
+    orderedAsc,
+    tf,
+    anchorDate,
+    tf === 'CUSTOM' ? customRange : null
+  );
+  if (rangeFiltered.length === 0) return null;
+
+  const upToAnchor = orderedAsc.filter((s) => s.date <= anchorDate);
+  if (upToAnchor.length === 0) return null;
+
+  const closingSnap = rangeFiltered[rangeFiltered.length - 1]!;
+  const vEnd = snapshotDisplayTotalInDisplay(
+    closingSnap,
+    displayCurrency,
+    usdRates
+  );
+
+  let openingSnap: Snapshot;
+  if (tf === 'ALL') {
+    openingSnap = rangeFiltered[0]!;
+  } else {
+    let periodStartDate: string;
+    if (tf === 'CUSTOM') {
+      let start =
+        customRange?.start ?? addCalendarDaysYmd(anchorDate, -30);
+      let end = customRange?.end ?? anchorDate;
+      if (start > end) {
+        const t = start;
+        start = end;
+        end = t;
+      }
+      periodStartDate = start;
+    } else {
+      const days = TREND_LOOKBACK_DAYS[tf];
+      periodStartDate = addCalendarDaysYmd(anchorDate, -days);
+    }
+    const prior = upToAnchor.filter((s) => s.date <= periodStartDate);
+    openingSnap =
+      prior.length > 0 ? prior[prior.length - 1]! : rangeFiltered[0]!;
+  }
+
+  const vStart = snapshotDisplayTotalInDisplay(
+    openingSnap,
+    displayCurrency,
+    usdRates
+  );
+  if (!Number.isFinite(vStart) || !Number.isFinite(vEnd)) return null;
+
+  const diff = vEnd - vStart;
+  const pct = vStart !== 0 ? (diff / vStart) * 100 : 0;
+  return { diff, pct };
+}
+
 /** `YYYY-MM-DD` → `2026年4月2日` */
 export function formatYmdChinese(ymd: string): string {
   const p = parseYmd(ymd);

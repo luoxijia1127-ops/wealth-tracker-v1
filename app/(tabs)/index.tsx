@@ -130,7 +130,7 @@ function AssetPrimaryValue({
     const [intRaw, dec = '00'] = amount.toFixed(2).split('.');
     const intFmt = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     const intSt = hero ? styles.totalValueInt : styles.categoryAmount;
-    const decSt = hero ? styles.totalValueDec : { fontSize: 18, fontWeight: '800' as const, paddingTop: 8, letterSpacing: -0.4 };
+    const decSt = hero ? styles.totalValueDec : { fontSize: 16, fontWeight: '600' as const, paddingTop: 9, letterSpacing: -0.4 };
 
     return (
       <View style={hero ? styles.totalValueSplit : { flexDirection: 'row', alignItems: 'baseline' }}>
