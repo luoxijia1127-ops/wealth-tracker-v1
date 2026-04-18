@@ -20,11 +20,11 @@ export type MagazineBlockSet = {
 export function magazineBlocks(t: AppPaletteTheme): MagazineBlockSet {
   const s = t.swatches;
   return {
-    blockA: rgbaFromHex(s[1] ?? t.categoryAccents.Fund ?? t.primary, 0.35),
-    blockB: rgbaFromHex(s[2] ?? t.categoryAccents.ETF ?? t.primary, 0.25),
-    blockC: rgbaFromHex(s[3] ?? t.categoryAccents.Cash ?? t.primary, 0.2),
-    blockD: rgbaFromHex(s[4] ?? t.categoryAccents.Gold ?? t.primary, 0.3),
-    blockMuted: rgbaFromHex(t.primary, 0.05),
+    blockA: rgbaFromHex(s[1] ?? t.categoryAccents.Fund ?? t.primary, 0.55),
+    blockB: rgbaFromHex(s[2] ?? t.categoryAccents.ETF ?? t.primary, 0.45),
+    blockC: rgbaFromHex(s[3] ?? t.categoryAccents.Cash ?? t.primary, 0.35),
+    blockD: rgbaFromHex(s[4] ?? t.categoryAccents.Gold ?? t.primary, 0.45),
+    blockMuted: rgbaFromHex(t.primary, 0.12),
     ink: t.primary,
     inkSoft: rgbaFromHex(t.primary, 0.68),
     canvas: t.pageBg,

@@ -10,15 +10,15 @@ import { rgbaFromHex } from '@/lib/color-utils';
 export function editorialDecorBlobs(t: AppPaletteTheme): string[] {
   const s = t.swatches;
   return [
-    rgbaFromHex(s[0]!, 0.42),
-    rgbaFromHex(s[1]!, 0.34),
-    rgbaFromHex(s[2]!, 0.28),
+    rgbaFromHex(s[0]!, 0.55),
+    rgbaFromHex(s[1]!, 0.45),
+    rgbaFromHex(s[2]!, 0.35),
   ];
 }
 
 /** 铺在 pageBg 上的极淡主色 wash */
 export function editorialAmbientWash(t: AppPaletteTheme): string {
-  return rgbaFromHex(t.primary, 0.055);
+  return rgbaFromHex(t.primary, 0.12);
 }
 
 /** 表单/列表「无描边」表面：由 surfaceWhite 派生 */

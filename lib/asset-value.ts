@@ -110,18 +110,101 @@ export function getAssetCurrency(a: SimpleAsset): string {
   return 'CNY';
 }
 
+/**
+ * 从首个数字起将连续数字段格式化为每三位英文逗号（保留前方币种、空格等前缀）。
+ */
+function enforceCommaThousandsInFormattedMoneyMain(main: string): string {
+  const firstDigit = main.search(/\d/);
+  if (firstDigit === -1) return main;
+  const prefix = main.slice(0, firstDigit);
+  const rest = main.slice(firstDigit);
+  const digits = rest.replace(/\D/g, '');
+  if (digits.length === 0) return main;
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return prefix + grouped;
+}
+
+/** 对 `formatMoney` / `formatMoneyDisplayParts` 的整串：小数点按末位 `.` 后 1～2 位小数切分，其余并入主段加逗号。 */
+function enforceCommaThousandsInMoneyString(formatted: string): string {
+  const dot = formatted.lastIndexOf('.');
+  if (dot < 0) {
+    return enforceCommaThousandsInFormattedMoneyMain(formatted);
+  }
+  const after = formatted.slice(dot + 1);
+  if (/^\d{1,2}$/.test(after)) {
+    return (
+      enforceCommaThousandsInFormattedMoneyMain(formatted.slice(0, dot)) +
+      formatted.slice(dot)
+    );
+  }
+  return enforceCommaThousandsInFormattedMoneyMain(formatted);
+}
+
 /** 按币种格式化金额（全应用统一用这个，不要再用 en-US USD 的局部 formatCurrency） */
 export function formatMoney(value: number, currency: string): string {
   const code = /^[A-Z]{3}$/.test(currency) ? currency : 'CNY';
   try {
-    return new Intl.NumberFormat('zh-CN', {
+    const s = new Intl.NumberFormat('zh-CN', {
       style: 'currency',
       currency: code,
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(value);
+    return enforceCommaThousandsInMoneyString(s);
   } catch {
-    return `${code} ${value.toFixed(2)}`;
+    return enforceCommaThousandsInMoneyString(`${code} ${value.toFixed(2)}`);
+  }
+}
+
+/** 供大字报式 UI：币种 + 整数一段、小数点及两位一段 */
+export type MoneyDisplayParts = {
+  leading: string;
+  integer: string;
+  fraction: string;
+};
+
+/**
+ * 拆成主数字 + 小数（固定两位），与 {@link formatMoney} 可能省略小数不同。
+ * 用完整 `format()` 再拆分，保证与界面其它金额一致（含千分位逗号等）。
+ */
+export function formatMoneyDisplayParts(
+  value: number,
+  currency: string
+): MoneyDisplayParts {
+  const code = /^[A-Z]{3}$/.test(currency) ? currency : 'CNY';
+  try {
+    const raw = new Intl.NumberFormat('zh-CN', {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+    const s = enforceCommaThousandsInMoneyString(raw);
+    const dot = s.lastIndexOf('.');
+    if (dot >= 0 && dot < s.length - 1) {
+      const fracDigits = s.slice(dot + 1);
+      if (/^\d{2}$/.test(fracDigits)) {
+        return {
+          leading: '',
+          integer: s.slice(0, dot),
+          fraction: s.slice(dot),
+        };
+      }
+    }
+    return { leading: '', integer: s, fraction: '' };
+  } catch {
+    const fixed = Number.isFinite(value) ? value.toFixed(2) : '0.00';
+    const dot = fixed.indexOf('.');
+    const main =
+      dot >= 0
+        ? enforceCommaThousandsInFormattedMoneyMain(`${code} ${fixed.slice(0, dot)}`)
+        : enforceCommaThousandsInFormattedMoneyMain(`${code} ${fixed}`);
+    const frac = dot >= 0 ? fixed.slice(dot) : '';
+    return {
+      leading: '',
+      integer: main,
+      fraction: frac,
+    };
   }
 }
 

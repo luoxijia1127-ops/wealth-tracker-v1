@@ -11,12 +11,11 @@ import { GoalProgressCard } from '@/components/insights/insights-goal-cards';
 import { InsightsTrendChart } from '@/components/insights/insights-trend-tab';
 import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import { useAppPalette } from '@/contexts/app-palette-context';
-import { formatMoney } from '@/lib/asset-value';
+import { formatMoney, formatMoneyDisplayParts } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
-import { editorialDecorBlobs } from '@/lib/editorial-theme';
-import { BALANCE_INK, financeDeltaColor } from '@/lib/finance-colors';
+import { themeFinanceDeltaColor } from '@/lib/finance-colors';
 import {
   getCachedFxUsdRates,
   type FxUsdMidRates,
@@ -74,7 +73,6 @@ export default function Insights() {
   const inkSoft = rgbaFromHex(theme.primary, 0.68);
   const mutedBlock = rgbaFromHex(theme.primary, 0.04);
   const segmentedBarBg = rgbaFromHex(theme.primary, 0.06);
-
   const textSecondary = useMemo(
     () => appearance === 'dark' ? 'rgba(255,255,255,0.74)' : rgbaFromHex(theme.primary, 0.65),
     [appearance, theme.primary]
@@ -87,11 +85,12 @@ export default function Insights() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
-  /** 表头（DAYBREAK + 净值）约占整屏高度 27%（与 insights-styles 大字匹配） */
+  /** 表头区域总高 = 屏高 25%；铺进刘海后色块主体高 = 25% − insets.top */
   const heroPosterHeight = useMemo(() => {
-    const h = Math.round(windowHeight * 0.27);
-    return h > 0 ? h : 196;
-  }, [windowHeight]);
+    const band = Math.round(windowHeight * 0.25);
+    if (band <= 0) return 160;
+    return Math.max(band - insets.top, 1);
+  }, [windowHeight, insets.top]);
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [assets, setAssets] = useState<SimpleAsset[]>([]);
@@ -296,6 +295,28 @@ export default function Insights() {
     };
   }, [assets]);
 
+  const currentNetWorth = latest
+    ? formatMoney(
+        snapshotDisplayTotalInDisplay(
+          latest,
+          displayCurrency,
+          fxRates?.rates ?? null
+        ),
+        displayCurrency
+      )
+    : '—';
+
+  const heroNetWorthParts = useMemo(() => {
+    if (!latest) return null;
+    const n = snapshotDisplayTotalInDisplay(
+      latest,
+      displayCurrency,
+      fxRates?.rates ?? null
+    );
+    if (!Number.isFinite(n)) return null;
+    return formatMoneyDisplayParts(n, displayCurrency);
+  }, [latest, displayCurrency, fxRates]);
+
   if (loading) {
     return (
       <View style={styles.screen}>
@@ -307,8 +328,6 @@ export default function Insights() {
     );
   }
 
-  const currentNetWorth = latest ? formatMoney(snapshotDisplayTotalInDisplay(latest, displayCurrency, fxRates?.rates ?? null), displayCurrency) : '—';
-  
   // Dynamic poster elements based on active tab
   let posterValue = '';
   let posterPct = '';
@@ -333,25 +352,82 @@ export default function Insights() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: insets.bottom + 32 }
+          {
+            paddingBottom: insets.bottom + 32,
+          },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefreshInsights} tintColor={theme.primary} />
         }
       >
-        {/* Editorial Masthead */}
-        <View style={[styles.heroPoster, { height: heroPosterHeight }]}>
+        {/* Editorial Masthead：背景铺满至状态栏/刘海，文案用 paddingTop 避让 */}
+        <View style={[styles.heroPoster, { height: heroPosterHeight + insets.top }]}>
           <View style={[styles.supportBlock, { backgroundColor: supportBlockColor }]} />
-          <View style={[styles.mastheadBlock, { backgroundColor: mastheadBlockColor }]}>
-            <Text style={styles.mastheadTitle}>DAYBREAK</Text>
+          <View
+            style={[
+              styles.mastheadBlock,
+              {
+                backgroundColor: mastheadBlockColor,
+                /** 单行全宽大标题占位（约一行 display + 与副标题间距） */
+                paddingTop: insets.top + 70,
+              },
+            ]}
+          >
             <Text style={styles.mastheadSub}>INSIGHTS & ANALYSIS</Text>
-
-            <View style={styles.heroNetWorthRow}>
-              <Text style={styles.heroMetricLabel}>TOTAL VALUE</Text>
-              <Text style={styles.heroMetricValue}>{currentNetWorth}</Text>
+          </View>
+          <Text
+            style={[
+              styles.mastheadTitle,
+              styles.mastheadTitleOverBlocks,
+              { top: insets.top + 8 },
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.35}
+          >
+            DAYBREAK
+          </Text>
+          <View style={styles.heroNetWorthFooter}>
+            <Text style={styles.heroMetricLabel}>TOTAL VALUE</Text>
+            <View style={styles.heroNetWorthValueWrap}>
+              {heroNetWorthParts ? (
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.48}
+                  style={{ textAlign: 'right', width: '100%' }}
+                >
+                  <Text style={styles.heroMetricValue}>
+                    {heroNetWorthParts.leading}
+                    {heroNetWorthParts.integer}
+                  </Text>
+                  <Text style={styles.heroMetricFraction}>
+                    {heroNetWorthParts.fraction}
+                  </Text>
+                </Text>
+              ) : (
+                <Text
+                  numberOfLines={1}
+                  style={[styles.heroMetricValue, { textAlign: 'right', width: '100%' }]}
+                >
+                  —
+                </Text>
+              )}
             </View>
           </View>
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 8,
+              backgroundColor: mutedBlock,
+              zIndex: 3,
+            }}
+          />
         </View>
 
         {/* Segmented Tabs */}
@@ -490,19 +566,112 @@ export default function Insights() {
           )}
         </View>
 
-        {chartTab !== 'returns' && (
+        {chartTab === 'trend' && (
+          <View style={{ marginHorizontal: 16, marginTop: 8, paddingBottom: 16 }}>
+            {topGainer || topLoser ? (
+              <View style={styles.summaryRow}>
+                <View
+                  style={[
+                    styles.summaryWinnerBlock,
+                    {
+                      backgroundColor: rgbaFromHex(theme.statusPositive, 0.14),
+                    },
+                  ]}
+                >
+                  <Text style={[styles.summaryLabel, { color: inkSoft }]}>
+                    盈利最多
+                  </Text>
+                  {topGainer ? (
+                    <View style={styles.summaryValueRow}>
+                      <Text
+                        style={[styles.summaryName, { color: inkColor, flex: 1, marginRight: 8 }]}
+                        numberOfLines={2}
+                      >
+                        {topGainer.name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.summaryPct,
+                          {
+                            color: themeFinanceDeltaColor(
+                              topGainer.cumulativeReturn,
+                              theme.statusPositive,
+                              theme.statusNegative,
+                              inkSoft
+                            ),
+                          },
+                        ]}
+                      >
+                        {topGainer.cumulativeReturn >= 0 ? '+' : ''}
+                        {(topGainer.cumulativeReturn * 100).toFixed(2)}%
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={[styles.summaryName, { color: inkSoft }]}>—</Text>
+                  )}
+                </View>
+                <View
+                  style={[
+                    styles.summaryLoserBlock,
+                    {
+                      backgroundColor: rgbaFromHex(theme.statusNegative, 0.14),
+                    },
+                  ]}
+                >
+                  <Text style={[styles.summaryLabel, { color: inkSoft }]}>
+                    亏损最多
+                  </Text>
+                  {topLoser ? (
+                    <View style={styles.summaryValueRow}>
+                      <Text
+                        style={[styles.summaryName, { color: inkColor, flex: 1, marginRight: 8 }]}
+                        numberOfLines={2}
+                      >
+                        {topLoser.name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.summaryPct,
+                          {
+                            color: themeFinanceDeltaColor(
+                              topLoser.cumulativeReturn,
+                              theme.statusPositive,
+                              theme.statusNegative,
+                              inkSoft
+                            ),
+                          },
+                        ]}
+                      >
+                        {topLoser.cumulativeReturn >= 0 ? '+' : ''}
+                        {(topLoser.cumulativeReturn * 100).toFixed(2)}%
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={[styles.summaryName, { color: inkSoft }]}>—</Text>
+                  )}
+                </View>
+              </View>
+            ) : hasAssets ? (
+              <Text style={{ fontSize: 13, fontWeight: '600', color: inkSoft }}>
+                暂无有效累计回报数据（需有买入与持仓）
+              </Text>
+            ) : null}
+          </View>
+        )}
+
+        {chartTab !== 'returns' && chartTab !== 'trend' && (
           <View style={{ marginHorizontal: 16, marginTop: 8, gap: 0, paddingBottom: 16 }}>
-             {goalRows.map((row) => (
-                <GoalProgressCard
-                  key={row.id}
-                  row={row}
-                  styles={styles}
-                  textSecondary={textSecondary}
-                  textMuted={textMuted}
-                  primary={inkColor}
-                  ringTrackColor={rgbaFromHex(inkColor, 0.08)}
-                />
-             ))}
+            {goalRows.map((row) => (
+              <GoalProgressCard
+                key={row.id}
+                row={row}
+                styles={styles}
+                textSecondary={textSecondary}
+                textMuted={textMuted}
+                primary={inkColor}
+                ringTrackColor={rgbaFromHex(inkColor, 0.08)}
+              />
+            ))}
           </View>
         )}
 

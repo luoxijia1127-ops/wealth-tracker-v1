@@ -27,14 +27,6 @@ export function createInsightsStyles(
       flex: 1,
       backgroundColor: t.pageBg,
     },
-    decorWrap: {
-      ...StyleSheet.absoluteFillObject,
-      overflow: 'hidden',
-    },
-    decorBlob: {
-      position: 'absolute',
-      borderRadius: 999,
-    },
     dashboardAmbient: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: editorialAmbientWash(t),
@@ -54,16 +46,18 @@ export function createInsightsStyles(
       position: 'relative',
       width: '100%',
       backgroundColor: 'transparent',
+      overflow: 'visible',
     },
     mastheadBlock: {
       position: 'absolute',
       top: 0,
       left: 0,
-      width: '100%',
+      /** 与右侧 supportBlock（32%）拼成整宽；主标题 DAYBREAK 另用全宽叠层跨色块 */
+      width: '68%',
       height: '100%',
       paddingHorizontal: 28,
-      /** 下移主标题与副标题（DAYBREAK / INSIGHTS & ANALYSIS） */
-      paddingTop: 86,
+      /** 为全宽单行大标题预留首行高度（与 insights.tsx 中 insets + 标题区对齐） */
+      paddingTop: 72,
       zIndex: 2,
     },
     supportBlock: {
@@ -76,11 +70,19 @@ export function createInsightsStyles(
     },
     mastheadTitle: {
       fontFamily: AppFont.displayBold,
-      fontSize: 60,
-      lineHeight: 60,
-      letterSpacing: -1.75,
+      fontSize: 56,
+      lineHeight: 90,
+      letterSpacing: -1.5,
       textTransform: 'uppercase',
       color: p,
+    },
+    /** 叠在左右色块之上，全宽单行（top 由页面传入 insets） */
+    mastheadTitleOverBlocks: {
+      position: 'absolute',
+      left: 24,
+      right: 14,
+      zIndex: 4,
+      textAlign: 'left',
     },
     mastheadSub: {
       fontFamily: AppFont.medium,
@@ -90,14 +92,24 @@ export function createInsightsStyles(
       color: p,
       marginTop: 6,
     },
-    heroNetWorthRow: {
+    /** 表头最底部全宽：左标签、右金额（跨左右色块） */
+    heroNetWorthFooter: {
       position: 'absolute',
-      bottom: 20,
-      left: 28,
-      right: 28,
+      left: 6,
+      right: 0,
+      bottom: 12,
+      paddingHorizontal: 22,
       flexDirection: 'row',
       alignItems: 'baseline',
       justifyContent: 'space-between',
+      zIndex: 5,
+    },
+    heroNetWorthValueWrap: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'baseline',
     },
     heroMetricLabel: {
       fontFamily: AppFont.medium,
@@ -105,12 +117,23 @@ export function createInsightsStyles(
       letterSpacing: 1.65,
       textTransform: 'uppercase',
       color: p,
+      flexShrink: 0,
+      marginRight: 10,
     },
     heroMetricValue: {
       fontFamily: AppFont.displayBold,
       fontSize: 38,
       fontWeight: '800',
       letterSpacing: -0.9,
+      color: p,
+      textAlign: 'right',
+    },
+    /** 与 heroMetricValue 同字重，略小，用于小数点及两位小数 */
+    heroMetricFraction: {
+      fontFamily: AppFont.displayBold,
+      fontSize: 26,
+      fontWeight: '800',
+      letterSpacing: -0.65,
       color: p,
     },
 
@@ -201,24 +224,29 @@ export function createInsightsStyles(
       textAlign: 'right',
     },
 
-    /** Summary Blocks (Winner/Loser) */
+    /** Summary Blocks（资产变动 · 盈利最多 / 亏损最多） */
     summaryRow: {
       flexDirection: 'row',
-      marginHorizontal: 16,
-      marginTop: 16,
+      marginHorizontal: 0,
+      marginTop: 0,
       minHeight: 72,
+      gap: 10,
     },
     summaryWinnerBlock: {
       flex: 1,
-      paddingHorizontal: 16,
+      minWidth: 0,
+      paddingHorizontal: 14,
       paddingVertical: 12,
       justifyContent: 'center',
+      borderRadius: 16,
     },
     summaryLoserBlock: {
       flex: 1,
-      paddingHorizontal: 16,
+      minWidth: 0,
+      paddingHorizontal: 14,
       paddingVertical: 12,
       justifyContent: 'center',
+      borderRadius: 16,
     },
     summaryLabel: {
       fontFamily: AppFont.medium,
