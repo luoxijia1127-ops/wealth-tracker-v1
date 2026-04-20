@@ -8,6 +8,7 @@
 import { FormRow } from '@/components/add-asset/form-row';
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { GlassSurface } from '@/components/glass-surface';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { TradingDateCalendarModal } from '@/components/trading-date-calendar-modal';
 import {
   formatYmdChineseLine,
@@ -998,41 +999,44 @@ export default function AssetActionScreen() {
     }
   };
 
-  /** 无表头时仅保留安全区顶距，不再叠加额外 padding */
-  const scrollPadTop = insets.top;
   const keyboardOffset = Platform.OS === 'ios' ? insets.top : 0;
 
   if (!id) {
     return (
-      <View style={[styles.keyboardRoot, { paddingTop: scrollPadTop, paddingHorizontal: 24 }]}>
-        <Text style={styles.headerName}>缺少资产 ID</Text>
+      <View style={styles.keyboardRoot}>
+        <SettingsHubBackTopBar />
+        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+          <Text style={styles.headerName}>缺少资产 ID</Text>
+        </View>
       </View>
     );
   }
 
   if (loading) {
     return (
-      <View
-        style={[
-          styles.keyboardRoot,
-          { paddingTop: scrollPadTop + 24, alignItems: 'center' },
-        ]}
-      >
-        <ActivityIndicator color={theme.primary} />
+      <View style={styles.keyboardRoot}>
+        <SettingsHubBackTopBar />
+        <View
+          style={{
+            flex: 1,
+            paddingTop: 24,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ActivityIndicator color={theme.primary} />
+        </View>
       </View>
     );
   }
 
   if (!asset) {
     return (
-      <View style={[styles.keyboardRoot, { paddingTop: scrollPadTop, paddingHorizontal: 24 }]}>
-        <Text style={styles.headerName}>未找到该资产</Text>
-        <Pressable
-          style={[styles.saveButton, { marginTop: 20 }]}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.saveButtonText}>返回</Text>
-        </Pressable>
+      <View style={styles.keyboardRoot}>
+        <SettingsHubBackTopBar />
+        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+          <Text style={styles.headerName}>未找到该资产</Text>
+        </View>
       </View>
     );
   }
@@ -1057,10 +1061,11 @@ export default function AssetActionScreen() {
       keyboardVerticalOffset={keyboardOffset}
     >
       <View style={styles.modalAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{
-          paddingTop: scrollPadTop,
+          paddingTop: 8,
           paddingBottom: insets.bottom + 32,
           paddingHorizontal: 14,
         }}
@@ -2229,12 +2234,6 @@ export default function AssetActionScreen() {
           </GlassSurface>
         )}
 
-        <Pressable
-          style={[styles.saveButton, { marginTop: 22, backgroundColor: muted }]}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.saveButtonText}>关闭</Text>
-        </Pressable>
       </ScrollView>
 
       <Modal

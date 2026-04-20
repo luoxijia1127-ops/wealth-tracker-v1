@@ -11,8 +11,7 @@ import {
   saveDisplayCurrency,
 } from '@/lib/display-currency-preference';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -35,7 +34,6 @@ const LIST_ROW = {
 
 export default function SettingsDisplayCurrencyScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { theme } = useAppPalette();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const [code, setCode] = useState<string>('CNY');
@@ -66,22 +64,7 @@ export default function SettingsDisplayCurrencyScreen() {
     <View style={styles.screen}>
       <View style={styles.screenAmbient} pointerEvents="none" />
 
-      <View
-        style={{
-          paddingTop: insets.top,
-          paddingHorizontal: 16,
-          paddingBottom: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          style={{ width: 44, height: 44, justifyContent: 'center' }}
-        >
-          <Ionicons name="arrow-back" size={28} color={theme.primary} />
-        </Pressable>
-      </View>
+      <SettingsHubBackTopBar />
 
       <ScrollView
         style={{ flex: 1 }}

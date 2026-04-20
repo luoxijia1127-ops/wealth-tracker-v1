@@ -5,9 +5,9 @@ import { useAppPalette } from '@/contexts/app-palette-context';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Alert, ScrollView, Share, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { SettingsGridTile } from '@/components/settings-grid-tile';
 
 export default function SettingsSupportHubScreen() {
@@ -38,11 +38,7 @@ export default function SettingsSupportHubScreen() {
     <View style={styles.screen}>
       <View style={styles.screenAmbient} pointerEvents="none" />
       
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16, paddingBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
-        <Pressable onPress={() => router.back()} style={{ width: 44, height: 44, justifyContent: 'center' }}>
-          <Ionicons name="arrow-back" size={28} color={theme.primary} />
-        </Pressable>
-      </View>
+      <SettingsHubBackTopBar />
 
       <ScrollView
         style={{ flex: 1 }}

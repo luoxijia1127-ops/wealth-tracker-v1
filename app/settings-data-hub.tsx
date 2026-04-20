@@ -5,9 +5,9 @@ import { useAppPalette } from '@/contexts/app-palette-context';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { SettingsGridTile } from '@/components/settings-grid-tile';
 
 export default function SettingsDataHubScreen() {
@@ -22,6 +22,12 @@ export default function SettingsDataHubScreen() {
       label: '导出数据',
       icon: 'save-alt' as const,
       onPress: () => router.push('/settings-export'),
+    },
+    {
+      id: 'import',
+      label: '导入备份',
+      icon: 'file-upload' as const,
+      onPress: () => router.push('/settings-import'),
     },
     {
       id: 'archived',
@@ -41,11 +47,7 @@ export default function SettingsDataHubScreen() {
     <View style={styles.screen}>
       <View style={styles.screenAmbient} pointerEvents="none" />
       
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16, paddingBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
-        <Pressable onPress={() => router.back()} style={{ width: 44, height: 44, justifyContent: 'center' }}>
-          <Ionicons name="arrow-back" size={28} color={theme.primary} />
-        </Pressable>
-      </View>
+      <SettingsHubBackTopBar />
 
       <ScrollView
         style={{ flex: 1 }}

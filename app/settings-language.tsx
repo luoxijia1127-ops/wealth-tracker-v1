@@ -6,10 +6,10 @@ import { useAppPalette } from '@/contexts/app-palette-context';
 import { AppFont } from '@/lib/app-fonts';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LIST_ROW = {
@@ -23,7 +23,6 @@ const LIST_ROW = {
 
 export default function SettingsLanguageScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { theme } = useAppPalette();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const p = theme.primary;
@@ -33,22 +32,7 @@ export default function SettingsLanguageScreen() {
     <View style={styles.screen}>
       <View style={styles.screenAmbient} pointerEvents="none" />
 
-      <View
-        style={{
-          paddingTop: insets.top,
-          paddingHorizontal: 16,
-          paddingBottom: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          style={{ width: 44, height: 44, justifyContent: 'center' }}
-        >
-          <Ionicons name="arrow-back" size={28} color={theme.primary} />
-        </Pressable>
-      </View>
+      <SettingsHubBackTopBar />
 
       <ScrollView
         style={{ flex: 1 }}

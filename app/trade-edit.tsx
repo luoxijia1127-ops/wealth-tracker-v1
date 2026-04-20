@@ -24,6 +24,7 @@ import {
 } from '@/lib/trade-ledger';
 import type { SimpleAsset, TradeLedgerEntry } from '@/types/asset';
 import { getListedUnitPrice } from '@/types/asset';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useFocusEffect } from '@react-navigation/native';
 import { useGlobalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
@@ -363,27 +364,40 @@ export default function TradeEditScreen() {
 
   if (!assetId || !tradeId) {
     return (
-      <View style={[styles.keyboardRoot, { padding: 24 }]}>
-        <Text style={styles.headerName}>参数无效</Text>
+      <View style={styles.keyboardRoot}>
+        <SettingsHubBackTopBar />
+        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+          <Text style={styles.headerName}>参数无效</Text>
+        </View>
       </View>
     );
   }
 
   if (loading) {
     return (
-      <View style={[styles.keyboardRoot, { paddingTop: 80, alignItems: 'center' }]}>
-        <ActivityIndicator color={theme.primary} />
+      <View style={styles.keyboardRoot}>
+        <SettingsHubBackTopBar />
+        <View
+          style={{
+            flex: 1,
+            paddingTop: 24,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ActivityIndicator color={theme.primary} />
+        </View>
       </View>
     );
   }
 
   if (!asset || !trade) {
     return (
-      <View style={[styles.keyboardRoot, { padding: 24 }]}>
-        <Text style={styles.headerName}>未找到该流水</Text>
-        <Pressable style={[styles.saveButton, { marginTop: 20 }]} onPress={() => router.back()}>
-          <Text style={styles.saveButtonText}>返回</Text>
-        </Pressable>
+      <View style={styles.keyboardRoot}>
+        <SettingsHubBackTopBar />
+        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+          <Text style={styles.headerName}>未找到该流水</Text>
+        </View>
       </View>
     );
   }

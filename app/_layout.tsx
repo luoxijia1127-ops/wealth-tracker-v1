@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { FontRoot } from '@/components/font-root';
+import { SettingsHubBackButton } from '@/components/settings-hub-back-navigation';
 import { AppPaletteProvider } from '@/contexts/app-palette-context';
 import { PurchasesProvider } from '@/contexts/purchases-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -36,6 +37,8 @@ export default function RootLayout() {
         <Stack
           screenOptions={{
             headerShown: false,
+            headerBackTitleVisible: false,
+            headerLeft: () => <SettingsHubBackButton />,
             headerTitleStyle: {
               fontFamily: AppFont.bold,
               fontSize: 17,
@@ -47,14 +50,12 @@ export default function RootLayout() {
             name="(tabs)"
             options={{
               headerShown: false,
-              headerBackTitle: '返回',
             }}
           />
           <Stack.Screen
             name="modal"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               presentation: 'modal',
               title: '添加资产',
               gestureEnabled: true,
@@ -73,7 +74,6 @@ export default function RootLayout() {
             name="trade-edit"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               presentation: 'modal',
               gestureEnabled: true,
               headerShadowVisible: false,
@@ -83,7 +83,6 @@ export default function RootLayout() {
             name="cash-ledger-edit"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               presentation: 'modal',
               gestureEnabled: true,
               headerShadowVisible: false,
@@ -93,7 +92,6 @@ export default function RootLayout() {
             name="settings-palette"
             options={{
               headerShown: false,
-              headerBackTitle: '返回',
               title: '应用配色',
               headerShadowVisible: false,
             }}
@@ -102,7 +100,6 @@ export default function RootLayout() {
             name="settings-attribution"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '净值变动归因',
               headerShadowVisible: false,
             }}
@@ -111,7 +108,6 @@ export default function RootLayout() {
             name="settings-fx"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '汇率信息',
               headerShadowVisible: false,
             }}
@@ -120,8 +116,15 @@ export default function RootLayout() {
             name="settings-export"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '数据与导出',
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="settings-import"
+            options={{
+              headerShown: true,
+              title: '导入备份',
               headerShadowVisible: false,
             }}
           />
@@ -129,7 +132,6 @@ export default function RootLayout() {
             name="settings-help"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '帮助与反馈',
               headerShadowVisible: false,
             }}
@@ -138,7 +140,6 @@ export default function RootLayout() {
             name="settings-about"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '关于应用',
               headerShadowVisible: false,
             }}
@@ -147,7 +148,6 @@ export default function RootLayout() {
             name="settings-privacy"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '隐私政策',
               headerShadowVisible: false,
             }}
@@ -156,7 +156,6 @@ export default function RootLayout() {
             name="settings-terms"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '用户协议',
               headerShadowVisible: false,
             }}
@@ -165,7 +164,6 @@ export default function RootLayout() {
             name="settings-display-currency"
             options={{
               headerShown: false,
-              headerBackTitle: '返回',
               title: '默认货币',
               headerShadowVisible: false,
             }}
@@ -174,7 +172,6 @@ export default function RootLayout() {
             name="settings-language"
             options={{
               headerShown: false,
-              headerBackTitle: '返回',
               title: '语言设置',
               headerShadowVisible: false,
             }}
@@ -183,7 +180,6 @@ export default function RootLayout() {
             name="settings-cashflow-colors"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '应用配色',
               headerShadowVisible: false,
             }}
@@ -192,7 +188,6 @@ export default function RootLayout() {
             name="settings-archived"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '已归档',
               headerShadowVisible: false,
             }}
@@ -201,7 +196,6 @@ export default function RootLayout() {
             name="settings-trash"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '最近删除',
               headerShadowVisible: false,
             }}
@@ -210,7 +204,6 @@ export default function RootLayout() {
             name="market"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '市场',
               headerShadowVisible: false,
             }}
@@ -219,7 +212,6 @@ export default function RootLayout() {
             name="paywall"
             options={{
               headerShown: true,
-              headerBackTitle: '返回',
               title: '订阅',
               headerShadowVisible: false,
             }}

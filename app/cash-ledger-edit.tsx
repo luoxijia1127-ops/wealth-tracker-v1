@@ -2,6 +2,7 @@
  * 编辑或删除单条现金/余额流水（增加、减少，无单价）。
  */
 
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
 import {
@@ -274,27 +275,40 @@ export default function CashLedgerEditScreen() {
 
   if (!assetId || !entryId) {
     return (
-      <View style={[styles.keyboardRoot, { padding: 24 }]}>
-        <Text style={styles.headerName}>参数无效</Text>
+      <View style={styles.keyboardRoot}>
+        <SettingsHubBackTopBar />
+        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+          <Text style={styles.headerName}>参数无效</Text>
+        </View>
       </View>
     );
   }
 
   if (loading) {
     return (
-      <View style={[styles.keyboardRoot, { paddingTop: 80, alignItems: 'center' }]}>
-        <ActivityIndicator color={theme.primary} />
+      <View style={styles.keyboardRoot}>
+        <SettingsHubBackTopBar />
+        <View
+          style={{
+            flex: 1,
+            paddingTop: 24,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ActivityIndicator color={theme.primary} />
+        </View>
       </View>
     );
   }
 
   if (!asset || !entry) {
     return (
-      <View style={[styles.keyboardRoot, { padding: 24 }]}>
-        <Text style={styles.headerName}>未找到该流水</Text>
-        <Pressable style={[styles.saveButton, { marginTop: 20 }]} onPress={() => router.back()}>
-          <Text style={styles.saveButtonText}>返回</Text>
-        </Pressable>
+      <View style={styles.keyboardRoot}>
+        <SettingsHubBackTopBar />
+        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+          <Text style={styles.headerName}>未找到该流水</Text>
+        </View>
       </View>
     );
   }
