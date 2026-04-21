@@ -3,6 +3,7 @@
  * @see https://frankfurter.dev — `/{start}..{end}?from=USD&to=...`
  */
 
+import { FRANKFURTER_TO_CURRENCIES } from '@/lib/asset-currency';
 import { ENDPOINTS } from '@/lib/config/endpoints';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import type { FxUsdMidRates } from '@/lib/fx-rates';
@@ -12,15 +13,13 @@ import {
   upsertFxUsdRatesHistory,
 } from '@/lib/fx-rates-history';
 
-/** 与走势图所需一致（美元由 1/r 推导，不必向 API 要 USD 字段） */
-const TRIO = ['CNY', 'EUR', 'HKD'] as const;
-
 let inFlight: Promise<{
   ok: boolean;
   merged: number;
   skipped: boolean;
 }> | null = null;
 
+/** 旧数据兼容：至少 CNY/EUR/HKD 有效才视为可参与走势的交易日 */
 function hasCoreRates(r: FxUsdMidRates['rates']): boolean {
   return (
     typeof r.CNY === 'number' &&
@@ -30,6 +29,15 @@ function hasCoreRates(r: FxUsdMidRates['rates']): boolean {
     typeof r.HKD === 'number' &&
     r.HKD > 0
   );
+}
+
+/** 与当前 Frankfurter `to` 列表一致；用于判断「近一月」是否已回填完整，避免旧版仅三币种时误判为已充分 */
+function hasFullFrankfurterRow(r: FxUsdMidRates['rates']): boolean {
+  if (!hasCoreRates(r)) return false;
+  return FRANKFURTER_TO_CURRENCIES.every((code) => {
+    const v = r[code as keyof typeof r];
+    return typeof v === 'number' && (v as number) > 0;
+  });
 }
 
 /**
@@ -59,13 +67,13 @@ export async function ensureFxUsdRatesHistoryBackfill(options?: {
     const inWindow = history.filter(
       (h) => h.shanghaiDate >= windowStart && h.shanghaiDate <= today
     );
-    const complete = inWindow.filter((h) => hasCoreRates(h.rates));
+    const complete = inWindow.filter((h) => hasFullFrankfurterRow(h.rates));
     if (complete.length >= minExisting) {
       return { ok: true, merged: 0, skipped: true };
     }
 
     const base = ENDPOINTS.frankfurterFxOrigin.replace(/\/$/, '');
-    const url = `${base}/${windowStart}..${today}?from=USD&to=${TRIO.join(',')}`;
+    const url = `${base}/${windowStart}..${today}?from=USD&to=${FRANKFURTER_TO_CURRENCIES.join(',')}`;
 
     try {
       const res = await fetch(url, {
@@ -85,28 +93,18 @@ export async function ensureFxUsdRatesHistoryBackfill(options?: {
       let merged = 0;
       for (const [dateStr, day] of Object.entries(byDate)) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
-        const cny = day.CNY;
-        const eur = day.EUR;
-        const hkd = day.HKD;
-        if (
-          typeof cny !== 'number' ||
-          !(cny > 0) ||
-          typeof eur !== 'number' ||
-          !(eur > 0) ||
-          typeof hkd !== 'number' ||
-          !(hkd > 0)
-        ) {
-          continue;
-        }
+        if (!day || typeof day !== 'object') continue;
+        const dr = day as Record<string, number>;
+        const rates = {
+          ...dr,
+          USD: 1,
+        } as unknown as FxUsdMidRates['rates'];
+        if (!hasCoreRates(rates)) continue;
 
         const entry: FxUsdMidRates = {
           shanghaiDate: dateStr,
           apiDate: dateStr,
-          rates: {
-            ...day,
-            CNY: cny,
-            USD: 1,
-          } as FxUsdMidRates['rates'],
+          rates,
         };
         await upsertFxUsdRatesHistory(entry);
         merged++;

@@ -9,6 +9,7 @@ import {
 } from '@/lib/asset-value';
 import {
   convertDisplayValueToCurrency,
+  hasUsdAnchoredFxTable,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import {
@@ -35,7 +36,8 @@ export function snapshotDisplayTotalInDisplay(
       : null;
   const dc = /^[A-Z]{3}$/.test(displayCurrency) ? displayCurrency : 'CNY';
   if (cny === null) return snapshotDisplayTotal(s);
-  if (!usdRates || !(usdRates.CNY > 0) || dc === 'CNY') return cny;
+  if (!usdRates || !hasUsdAnchoredFxTable(usdRates) || dc === 'CNY')
+    return cny;
   const v = convertDisplayValueToCurrency(cny, 'CNY', dc, usdRates);
   return Number.isFinite(v) ? v : cny;
 }
@@ -317,7 +319,7 @@ export function toTrendChartModel(
     let valueCny = snapshotDisplayTotal(s);
     if (
       usdRates &&
-      usdRates.CNY > 0 &&
+      hasUsdAnchoredFxTable(usdRates) &&
       displayCurrency !== 'CNY' &&
       typeof s.totalValueCny === 'number' &&
       Number.isFinite(s.totalValueCny)
@@ -396,14 +398,15 @@ export function getDailyChangeInDisplay(
   const base = getDailyChange(snapshots);
   if (!base) return null;
   const dc = /^[A-Z]{3}$/.test(displayCurrency) ? displayCurrency : 'CNY';
-  if (dc === 'CNY' || !usdRates || !(usdRates.CNY > 0)) return base;
+  if (dc === 'CNY' || !usdRates || !hasUsdAnchoredFxTable(usdRates))
+    return base;
   const k = convertDisplayValueToCurrency(1, 'CNY', dc, usdRates);
   if (!Number.isFinite(k)) return base;
   return { diff: base.diff * k, pct: base.pct };
 }
 
 /**
- * 各大类市值合计。传入有效 `usdRates`（含 CNY>0）时按 Frankfurter/USD 串联折到 `displayCurrency`，否则为各币种展示值直接相加（不推荐）。
+ * 各大类市值合计。传入有效 `usdRates`（经 USD 串联表可用）时折到 `displayCurrency`，否则为各币种展示值直接相加（不推荐）。
  */
 export function aggregateByCategory(
   assets: SimpleAsset[],
@@ -418,7 +421,7 @@ export function aggregateByCategory(
     Gold: 0,
     Custom: 0,
   };
-  const useFx = usdRates != null && usdRates.CNY > 0;
+  const useFx = hasUsdAnchoredFxTable(usdRates);
   const target = /^[A-Z]{3}$/.test(displayCurrency) ? displayCurrency : 'CNY';
   for (const a of assets) {
     const c = a.category;

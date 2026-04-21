@@ -12,6 +12,7 @@ import {
 } from '@/lib/display-currency-preference';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,

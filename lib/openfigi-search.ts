@@ -1,18 +1,24 @@
 /**
- * OpenFIGI v3 搜索（无密钥，有频控）：联想美股 / 港股代码，映射为 Stooq 符号。
+ * OpenFIGI v3 搜索（无密钥，有频控）：联想美股 / 港股 / 英欧等，映射为 Stooq 符号。
  */
 
 import { ENDPOINTS } from '@/lib/config/endpoints';
-import type { ChinaExchange } from '@/types/asset';
+import {
+  OPENFIGI_US_EXCH_CODES,
+  buildIntlStooqSymbol,
+  openfigiExchCodeToVenueAndSuffix,
+  type IntlListingExchange,
+} from '@/lib/intl-exchange-stooq';
+import type { ChinaExchange, ListingExchange } from '@/types/asset';
 
 export type IntlSuggestRow = {
   code: string;
   name: string;
-  exchange: 'US' | 'HK';
+  exchange: IntlListingExchange;
   intlQuoteSymbol: string;
+  figi?: string;
+  isin?: string;
 };
-
-const US_EXCH = new Set(['US', 'UN', 'UW', 'UQ', 'UP', 'UF', 'UA']);
 
 /** OpenFIGI 对纯中文公司名常无结果，用英文关键词再搜一次 */
 const FIGI_FALLBACK_QUERY: Record<string, string> = {
@@ -50,10 +56,46 @@ type FigiRow = {
   securityType?: string;
   securityType2?: string;
   marketSector?: string;
+  figi?: string;
+  securityID?: string | null;
 };
 
+function parseIsinFromFigiRow(row: FigiRow): string | undefined {
+  const sid =
+    typeof row.securityID === 'string' ? row.securityID.trim().toUpperCase() : '';
+  if (/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(sid)) return sid;
+  return undefined;
+}
+
+function isValidFigiEquityTicker(tk: string): boolean {
+  if (!tk || tk.includes(' ') || tk.includes('=') || tk.length > 20) return false;
+  if (/\bIndex\b/i.test(tk)) return false;
+  return /^[A-Za-z0-9][A-Za-z0-9.\-]*$/.test(tk);
+}
+
+function passesFigiEquitySecurity(row: FigiRow, tk: string): boolean {
+  const st = String(row.securityType ?? '');
+  const st2 = String(row.securityType2 ?? '');
+  const sector = String(row.marketSector ?? '');
+  if (
+    st === 'Common Stock' ||
+    st === 'ETF' ||
+    st === 'REIT' ||
+    st.includes('Receipt') ||
+    st.includes('ADR') ||
+    st === 'Mutual Fund'
+  ) {
+    return isValidFigiEquityTicker(tk);
+  }
+  if (sector === 'Equity' && isValidFigiEquityTicker(tk)) {
+    return true;
+  }
+  if (st2 === 'ETF' && isValidFigiEquityTicker(tk)) return true;
+  return false;
+}
+
 /** OpenFIGI v3/search 不接受 maxResults 等字段，否则会返回 error、无 data */
-function figiRowKind(row: FigiRow): 'US' | 'HK' | null {
+function figiRowIntlVenue(row: FigiRow): IntlListingExchange | null {
   const ex = typeof row.exchCode === 'string' ? row.exchCode : '';
   const st = String(row.securityType ?? '');
   const st2 = String(row.securityType2 ?? '');
@@ -70,37 +112,23 @@ function figiRowKind(row: FigiRow): 'US' | 'HK' | null {
     return null;
   }
 
+  const tk = String(row.ticker ?? '').trim();
+  if (!isValidFigiEquityTicker(tk)) return null;
+
   if (ex === 'HK') {
     if (st.includes('Index')) return null;
     return 'HK';
   }
 
-  if (!US_EXCH.has(ex)) return null;
-
-  const tk = String(row.ticker ?? '').trim();
-  if (
-    tk.includes('=') ||
-    /\bIndex\b/i.test(tk) ||
-    tk.includes(' ') ||
-    tk.length > 12
-  ) {
-    return null;
-  }
-
-  if (
-    st === 'Common Stock' ||
-    st === 'ETF' ||
-    st === 'REIT' ||
-    st.includes('Receipt') ||
-    st.includes('ADR') ||
-    st === 'Mutual Fund'
-  ) {
+  if (OPENFIGI_US_EXCH_CODES.has(ex)) {
+    if (!passesFigiEquitySecurity(row, tk)) return null;
     return 'US';
   }
-  if (sector === 'Equity' && /^[A-Za-z][A-Za-z0-9.\-]*$/.test(tk)) {
-    return 'US';
-  }
-  return null;
+
+  const eu = openfigiExchCodeToVenueAndSuffix(ex);
+  if (!eu) return null;
+  if (!passesFigiEquitySecurity(row, tk)) return null;
+  return eu.venue;
 }
 
 function figiRowScore(row: FigiRow, qRaw: string, qNorm: string): number {
@@ -170,22 +198,22 @@ export async function searchOpenFigiIntl(
     const qNorm = q.replace(/\s+/g, '').toUpperCase();
     const qDigits = q.replace(/\D/g, '');
 
-    const candidates: { row: FigiRow; kind: 'US' | 'HK'; score: number }[] =
+    const candidates: { row: FigiRow; venue: IntlListingExchange; score: number }[] =
       [];
     for (const row of rows) {
       const ticker = typeof row.ticker === 'string' ? row.ticker.trim() : '';
       const name = typeof row.name === 'string' ? row.name.trim() : '';
       if (!ticker || !name) continue;
 
-      const kind = figiRowKind(row);
-      if (!kind) continue;
+      const venue = figiRowIntlVenue(row);
+      if (!venue) continue;
 
       let score = figiRowScore(row, q, qNorm);
-      if (kind === 'HK' && qDigits.length >= 3) {
+      if (venue === 'HK' && qDigits.length >= 3) {
         const d = ticker.replace(/\D/g, '');
         if (d.includes(qDigits) || qDigits.includes(d)) score += 25;
       }
-      candidates.push({ row, kind, score });
+      candidates.push({ row, venue, score });
     }
 
     candidates.sort((a, b) => b.score - a.score);
@@ -193,10 +221,17 @@ export async function searchOpenFigiIntl(
     const seen = new Set<string>();
     const out: IntlSuggestRow[] = [];
 
-    for (const { row, kind } of candidates) {
+    for (const { row, venue } of candidates) {
       const ticker = row.ticker!.trim();
       const name = row.name!.trim();
-      if (kind === 'HK') {
+      const figiRaw = typeof row.figi === 'string' ? row.figi.trim().toUpperCase() : '';
+      const figi =
+        figiRaw.length >= 8 && figiRaw.length <= 14 && /^[A-Z0-9]+$/.test(figiRaw)
+          ? figiRaw
+          : undefined;
+      const isin = parseIsinFromFigiRow(row);
+
+      if (venue === 'HK') {
         const stooq = hkTickerToStooq(ticker);
         if (seen.has(stooq)) continue;
         seen.add(stooq);
@@ -207,8 +242,10 @@ export async function searchOpenFigiIntl(
           name,
           exchange: 'HK',
           intlQuoteSymbol: stooq,
+          ...(figi ? { figi } : {}),
+          ...(isin ? { isin } : {}),
         });
-      } else {
+      } else if (venue === 'US') {
         const stooq = usTickerToStooq(ticker);
         if (seen.has(stooq)) continue;
         seen.add(stooq);
@@ -217,6 +254,23 @@ export async function searchOpenFigiIntl(
           name,
           exchange: 'US',
           intlQuoteSymbol: stooq,
+          ...(figi ? { figi } : {}),
+          ...(isin ? { isin } : {}),
+        });
+      } else {
+        const ex = typeof row.exchCode === 'string' ? row.exchCode : '';
+        const mapped = openfigiExchCodeToVenueAndSuffix(ex);
+        if (!mapped) continue;
+        const stooq = buildIntlStooqSymbol(ticker, mapped.stooqSuffix);
+        if (seen.has(stooq)) continue;
+        seen.add(stooq);
+        out.push({
+          code: ticker,
+          name,
+          exchange: mapped.venue,
+          intlQuoteSymbol: stooq,
+          ...(figi ? { figi } : {}),
+          ...(isin ? { isin } : {}),
         });
       }
       if (out.length >= 14) break;
@@ -231,7 +285,9 @@ export async function searchOpenFigiIntl(
 export type UnifiedSuggestItem = {
   code: string;
   name: string;
-  exchange: ChinaExchange | 'US' | 'HK' | 'SGE';
+  exchange: ListingExchange;
   quoteId?: string;
   intlQuoteSymbol?: string;
+  figi?: string;
+  isin?: string;
 };

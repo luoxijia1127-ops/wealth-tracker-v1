@@ -5,6 +5,10 @@
 
 import { EASTMONEY_SUGGEST_TOKEN } from '@/lib/eastmoney-config';
 import { exchangeFromQuoteId } from '@/lib/eastmoney-secid';
+import {
+  INTL_EXCHANGE_LABEL_ZH,
+  isIntlListingExchange,
+} from '@/lib/intl-exchange-stooq';
 import type { ChinaExchange, ListingExchange } from '@/types/asset';
 
 import { ENDPOINTS } from '@/lib/config/endpoints';
@@ -178,14 +182,16 @@ export async function searchSgeSecuritiesMerged(
   return merged;
 }
 
-/** 展示：交易所前缀 + 代码；场外 / 美股 / 港股 / 上金现货 */
+/** 展示：交易所前缀 + 代码；场外 / 国际 / 上金现货 */
 export function formatExchangeSymbol(
   exchange: ListingExchange,
   code: string
 ): string {
   if (exchange === 'OTC') return `场外·${code}`;
-  if (exchange === 'US') return `US·${code}`;
-  if (exchange === 'HK') return `HK·${code}`;
+  if (isIntlListingExchange(exchange)) {
+    const label = INTL_EXCHANGE_LABEL_ZH[exchange];
+    return `${label}·${code}`;
+  }
   if (exchange === 'SGE') return `上金·${code}`;
   return `${exchange}${code}`;
 }

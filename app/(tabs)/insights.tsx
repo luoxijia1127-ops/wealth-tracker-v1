@@ -18,6 +18,7 @@ import { loadDisplayCurrency } from '@/lib/display-currency-preference';
 import { themeFinanceDeltaColor } from '@/lib/finance-colors';
 import {
   getCachedFxUsdRates,
+  hasUsdAnchoredFxTable,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import {
@@ -213,7 +214,8 @@ export default function Insights() {
     () => buildDonutSlices(assets, theme.categoryAccents, fxRates?.rates ?? null, displayCurrency),
     [assets, theme.categoryAccents, fxRates, displayCurrency]
   );
-  const distributionUsesFx = fxRates != null && fxRates.rates.CNY > 0;
+  const distributionUsesFx =
+    fxRates != null && hasUsdAnchoredFxTable(fxRates.rates);
   const donutTotal = donutSlices.reduce((s, x) => s + x.value, 0);
   const goalRows = useMemo(
     () => buildAggregatedGoalRows(assets, theme.goalRingColors, theme.primary),

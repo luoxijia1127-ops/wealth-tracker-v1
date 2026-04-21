@@ -3,6 +3,10 @@
  */
 
 import {
+  defaultCurrencyForIntlListingExchange,
+  isIntlListingExchange,
+} from '@/lib/intl-exchange-stooq';
+import {
   getListedUnitPrice,
   isHeldMergeCategory,
   type SimpleAsset,
@@ -42,7 +46,7 @@ function listedQualityScore(a: SimpleAsset): number {
   if (em.length > 0 && /^\d+\.\d+$/.test(em)) s += 8;
   const ex = a.exchange;
   if (ex === 'SH' || ex === 'SZ' || ex === 'BJ' || ex === 'OTC') s += 4;
-  if (ex === 'US' || ex === 'HK') s += 4;
+  if (typeof ex === 'string' && isIntlListingExchange(ex)) s += 4;
   if (getListedUnitPrice(a) !== null) s += 2;
   if (typeof a.shares === 'number' && a.shares > 0) s += 1;
   return s;
@@ -142,13 +146,12 @@ function mergeQuoteFields(base: SimpleAsset, group: SimpleAsset[]): SimpleAsset 
   const unit = getListedUnitPrice(next);
   const sh = next.shares ?? 0;
   if (unit !== null && sh > 0) {
+    const baseEx = base.exchange;
     const cur =
-      base.exchange === 'US' || base.exchange === 'HK'
+      typeof baseEx === 'string' && isIntlListingExchange(baseEx)
         ? typeof base.currency === 'string' && /^[A-Z]{3}$/.test(base.currency)
           ? base.currency
-          : base.exchange === 'HK'
-            ? 'HKD'
-            : 'USD'
+          : defaultCurrencyForIntlListingExchange(baseEx)
         : 'CNY';
     return { ...next, value: sh * unit, currency: cur };
   }

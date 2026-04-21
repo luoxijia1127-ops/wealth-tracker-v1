@@ -1,5 +1,5 @@
 /**
- * 统一联想：东财（A 股 / 场外基金）+ OpenFIGI（美股 / 港股）+ Stooq 代码探测（如 AAPL）。
+ * 统一联想：东财（A 股 / 场外基金）+ OpenFIGI（美股 / 港股 / 英欧等）+ Stooq 代码探测（如 AAPL）。
  */
 
 import { searchSecurities } from '@/lib/eastmoney-suggest';
@@ -127,6 +127,8 @@ export async function searchUnifiedInstruments(
       name: r.name,
       exchange: r.exchange,
       intlQuoteSymbol: r.intlQuoteSymbol,
+      ...(r.figi ? { figi: r.figi } : {}),
+      ...(r.isin ? { isin: r.isin } : {}),
     });
   }
   return out;

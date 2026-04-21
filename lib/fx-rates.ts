@@ -49,6 +49,23 @@ export function convertDisplayValueToCny(
  * 任意 ISO 币种 → 目标币种（经 USD 串联，与 Frankfurter `rates` 语义一致）。
  * 缺少有效汇率时返回 NaN。
  */
+/**
+ * 汇率缓存是否含至少一种「1 USD = X 外币」报价，可用于经 USD 串联折算。
+ * （勿再用仅 `CNY>0` 判断，否则默认展示货币为 GBP 等时会把合法缓存判为无效。）
+ */
+export function hasUsdAnchoredFxTable(
+  usdRates: FxUsdMidRates['rates'] | null | undefined
+): boolean {
+  if (!usdRates || typeof usdRates !== 'object') return false;
+  return Object.entries(usdRates).some(
+    ([k, v]) =>
+      /^[A-Z]{3}$/.test(k) &&
+      k !== 'USD' &&
+      typeof v === 'number' &&
+      v > 0
+  );
+}
+
 export function convertDisplayValueToCurrency(
   amount: number,
   fromCurrency: string,
@@ -59,18 +76,17 @@ export function convertDisplayValueToCurrency(
   const from = /^[A-Z]{3}$/.test(fromCurrency) ? fromCurrency : 'CNY';
   const to = /^[A-Z]{3}$/.test(toCurrency) ? toCurrency : 'CNY';
   if (from === to) return amount;
-  if (!(usdRates.CNY > 0)) return NaN;
   let usd: number;
   if (from === 'USD') {
     usd = amount;
   } else {
     const rFrom = usdRates[from];
-    if (!(rFrom > 0)) return NaN;
+    if (!(typeof rFrom === 'number' && rFrom > 0)) return NaN;
     usd = amount / rFrom;
   }
   if (to === 'USD') return usd;
   const rTo = usdRates[to];
-  if (!(rTo > 0)) return NaN;
+  if (!(typeof rTo === 'number' && rTo > 0)) return NaN;
   return usd * rTo;
 }
 

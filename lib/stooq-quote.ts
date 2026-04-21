@@ -1,9 +1,10 @@
 /**
- * Stooq 延迟行情（CSV，无密钥）：美股 `aapl.us`、港股 `700.hk` 等。
+ * Stooq 延迟行情（CSV，无密钥）：美股 `aapl.us`、港股 `700.hk`、英欧 `vod.l` 等。
  * 大陆网络通常可访问；与 OpenFIGI 联想配合使用。
  */
 
 import { buildStooqCsvUrl } from '@/lib/config/endpoints';
+import { isValidIntlStooqQuoteSymbol } from '@/lib/intl-exchange-stooq';
 
 const STOOQ_UA =
   'Mozilla/5.0 (compatible; Nest/1.0; +https://stooq.com)';
@@ -29,7 +30,7 @@ export async function fetchStooqQuote(
   signal?: AbortSignal
 ): Promise<StooqQuoteRow | null> {
   const sym = intlQuoteSymbol.trim().toLowerCase();
-  if (!/^[a-z0-9.\-]+\.(us|hk)$/.test(sym)) return null;
+  if (!isValidIntlStooqQuoteSymbol(sym)) return null;
 
   const url = buildStooqCsvUrl(sym);
   try {
@@ -87,7 +88,7 @@ export async function fetchStooqCloseOnOrBefore(
   signal?: AbortSignal
 ): Promise<StooqQuoteRow | null> {
   const sym = intlQuoteSymbol.trim().toLowerCase();
-  if (!/^[a-z0-9.\-]+\.(us|hk)$/.test(sym)) return null;
+  if (!isValidIntlStooqQuoteSymbol(sym)) return null;
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`;
   try {
     const res = await fetch(url, { signal });

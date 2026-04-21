@@ -1,16 +1,27 @@
 /**
  * 全应用唯一的资产数据形状定义（勿再使用已删除的 lib/asset-types.ts）。
  * - 扁平六大类：股票 / 基金 / ETF / 类现金 / 贵金属 / 自定义（数字货币、期货等）
- * - 场内：symbol、exchange、shares；价格分 markPrice（盘中现价）与 lastClose（日 K 结算）
+ * - 场内：symbol、exchange、shares；国际持仓另有 intlQuoteSymbol（Stooq）与可选 figi/isin；价格分 markPrice（盘中现价）与 lastClose（日 K 结算）
  * - 可选 purpose / purposeTarget
  * - 可选 account（所在账户）、avgCost（场内成本单价）、costBasis（类现金等本金）
  */
 
+import {
+  defaultCurrencyForIntlListingExchange,
+  isIntlListingExchange,
+  isValidIntlStooqQuoteSymbol,
+  INTL_LISTING_EXCHANGES,
+  type IntlListingExchange,
+} from '@/lib/intl-exchange-stooq';
+
 /** 交易所：沪 / 深 / 北；OTC 为场外开放式基金（东财 secid 前缀 2） */
 export type ChinaExchange = 'SH' | 'SZ' | 'BJ' | 'OTC';
 
-/** A 股/场外 + 美股 / 港股（国际行情用 Stooq 代码，见 intlQuoteSymbol）；SGE 为上海黄金现货（东财 secid 118，仅贵金属可选用） */
-export type ListingExchange = ChinaExchange | 'US' | 'HK' | 'SGE';
+export type { IntlListingExchange };
+export { INTL_LISTING_EXCHANGES, isIntlListingExchange };
+
+/** A 股/场外 + 国际场（OpenFIGI+Stooq）+ 上金现货（SGE） */
+export type ListingExchange = ChinaExchange | IntlListingExchange | 'SGE';
 
 /** 资产大类（存储与逻辑的唯一分类来源，不再单独存 type 字段） */
 export const ASSET_CATEGORY_ORDER = [
@@ -158,10 +169,14 @@ export type SimpleAsset = {
   /** 东财 push2/K 线用 secid（联想 QuoteID，如 1.600519、150.012922；贵金属现货可为 118.AU9999）；有则优先于 exchange+symbol 推导 */
   emSecid?: string;
   /**
-   * 国际收盘价来源：Stooq 符号，如 `aapl.us`、`700.hk`（与东财体系互斥）。
+   * 国际收盘价来源：Stooq 符号，如 `aapl.us`、`700.hk`、`vod.l`（与东财体系互斥）。
    * 由 OpenFIGI 联想映射得到。
    */
   intlQuoteSymbol?: string;
+  /** OpenFIGI 返回的 FIGI（可选，便于换行情源时映射） */
+  figi?: string;
+  /** ISIN ISO 6166（可选） */
+  isin?: string;
   /**
    * 贵金属现货品种（仅 category=Gold）。
    * 若同时有 emSecid（上金现货合约），行情以 push2 该 secid 为准；否则按品种走参考价逻辑。
@@ -358,16 +373,19 @@ export function ensureAsset(raw: unknown): SimpleAsset {
   const symbolRaw = typeof o.symbol === 'string' ? o.symbol.trim() : '';
   const symbol = symbolRaw.length > 0 ? symbolRaw : undefined;
   let exchange: ListingExchange | undefined;
-  if (
-    o.exchange === 'SH' ||
-    o.exchange === 'SZ' ||
-    o.exchange === 'BJ' ||
-    o.exchange === 'OTC' ||
-    o.exchange === 'US' ||
-    o.exchange === 'HK' ||
-    o.exchange === 'SGE'
-  ) {
-    exchange = o.exchange;
+  if (typeof o.exchange === 'string') {
+    const ex = o.exchange;
+    if (isIntlListingExchange(ex)) {
+      exchange = ex;
+    } else if (
+      ex === 'SH' ||
+      ex === 'SZ' ||
+      ex === 'BJ' ||
+      ex === 'OTC' ||
+      ex === 'SGE'
+    ) {
+      exchange = ex;
+    }
   }
   const emSecidRaw = typeof o.emSecid === 'string' ? o.emSecid.trim() : '';
   const emSecid =
@@ -376,9 +394,17 @@ export function ensureAsset(raw: unknown): SimpleAsset {
       : undefined;
   const intlRaw = typeof o.intlQuoteSymbol === 'string' ? o.intlQuoteSymbol.trim() : '';
   const intlQuoteSymbol =
-    intlRaw.length > 0 && /^[a-z0-9.\-]+\.(us|hk)$/i.test(intlRaw)
+    intlRaw.length > 0 && isValidIntlStooqQuoteSymbol(intlRaw)
       ? intlRaw.toLowerCase()
       : undefined;
+  const figiRaw = typeof o.figi === 'string' ? o.figi.trim().toUpperCase() : '';
+  const figi =
+    figiRaw.length >= 8 && figiRaw.length <= 14 && /^[A-Z0-9]+$/.test(figiRaw)
+      ? figiRaw
+      : undefined;
+  const isinRaw = typeof o.isin === 'string' ? o.isin.trim().toUpperCase() : '';
+  const isin =
+    /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isinRaw) ? isinRaw : undefined;
   const pmRaw =
     typeof o.preciousMetalSpot === 'string'
       ? o.preciousMetalSpot.trim().toUpperCase()
@@ -470,6 +496,8 @@ export function ensureAsset(raw: unknown): SimpleAsset {
   if (markPriceDate) asset.markPriceDate = markPriceDate;
   if (emSecid) asset.emSecid = emSecid;
   if (intlQuoteSymbol) asset.intlQuoteSymbol = intlQuoteSymbol;
+  if (figi) asset.figi = figi;
+  if (isin) asset.isin = isin;
   if (preciousMetalSpot) asset.preciousMetalSpot = preciousMetalSpot;
   if (currency && /^[A-Z]{3}$/.test(currency)) {
     asset.currency = currency;
@@ -503,7 +531,8 @@ export function ensureAsset(raw: unknown): SimpleAsset {
     isListedAssetCategory(asset.category) &&
     sharesHeld !== null &&
     typeof asset.intlQuoteSymbol === 'string' &&
-    (asset.exchange === 'US' || asset.exchange === 'HK') &&
+    typeof asset.exchange === 'string' &&
+    isIntlListingExchange(asset.exchange) &&
     typeof asset.symbol === 'string' &&
     asset.symbol.trim().length > 0;
 
@@ -521,9 +550,11 @@ export function ensureAsset(raw: unknown): SimpleAsset {
   }
 
   if (typeof asset.currency !== 'string' || !/^[A-Z]{3}$/.test(asset.currency)) {
-    if (asset.exchange === 'US') asset.currency = 'USD';
-    else if (asset.exchange === 'HK') asset.currency = 'HKD';
-    else asset.currency = 'CNY';
+    if (asset.exchange && isIntlListingExchange(asset.exchange)) {
+      asset.currency = defaultCurrencyForIntlListingExchange(asset.exchange);
+    } else {
+      asset.currency = 'CNY';
+    }
   }
 
   return asset;

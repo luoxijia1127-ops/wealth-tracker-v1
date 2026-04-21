@@ -9,6 +9,7 @@ import {
 } from '@/lib/asset-value';
 import {
   convertDisplayValueToCurrency,
+  hasUsdAnchoredFxTable,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import {
@@ -118,7 +119,7 @@ export function DistributionBreakdown({
   usdRates?: FxUsdMidRates['rates'] | null;
   displayCurrency?: string;
 }) {
-  const useFx = usdRates != null && usdRates.CNY > 0;
+  const useFx = hasUsdAnchoredFxTable(usdRates);
   const target = /^[A-Z]{3}$/.test(displayCurrency) ? displayCurrency : 'CNY';
 
   const items = useMemo(() => {

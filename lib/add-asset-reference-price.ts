@@ -10,6 +10,7 @@ import {
 } from '@/lib/eastmoney-kline';
 import { fetchPush2LastPrice } from '@/lib/eastmoney-push';
 import type { UnifiedSuggestItem } from '@/lib/instrument-search';
+import { isIntlListingExchange } from '@/lib/intl-exchange-stooq';
 import { fetchStooqCloseOnOrBefore, fetchStooqQuote } from '@/lib/stooq-quote';
 import type { SimpleAsset } from '@/types/asset';
 
@@ -29,7 +30,8 @@ export function listedAssetToReferencePricePick(
       : '';
   if (
     intlRaw.length > 0 &&
-    (asset.exchange === 'US' || asset.exchange === 'HK')
+    typeof asset.exchange === 'string' &&
+    isIntlListingExchange(asset.exchange)
   ) {
     const code =
       typeof asset.symbol === 'string' && asset.symbol.trim().length > 0

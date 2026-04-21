@@ -5,6 +5,10 @@
 
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
+  isIntlListingExchange,
+  isValidIntlStooqQuoteSymbol,
+} from '@/lib/intl-exchange-stooq';
+import {
   generateAssetId,
   type AssetCategory,
   type PreciousMetalSpot,
@@ -26,7 +30,7 @@ export type ListedFormInput = {
   purposeTarget: string;
   isEditMode: boolean;
   hasInstrumentPick: boolean;
-  /** 有值表示美股/港股（Stooq），与东财六位代码互斥 */
+  /** 有值表示国际 Stooq 报价键，与东财六位代码互斥 */
   intlQuoteSymbol?: string;
 };
 
@@ -39,7 +43,7 @@ export type CashLikeFormInput = {
 };
 
 /**
- * 校验「场内」表单：东财 A 股/基金六位代码，或 OpenFIGI+Stooq 美股/港股。
+ * 校验「场内」表单：东财 A 股/基金六位代码，或 OpenFIGI+Stooq 国际上市标的。
  */
 export function validateListedForm(input: ListedFormInput): FormValidationError {
   if (!input.name.trim()) return '请填写或确认标的名称。';
@@ -54,10 +58,13 @@ export function validateListedForm(input: ListedFormInput): FormValidationError 
   }
 
   if (intl) {
-    if (input.exchange !== 'US' && input.exchange !== 'HK') {
-      return '请选择美股或港股联想结果。';
+    if (
+      typeof input.exchange !== 'string' ||
+      !isIntlListingExchange(input.exchange)
+    ) {
+      return '请从联想列表选择国际上市标的（含交易所与代码）。';
     }
-    if (!/^[a-z0-9.\-]+\.(us|hk)$/i.test(intlRaw)) {
+    if (!isValidIntlStooqQuoteSymbol(intlRaw)) {
       return '国际行情代码无效。';
     }
   } else if (!/^\d{6}$/.test(input.symbol.trim())) {
@@ -125,8 +132,10 @@ export type BuildListedParams = {
   listingCurrency: string;
   /** 来自联想的东财 secid；与 intlQuoteSymbol 互斥 */
   emSecid?: string;
-  /** Stooq 符号如 aapl.us、700.hk */
+  /** Stooq 符号如 aapl.us、700.hk、vod.l */
   intlQuoteSymbol?: string;
+  figi?: string;
+  isin?: string;
   fundingSourceAssetId?: string;
   fundingSourceAssetName?: string;
   fundingTransferId?: string;
@@ -181,6 +190,14 @@ export function buildListedAsset(p: BuildListedParams): SimpleAsset {
   if (accountRaw.length > 0) asset.account = accountRaw;
   if (intl) {
     asset.intlQuoteSymbol = intl;
+    const fig = typeof p.figi === 'string' ? p.figi.trim().toUpperCase() : '';
+    if (fig.length >= 8 && fig.length <= 14 && /^[A-Z0-9]+$/.test(fig)) {
+      asset.figi = fig;
+    }
+    const isn = typeof p.isin === 'string' ? p.isin.trim().toUpperCase() : '';
+    if (/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isn)) {
+      asset.isin = isn;
+    }
   } else if (p.emSecid && /^\d+\.\d+$/.test(p.emSecid.trim())) {
     asset.emSecid = p.emSecid.trim();
   }

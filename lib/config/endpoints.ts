@@ -2,6 +2,8 @@
  * 外部 HTTP 端点集中配置。可通过 EXPO_PUBLIC_* 环境变量覆盖默认地址（构建时注入）。
  */
 
+import { DEFAULT_FRANKFURTER_LATEST_URL } from '@/lib/asset-currency';
+
 function envUrl(envKey: string, fallback: string): string {
   try {
     const v = process.env[envKey];
@@ -18,10 +20,7 @@ export const ENDPOINTS = {
     'EXPO_PUBLIC_FX_ORIGIN',
     'https://api.frankfurter.app'
   ),
-  frankfurterFx: envUrl(
-    'EXPO_PUBLIC_FX_URL',
-    'https://api.frankfurter.app/latest?from=USD&to=CNY,EUR,HKD'
-  ),
+  frankfurterFx: envUrl('EXPO_PUBLIC_FX_URL', DEFAULT_FRANKFURTER_LATEST_URL),
   eastmoneyPush: envUrl(
     'EXPO_PUBLIC_EASTMONEY_PUSH_URL',
     'https://push2.eastmoney.com/api/qt/stock/get'

@@ -8,8 +8,13 @@ import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
   convertDisplayValueToCny,
   convertDisplayValueToCurrency,
+  hasUsdAnchoredFxTable,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
+import {
+  defaultCurrencyForIntlListingExchange,
+  isIntlListingExchange,
+} from '@/lib/intl-exchange-stooq';
 import {
   getListedUnitPrice,
   isListedAssetCategory,
@@ -32,13 +37,17 @@ export function isListedChineseAsset(a: SimpleAsset): boolean {
   return heldLikeShape(a);
 }
 
-/** 美股 / 港股等：Stooq + OpenFIGI，与 A 股东财互斥 */
+/** 国际上市：Stooq + OpenFIGI，与 A 股东财互斥 */
 export function isInternationalListedAsset(a: SimpleAsset): boolean {
   if (!isListedAssetCategory(a.category)) return false;
   if (typeof a.shares !== 'number' || a.shares <= 0) return false;
   const iq =
     typeof a.intlQuoteSymbol === 'string' && a.intlQuoteSymbol.trim().length > 0;
-  return iq && (a.exchange === 'US' || a.exchange === 'HK');
+  return (
+    iq &&
+    typeof a.exchange === 'string' &&
+    isIntlListingExchange(a.exchange)
+  );
 }
 
 /**
@@ -101,7 +110,11 @@ export function getAssetCurrency(a: SimpleAsset): string {
   if (isInternationalListedAsset(a)) {
     const c = a.currency;
     if (typeof c === 'string' && /^[A-Z]{3}$/.test(c)) return c;
-    return a.exchange === 'HK' ? 'HKD' : 'USD';
+    const ex = a.exchange;
+    if (typeof ex === 'string' && isIntlListingExchange(ex)) {
+      return defaultCurrencyForIntlListingExchange(ex);
+    }
+    return 'USD';
   }
   if (isGoldChineseAsset(a)) return 'CNY';
   if (typeof a.currency === 'string' && /^[A-Z]{3}$/.test(a.currency)) {
@@ -262,7 +275,7 @@ export function sumDisplayValuesInCurrency(
   const allInTarget =
     assets.length === 0 ||
     assets.every((a) => getAssetCurrency(a) === target);
-  if (!usdRates || !(usdRates.CNY > 0)) {
+  if (!usdRates || !hasUsdAnchoredFxTable(usdRates)) {
     return allInTarget ? sumDisplayValuesNaive(assets) : null;
   }
   let sum = 0;

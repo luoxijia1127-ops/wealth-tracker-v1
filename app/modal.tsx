@@ -2,7 +2,7 @@
  * 新增资产（Modal）
  *
  * 编辑已有资产、加减仓、改流水请在 Dashboard 点进资产详情页完成，不再使用本弹窗。
- * 股票/基金/ETF：同一套表单，支持 A 股（东财）与美股/港股（OpenFIGI 联想）；收盘价仅由 Dashboard 同步写入。
+ * 股票/基金/ETF：同一套表单，支持 A 股（东财）与国际上市（OpenFIGI+Stooq）；收盘价仅由 Dashboard 同步写入。
  */
 
 import { FormRow } from '@/components/add-asset/form-row';
@@ -37,6 +37,10 @@ import {
     searchSgeSecuritiesMerged,
 } from '@/lib/eastmoney-suggest';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
+import {
+  defaultCurrencyForIntlListingExchange,
+  isIntlListingExchange,
+} from '@/lib/intl-exchange-stooq';
 import {
     searchUnifiedInstruments,
     type UnifiedSuggestItem,
@@ -153,7 +157,7 @@ export default function AddModal() {
   const isListedCategory = isListedAssetCategory(category);
   const showGoldForm = category === 'Gold';
   const showListedSecuritiesForm = isListedCategory;
-  /** 用途目标与 A 股/贵金属同为人民币展示；美股/港股标的与报价币种一致 */
+  /** 用途目标与 A 股/贵金属同为人民币展示；国际上市标的与报价币种一致 */
   const purposeYuan =
     showGoldForm ||
     (showListedSecuritiesForm && !instrumentPick?.intlQuoteSymbol);
@@ -404,8 +408,8 @@ export default function AddModal() {
     setSymbol(item.code);
     setExchange(item.exchange);
     setName(item.name);
-    if (item.intlQuoteSymbol) {
-      setAssetCurrency(item.exchange === 'HK' ? 'HKD' : 'USD');
+    if (item.intlQuoteSymbol && isIntlListingExchange(item.exchange)) {
+      setAssetCurrency(defaultCurrencyForIntlListingExchange(item.exchange));
     } else {
       setAssetCurrency('CNY');
     }
@@ -525,6 +529,8 @@ export default function AddModal() {
             ? undefined
             : instrumentPick?.quoteId,
           intlQuoteSymbol: instrumentPick?.intlQuoteSymbol,
+          figi: instrumentPick?.figi,
+          isin: instrumentPick?.isin,
           account: accountTrim || undefined,
           fundingSourceAssetId: src?.id,
           fundingSourceAssetName: src?.name,

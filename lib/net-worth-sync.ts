@@ -12,6 +12,7 @@ import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
   ensureFxUsdRatesForToday,
   ensureFxUsdRatesHistoryBackfill,
+  hasUsdAnchoredFxTable,
   type FxEnsureSource,
 } from '@/lib/fx-rates';
 import { refreshListedQuotes } from '@/lib/quote-refresh';
@@ -43,7 +44,12 @@ export async function syncNetWorthFromMarket(): Promise<SyncNetWorthResult> {
   const needsFx = assetsNeedFxConversion(assets);
   const { rates: fx, source } = await ensureFxUsdRatesForToday();
   await ensureFxUsdRatesHistoryBackfill();
-  const hasFx = fx != null && fx.rates.CNY > 0;
+  /** 折人民币快照须 CNY 报价；串联表完整性与多币种展示口径一致 */
+  const hasFx =
+    fx != null &&
+    typeof fx.rates.CNY === 'number' &&
+    fx.rates.CNY > 0 &&
+    hasUsdAnchoredFxTable(fx.rates);
   const cnyFromFx = hasFx ? sumDisplayValuesInCny(assets, fx!.rates) : null;
   const totalValueCny =
     cnyFromFx !== null ? cnyFromFx : needsFx ? null : totalNaive;

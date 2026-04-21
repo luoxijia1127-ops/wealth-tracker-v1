@@ -1,8 +1,12 @@
 /**
- * 行情刷新：A 股东财 push2 + 日 K；场外基金 F10；美股/港股 Stooq；贵金属参考价（按品种）。
+ * 行情刷新：A 股东财 push2 + 日 K；场外基金 F10；国际上市 Stooq；贵金属参考价（按品种）。
  */
 
 import { isInternationalListedAsset } from '@/lib/asset-value';
+import {
+  defaultCurrencyForIntlListingExchange,
+  isIntlListingExchange,
+} from '@/lib/intl-exchange-stooq';
 import { ensureFxUsdRatesForToday } from '@/lib/fx-rates';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { fetchDailySettlementClose } from '@/lib/eastmoney-kline';
@@ -53,10 +57,11 @@ function isIntlQuoteEligibleListedAsset(a: SimpleAsset): boolean {
 }
 
 function listingCurrencyForMerge(a: SimpleAsset): string {
-  if (a.exchange === 'US' || a.exchange === 'HK') {
+  const ex = a.exchange;
+  if (typeof ex === 'string' && isIntlListingExchange(ex)) {
     const c = a.currency;
     if (typeof c === 'string' && /^[A-Z]{3}$/.test(c)) return c;
-    return a.exchange === 'HK' ? 'HKD' : 'USD';
+    return defaultCurrencyForIntlListingExchange(ex);
   }
   return 'CNY';
 }

@@ -8,6 +8,7 @@ import {
 } from '@/components/fx-multi-trend-chart';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import type { AppPaletteTheme } from '@/lib/app-palette';
+import { ASSET_CURRENCY_OPTIONS } from '@/lib/asset-currency';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
@@ -15,7 +16,7 @@ import {
   basePerOneTarget,
   effectiveChartBase,
   FX_CODE_LABEL_ZH,
-  pickThreeChartTargets,
+  pickFourFxChartTargets,
 } from '@/lib/fx-cross-rate';
 import {
   ensureFxUsdRatesHistoryBackfill,
@@ -36,10 +37,21 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function trioLineColors(t: AppPaletteTheme): [string, string, string] {
+/** 走势线颜色（主五币场景下最多 5 条） */
+function chartLineColors(t: AppPaletteTheme, count: number): string[] {
   const g = t.goalRingColors;
-  if (g.length >= 3) return [g[0]!, g[1]!, g[2]!];
-  return [t.chartLine, t.swatches[1]!, t.swatches[3]!];
+  const fb = [
+    t.chartLine,
+    t.swatches[1]!,
+    t.swatches[3]!,
+    t.swatches[2] ?? t.swatches[0]!,
+  ];
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    if (g.length > i) out.push(g[i]!);
+    else out.push(fb[i % fb.length]!);
+  }
+  return out;
 }
 
 function formatTableValue(n: number, target: string): string {
@@ -113,19 +125,12 @@ export default function SettingsFxScreen() {
       ? 'rgba(255,255,255,0.45)'
       : rgbaFromHex(theme.primary, 0.42);
 
-  const lineColors = useMemo(() => trioLineColors(theme), [theme]);
-
   const chartBase = useMemo(
     () => effectiveChartBase(displayCurrency),
     [displayCurrency]
   );
 
-  const chartTargets = useMemo(
-    () => pickThreeChartTargets(chartBase),
-    [chartBase]
-  );
-
-  const { chartDates, multiSeries, trioPointCount } = useMemo(() => {
+  const { chartDates, multiSeries, trioPointCount, chartTargets } = useMemo(() => {
     const today = getShanghaiDateString();
     const windowStart = addCalendarDaysYmd(today, -30);
     const rows = fxHistory
@@ -135,7 +140,8 @@ export default function SettingsFxScreen() {
       )
       .sort((a, b) => a.shanghaiDate.localeCompare(b.shanghaiDate));
 
-    const codes = chartTargets;
+    const codes = pickFourFxChartTargets(chartBase, rows);
+    const colorList = chartLineColors(theme, Math.max(codes.length, 5));
     const okRows = rows.filter((h) =>
       codes.every((c) => {
         const v = basePerOneTarget(h.rates, chartBase, c);
@@ -148,6 +154,7 @@ export default function SettingsFxScreen() {
         chartDates: [] as string[],
         multiSeries: [] as FxMultiSeries[],
         trioPointCount: okRows.length,
+        chartTargets: codes,
       };
     }
 
@@ -158,7 +165,7 @@ export default function SettingsFxScreen() {
       );
       return {
         code,
-        color: lineColors[i]!,
+        color: colorList[i]!,
         values: raw,
       };
     });
@@ -167,8 +174,9 @@ export default function SettingsFxScreen() {
       chartDates: dates,
       multiSeries: series,
       trioPointCount: okRows.length,
+      chartTargets: codes,
     };
-  }, [fxHistory, lineColors, chartBase, chartTargets]);
+  }, [fxHistory, theme, chartBase]);
 
   useEffect(() => {
     if (multiSeries.length === 0) return;
@@ -178,14 +186,6 @@ export default function SettingsFxScreen() {
         : multiSeries[0]!.code
     );
   }, [multiSeries]);
-
-  const chartSeriesForView = useMemo(() => {
-    if (multiSeries.length === 0) return [];
-    const code = selectedChartCode;
-    const one =
-      code != null ? multiSeries.find((s) => s.code === code) : undefined;
-    return one ? [one] : [multiSeries[0]!];
-  }, [multiSeries, selectedChartCode]);
 
   /** ScrollView 左右各 20 + 走势图卡片左右各 16 */
   const chartW = Math.max(200, windowW - 40 - 32);
@@ -249,29 +249,31 @@ export default function SettingsFxScreen() {
             <Text style={{ fontSize: 12, color: muted, marginBottom: 8 }}>
               基准：{FX_CODE_LABEL_ZH[chartBase] ?? chartBase}（{chartBase}）
               {chartBase !== displayCurrency.trim().toUpperCase()
-                ? ` · 默认货币为 ${displayCurrency}，历史仅含主要币种对时走势按人民币基准`
+                ? ` · 设置中的默认展示货币为 ${displayCurrency}`
                 : ''}
+              。人民币、美元、欧元、港币、英镑为同一套「主五币」：默认币属于其中时画其余 4
+              种相对基准；默认币为主五币以外（如瑞郎、日元等）时画主五币相对基准。数据不足时自动少线。
             </Text>
             {multiSeries.length > 0 ? (
               <View
                 style={{
                   flexDirection: 'row',
-                  flexWrap: 'wrap',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: 8,
-                  paddingBottom: 6,
                   width: '100%',
+                  gap: 6,
+                  paddingBottom: 6,
+                  alignItems: 'stretch',
                 }}
               >
-                  {multiSeries.map((s, i) => {
+                  {multiSeries.map((s) => {
                     const selected = s.code === selectedChartCode;
                     return (
                       <Pressable
                         key={s.code}
                         onPress={() => setSelectedChartCode(s.code)}
                         style={{
-                          paddingHorizontal: 11,
+                          flex: 1,
+                          minWidth: 0,
+                          paddingHorizontal: 6,
                           paddingVertical: 5,
                           borderRadius: 12,
                           borderWidth: 2,
@@ -299,7 +301,7 @@ export default function SettingsFxScreen() {
                               width: 8,
                               height: 8,
                               borderRadius: 4,
-                              backgroundColor: lineColors[i],
+                              backgroundColor: s.color,
                             }}
                           />
                           <Text
@@ -333,9 +335,9 @@ export default function SettingsFxScreen() {
             ) : multiSeries.length === 0 || chartDates.length < 2 ? (
               <Text style={{ fontSize: 14, color: muted }}>
                 近一月内有效数据点不足（至少 2
-                个交易日，且需能计算基准对
+                个交易日，且需能同时计算基准对
                 {chartTargets.join('、')}
-                ）。请联网同步或稍后再试。
+                的比价）。请联网同步或稍后再试。
                 {trioPointCount > 0 && trioPointCount < 2
                   ? ` 当前仅有 ${trioPointCount} 日。`
                   : ''}
@@ -343,7 +345,7 @@ export default function SettingsFxScreen() {
             ) : (
               <FxMultiTrendChart
                 dates={chartDates}
-                series={chartSeriesForView}
+                series={multiSeries}
                 width={chartW}
                 height={chartH}
                 gridStroke={theme.chartGridStroke}
@@ -353,9 +355,12 @@ export default function SettingsFxScreen() {
             )}
             {chartDates.length >= 2 ? (
               <Text style={{ fontSize: 11, color: muted, marginTop: 4 }}>
-                窗口内共 {chartDates.length} 个交易日 · 当前：
-                {chartSeriesForView[0]?.code ?? '—'} 相对{' '}
-                {FX_CODE_LABEL_ZH[chartBase] ?? chartBase} 的绝对比价走势
+                窗口内共 {chartDates.length} 个交易日 ·                 高亮：
+                {multiSeries.find((s) => s.code === selectedChartCode)?.code ??
+                  multiSeries[0]?.code ??
+                  '—'}{' '}
+                相对 {FX_CODE_LABEL_ZH[chartBase] ?? chartBase}（上图共
+                {multiSeries.length} 条线）
               </Text>
             ) : null}
           </View>
@@ -387,7 +392,7 @@ export default function SettingsFxScreen() {
             </Text>
             {!fx ? (
               <Text style={{ fontSize: 14, color: muted }}>
-                暂无当日汇率快照。请在总览下拉同步行情或触发一次净值折算，成功后会显示与上图一致的三条目标币种比价。
+                暂无当日汇率快照。请在总览下拉同步行情或触发一次净值折算，成功后可显示主五币走势及下方各币种对默认货币的交叉价。
               </Text>
             ) : (
               <>
@@ -399,27 +404,37 @@ export default function SettingsFxScreen() {
                 ) : null}
                 <Text style={{ fontSize: 13, color: muted, marginBottom: 12 }}>
                   缓存日{fx.shanghaiDate}
+                  {showBaseFallbackNote
+                    ? ''
+                    : ` · 多少 ${tableBase} = 1 单位标价币种`}
                 </Text>
-                {chartTargets.map((code) => {
-                  const cross = basePerOneTarget(fx.rates, chartBase, code);
-                  const line =
-                    cross != null
-                      ? `${code}: ${formatTableValue(cross, code)}`
-                      : `${code}: —`;
-                  return (
-                    <Text
-                      key={code}
-                      style={{
-                        fontSize: 15,
-                        fontWeight: '600',
-                        color: theme.primary,
-                        marginBottom: 6,
-                      }}
-                    >
-                      {line}
-                    </Text>
-                  );
-                })}
+                {ASSET_CURRENCY_OPTIONS.filter((o) => o.code !== tableBase).map(
+                  (o) => {
+                    const cross = basePerOneTarget(
+                      fx.rates,
+                      tableBase,
+                      o.code
+                    );
+                    const label = o.label;
+                    const line =
+                      cross != null
+                        ? `${label}（${o.code}）: ${formatTableValue(cross, o.code)}`
+                        : `${label}（${o.code}）: —`;
+                    return (
+                      <Text
+                        key={o.code}
+                        style={{
+                          fontSize: 15,
+                          fontWeight: '600',
+                          color: theme.primary,
+                          marginBottom: 6,
+                        }}
+                      >
+                        {line}
+                      </Text>
+                    );
+                  }
+                )}
               </>
             )}
           </View>
