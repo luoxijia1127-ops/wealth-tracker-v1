@@ -1073,7 +1073,6 @@ export default function AssetActionScreen() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
-        onScrollBeginDrag={() => setMenuOpen(null)}
       >
         <Text style={[styles.headerName, { marginBottom: 6 }]} numberOfLines={3}>
           {headerTitle}
@@ -1458,6 +1457,7 @@ export default function AssetActionScreen() {
                 borderRadius={36}
                 intensity={54}
                 variant="editorial"
+                style={{ overflow: 'visible' }}
                 contentStyle={styles.glassFormInner}
               >
                   <View style={[styles.headerCard, { marginBottom: 16 }]}>
@@ -1604,25 +1604,32 @@ export default function AssetActionScreen() {
                       )}
                       {!goldSuggestLoading && goldSuggestions.length > 0 && (
                         <View style={styles.suggestBox}>
-                          {goldSuggestions.map((item) => (
-                            <Pressable
-                              key={`${item.exchange}-${item.code}-${
-                                item.quoteId ?? ''
-                              }`}
-                              style={({ pressed }) => [
-                                styles.suggestRow,
-                                pressed && styles.suggestRowPressed,
-                              ]}
-                              onPress={() => onPickGoldInstrument(item)}
-                            >
-                              <Text style={styles.suggestCode}>
-                                {formatExchangeSymbol(item.exchange, item.code)}
-                              </Text>
-                              <Text style={styles.suggestName} numberOfLines={2}>
-                                {item.name}
-                              </Text>
-                            </Pressable>
-                          ))}
+                          <ScrollView
+                            nestedScrollEnabled
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator
+                            style={styles.suggestScroll}
+                          >
+                            {goldSuggestions.map((item) => (
+                              <Pressable
+                                key={`${item.exchange}-${item.code}-${
+                                  item.quoteId ?? ''
+                                }`}
+                                style={({ pressed }) => [
+                                  styles.suggestRow,
+                                  pressed && styles.suggestRowPressed,
+                                ]}
+                                onPress={() => onPickGoldInstrument(item)}
+                              >
+                                <Text style={styles.suggestCode}>
+                                  {formatExchangeSymbol(item.exchange, item.code)}
+                                </Text>
+                                <Text style={styles.suggestName} numberOfLines={2}>
+                                  {item.name}
+                                </Text>
+                              </Pressable>
+                            ))}
+                          </ScrollView>
                         </View>
                       )}
                       {!goldSuggestLoading &&

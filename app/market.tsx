@@ -25,6 +25,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -40,7 +41,7 @@ const FALL = '#16a34a';
 export default function MarketScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { theme } = useAppPalette();
+  const { theme, appearance } = useAppPalette();
   const p = theme.primary;
   const muted = rgbaFromHex(p, 0.55);
   /** 与增加资产表单行图标一致 */
@@ -121,6 +122,12 @@ export default function MarketScreen() {
             refreshing={refreshing}
             onRefresh={() => void refreshFromNetwork()}
             tintColor={p}
+            title={Platform.OS === 'ios' ? '更新中…' : undefined}
+            titleColor={muted}
+            colors={[p]}
+            progressBackgroundColor={
+              appearance === 'dark' ? 'rgba(32,32,38,0.98)' : '#ffffff'
+            }
           />
         }
         showsVerticalScrollIndicator={false}

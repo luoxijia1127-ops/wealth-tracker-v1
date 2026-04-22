@@ -11,6 +11,7 @@ import {
   editorialSurfaceFill,
   editorialTableRowAlt,
 } from '@/lib/editorial-theme';
+import { FINANCE_UP } from '@/lib/finance-colors';
 import { Platform, StyleSheet } from 'react-native';
 
 export function createAddModalStyles(t: AppPaletteTheme) {
@@ -22,6 +23,8 @@ export function createAddModalStyles(t: AppPaletteTheme) {
   const p10 = rgbaFromHex(p, 0.1);
   const p08 = rgbaFromHex(p, 0.08);
   const p06 = rgbaFromHex(p, 0.06);
+  /** 证券/上金联想列表：内部 ScrollView 与容器同高，避免裁切后无法滚到下方项 */
+  const suggestListMaxHeight = 264;
 
   return StyleSheet.create({
     keyboardRoot: {
@@ -38,6 +41,7 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     },
     glassFormInner: {
       padding: 14,
+      overflow: 'visible',
     },
     /** 表单行之间的垂直间距（图标行与图标行一致） */
     formRow: {
@@ -45,6 +49,14 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       alignItems: 'stretch',
       gap: 10,
       marginTop: 12,
+    },
+    /**
+     * 含「单价+币种」行：内联币种下拉会向下展开，需叠在下方「资金来源」行之上
+     *（资金来源行 zIndex 25）。
+     */
+    formRowWithCurrencyPicker: {
+      position: 'relative',
+      zIndex: 40,
     },
     /** 卡片内首行：与 glass 上内边距衔接，不再额外顶距 */
     formRowFirst: {
@@ -498,7 +510,11 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       borderWidth: 0,
       backgroundColor: sf(0.62),
       overflow: 'hidden',
-      maxHeight: 160,
+      maxHeight: suggestListMaxHeight,
+      zIndex: 8,
+    },
+    suggestScroll: {
+      maxHeight: suggestListMaxHeight,
     },
     suggestRow: {
       paddingVertical: 8,
@@ -546,6 +562,13 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       marginTop: 10,
       fontSize: 14,
       color: p,
+      fontWeight: '600',
+    },
+    /** 已选证券：修改标的（与涨跌语义一致的红） */
+    changeLinkModify: {
+      marginTop: 10,
+      fontSize: 14,
+      color: FINANCE_UP,
       fontWeight: '600',
     },
     saveButton: {

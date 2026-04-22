@@ -209,18 +209,42 @@ export function formatTrendYAxisThousandsCny(value: number): string {
   return `${sign}¥${Math.abs(k).toFixed(1)}K`;
 }
 
-/** 纵轴刻度：千元量级 + 币种代码（非 CNY 时不用 ¥ 前缀） */
+function trimAxisNumZeros(s: string): string {
+  if (!s.includes('.')) return s;
+  return s.replace(/\.?0+$/, '').replace(/(\.[0-9]*?)0+$/, '$1').replace(/\.$/, '');
+}
+
+/** 纵轴刻度：千元量级 + 币种代码（非 CNY 时不用 ¥ 前缀）；日元/韩元位数过大时用 M / k 分层缩短单行 */
 export function formatTrendYAxisThousandsDisplay(
   value: number,
   displayCurrency: string
 ): string {
   if (displayCurrency === 'CNY') return formatTrendYAxisThousandsCny(value);
   if (!Number.isFinite(value)) return '';
+  const dc = /^[A-Z]{3}$/.test(displayCurrency) ? displayCurrency : 'USD';
+  const sign = value < 0 ? '−' : '';
+  const a = Math.abs(value);
+  if (dc === 'JPY' || dc === 'KRW') {
+    if (a >= 1_000_000) {
+      const m = a / 1_000_000;
+      const body = trimAxisNumZeros(
+        m >= 100 ? m.toFixed(0) : m >= 10 ? m.toFixed(1) : m.toFixed(2)
+      );
+      return `${sign}${body}M ${dc}`;
+    }
+    if (a >= 1000) {
+      const k = a / 1000;
+      const body = trimAxisNumZeros(
+        k >= 100 ? k.toFixed(0) : k >= 10 ? k.toFixed(1) : k.toFixed(2)
+      );
+      return `${sign}${body}k ${dc}`;
+    }
+    return `${sign}${a.toFixed(0)} ${dc}`;
+  }
   const k = value / 1000;
-  const sign = k < 0 ? '−' : '';
-  const abs = Math.abs(k);
-  const body = abs >= 100 ? abs.toFixed(0) : abs.toFixed(1);
-  return `${sign}${body}k ${displayCurrency}`;
+  const kk = Math.abs(k);
+  const body = kk >= 100 ? kk.toFixed(0) : kk.toFixed(1);
+  return `${sign}${trimAxisNumZeros(body)}k ${dc}`;
 }
 
 /** Y 轴刻度：紧凑人民币读数（万 / 亿），占宽尽量小 */

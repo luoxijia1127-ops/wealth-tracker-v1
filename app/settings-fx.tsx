@@ -16,7 +16,7 @@ import {
   basePerOneTarget,
   effectiveChartBase,
   FX_CODE_LABEL_ZH,
-  pickFourFxChartTargets,
+  pickFxMonthlyChartTargets,
 } from '@/lib/fx-cross-rate';
 import {
   ensureFxUsdRatesHistoryBackfill,
@@ -25,6 +25,10 @@ import {
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import { addCalendarDaysYmd } from '@/lib/insights-model';
+import {
+  formatRateOrSmallNumberOneLine,
+  numberSingleLineTextProps,
+} from '@/lib/numeric-display-one-line';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -55,18 +59,7 @@ function chartLineColors(t: AppPaletteTheme, count: number): string[] {
 }
 
 function formatTableValue(n: number, target: string): string {
-  if (target === 'JPY' || target === 'KRW') return n.toFixed(4);
-  if (n >= 100) return n.toFixed(4);
-  if (n >= 10) return n.toFixed(5);
-  return n.toFixed(6);
-}
-
-/** 走势图纵轴：与汇率数量级匹配的位数 */
-function formatChartAxisY(n: number): string {
-  const a = Math.abs(n);
-  if (a >= 100) return n.toFixed(2);
-  if (a >= 10) return n.toFixed(3);
-  return n.toFixed(4);
+  return formatRateOrSmallNumberOneLine(n, target);
 }
 
 export default function SettingsFxScreen() {
@@ -77,9 +70,8 @@ export default function SettingsFxScreen() {
   const [fx, setFx] = useState<FxUsdMidRates | null>(null);
   const [fxHistory, setFxHistory] = useState<FxUsdMidRates[]>([]);
   const [displayCurrency, setDisplayCurrency] = useState<string>('CNY');
-  const [selectedChartCode, setSelectedChartCode] = useState<string | null>(
-    null
-  );
+  /** 单卡内切换：当前展示走势的主五币目标代码 */
+  const [selectedFxCode, setSelectedFxCode] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -117,7 +109,6 @@ export default function SettingsFxScreen() {
     }, [])
   );
 
-  const secondary = rgbaFromHex(theme.primary, 0.65);
   const muted = rgbaFromHex(theme.primary, 0.5);
 
   const axisMuted =
@@ -130,64 +121,63 @@ export default function SettingsFxScreen() {
     [displayCurrency]
   );
 
-  const { chartDates, multiSeries, trioPointCount, chartTargets } = useMemo(() => {
+  const monthlyWindowRows = useMemo(() => {
     const today = getShanghaiDateString();
     const windowStart = addCalendarDaysYmd(today, -30);
-    const rows = fxHistory
+    return fxHistory
       .filter(
         (h) =>
           h.shanghaiDate >= windowStart && h.shanghaiDate <= today
       )
       .sort((a, b) => a.shanghaiDate.localeCompare(b.shanghaiDate));
+  }, [fxHistory]);
 
-    const codes = pickFourFxChartTargets(chartBase, rows);
-    const colorList = chartLineColors(theme, Math.max(codes.length, 5));
-    const okRows = rows.filter((h) =>
-      codes.every((c) => {
-        const v = basePerOneTarget(h.rates, chartBase, c);
+  /** 各目标币种独立筛交易日；单卡内通过图标只展示其一 */
+  const fxMonthlySeriesByCode = useMemo(() => {
+    const targets = pickFxMonthlyChartTargets(chartBase);
+    const colorList = chartLineColors(theme, Math.max(targets.length, 5));
+    return targets.map((code, i) => {
+      const okRows = monthlyWindowRows.filter((h) => {
+        const v = basePerOneTarget(h.rates, chartBase, code);
         return typeof v === 'number' && Number.isFinite(v) && v > 0;
-      })
-    );
-
-    if (okRows.length < 2) {
-      return {
-        chartDates: [] as string[],
-        multiSeries: [] as FxMultiSeries[],
-        trioPointCount: okRows.length,
-        chartTargets: codes,
-      };
-    }
-
-    const dates = okRows.map((r) => r.shanghaiDate);
-    const series: FxMultiSeries[] = codes.map((code, i) => {
-      const raw = okRows.map(
+      });
+      const dates = okRows.map((r) => r.shanghaiDate);
+      const values = okRows.map(
         (r) => basePerOneTarget(r.rates, chartBase, code)!
       );
-      return {
-        code,
-        color: colorList[i]!,
-        values: raw,
-      };
+      const series: FxMultiSeries[] = [
+        {
+          code,
+          color: colorList[i]!,
+          values,
+        },
+      ];
+      return { code, dates, series, pointCount: okRows.length };
     });
-
-    return {
-      chartDates: dates,
-      multiSeries: series,
-      trioPointCount: okRows.length,
-      chartTargets: codes,
-    };
-  }, [fxHistory, theme, chartBase]);
+  }, [monthlyWindowRows, chartBase, theme]);
 
   useEffect(() => {
-    if (multiSeries.length === 0) return;
-    setSelectedChartCode((prev) =>
-      prev != null && multiSeries.some((s) => s.code === prev)
+    if (fxMonthlySeriesByCode.length === 0) {
+      setSelectedFxCode(null);
+      return;
+    }
+    setSelectedFxCode((prev) =>
+      prev != null && fxMonthlySeriesByCode.some((c) => c.code === prev)
         ? prev
-        : multiSeries[0]!.code
+        : fxMonthlySeriesByCode[0]!.code
     );
-  }, [multiSeries]);
+  }, [fxMonthlySeriesByCode]);
 
-  /** ScrollView 左右各 20 + 走势图卡片左右各 16 */
+  const activeFxSeries = useMemo(() => {
+    if (fxMonthlySeriesByCode.length === 0) return null;
+    const hit =
+      selectedFxCode != null
+        ? fxMonthlySeriesByCode.find((c) => c.code === selectedFxCode)
+        : null;
+    return hit ?? fxMonthlySeriesByCode[0]!;
+  }, [fxMonthlySeriesByCode, selectedFxCode]);
+
+  /** ScrollView 左右各 20 + 卡片左右各 16 */
   const chartW = Math.max(200, windowW - 40 - 32);
   const chartH = 240;
 
@@ -223,7 +213,7 @@ export default function SettingsFxScreen() {
             style={{
               borderRadius: 20,
               padding: 16,
-              marginBottom: 8,
+              marginBottom: 12,
               overflow: 'hidden',
               backgroundColor:
                 appearance === 'dark'
@@ -241,128 +231,145 @@ export default function SettingsFxScreen() {
                 fontSize: 16,
                 fontWeight: '700',
                 color: theme.primary,
-                marginBottom: 4,
+                marginBottom: 8,
               }}
             >
               汇率走势（近一月）
             </Text>
-            <Text style={{ fontSize: 12, color: muted, marginBottom: 8 }}>
-              基准：{FX_CODE_LABEL_ZH[chartBase] ?? chartBase}（{chartBase}）
-              {chartBase !== displayCurrency.trim().toUpperCase()
-                ? ` · 设置中的默认展示货币为 ${displayCurrency}`
-                : ''}
-              。人民币、美元、欧元、港币、英镑为同一套「主五币」：默认币属于其中时画其余 4
-              种相对基准；默认币为主五币以外（如瑞郎、日元等）时画主五币相对基准。数据不足时自动少线。
-            </Text>
-            {multiSeries.length > 0 ? (
+            {fxHistory.length > 0 ? (
               <View
                 style={{
                   flexDirection: 'row',
                   width: '100%',
-                  gap: 6,
-                  paddingBottom: 6,
+                  justifyContent: 'space-between',
                   alignItems: 'stretch',
+                  gap: 4,
+                  marginBottom: 8,
                 }}
               >
-                  {multiSeries.map((s) => {
-                    const selected = s.code === selectedChartCode;
+                {fxMonthlySeriesByCode.map((card) => {
+                    const selected = card.code === selectedFxCode;
+                    const lineColor = card.series[0]!.color;
                     return (
                       <Pressable
-                        key={s.code}
-                        onPress={() => setSelectedChartCode(s.code)}
+                        key={card.code}
+                        accessibilityLabel={`${FX_CODE_LABEL_ZH[card.code] ?? card.code} 走势`}
+                        onPress={() => setSelectedFxCode(card.code)}
                         style={{
                           flex: 1,
                           minWidth: 0,
-                          paddingHorizontal: 6,
-                          paddingVertical: 5,
-                          borderRadius: 12,
+                          alignItems: 'center',
+                          paddingVertical: 4,
+                          paddingHorizontal: 2,
+                          borderRadius: 10,
                           borderWidth: 2,
                           borderColor: selected
                             ? theme.primary
                             : appearance === 'dark'
-                              ? 'rgba(255,255,255,0.14)'
-                              : rgbaFromHex(theme.primary, 0.2),
+                              ? 'rgba(255,255,255,0.12)'
+                              : rgbaFromHex(theme.primary, 0.18),
                           backgroundColor: selected
-                            ? rgbaFromHex(theme.primary, 0.12)
+                            ? rgbaFromHex(theme.primary, 0.1)
                             : appearance === 'dark'
                               ? 'rgba(255,255,255,0.04)'
-                              : 'rgba(255,255,255,0.65)',
+                              : 'rgba(255,255,255,0.55)',
                         }}
                       >
                         <View
                           style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 6,
+                            width: 7,
+                            height: 7,
+                            borderRadius: 3.5,
+                            backgroundColor: lineColor,
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.75)',
                           }}
+                        />
+                        <Text
+                          style={{
+                            fontSize: 9,
+                            fontWeight: '800',
+                            color: theme.primary,
+                            marginTop: 2,
+                            letterSpacing: -0.2,
+                          }}
+                          numberOfLines={1}
                         >
-                          <View
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 4,
-                              backgroundColor: s.color,
-                            }}
-                          />
-                          <Text
-                            style={{
-                              fontSize: 13,
-                              fontWeight: '700',
-                              color: theme.primary,
-                            }}
-                          >
-                            {FX_CODE_LABEL_ZH[s.code] ?? s.code}{' '}
-                            <Text
-                              style={{
-                                fontSize: 12,
-                                fontWeight: '600',
-                                color: secondary,
-                              }}
-                            >
-                              {s.code}
-                            </Text>
-                          </Text>
-                        </View>
+                          {card.code}
+                        </Text>
                       </Pressable>
                     );
-                  })}
+                })}
               </View>
             ) : null}
+            <Text style={{ fontSize: 12, color: muted, marginBottom: 10 }}>
+              基准：{FX_CODE_LABEL_ZH[chartBase] ?? chartBase}（{chartBase}）
+              {chartBase !== displayCurrency.trim().toUpperCase()
+                ? ` · 设置中的默认展示货币为 ${displayCurrency}`
+                : ''}
+              。主五币对称：默认币在其中时可选其余 4
+              种走势；在其外时可选主五币。点图标切换币种，同一时间只显示一条曲线；纵轴为该币相对基准。若个别历史日缺该币种报价，只用有数据的交易日连线。
+            </Text>
             {fxHistory.length === 0 ? (
               <Text style={{ fontSize: 14, color: muted }}>
                 尚未累积按日历史。打开总览后会自动尝试回填近 30 日序列；亦可下拉同步行情。
               </Text>
-            ) : multiSeries.length === 0 || chartDates.length < 2 ? (
-              <Text style={{ fontSize: 14, color: muted }}>
-                近一月内有效数据点不足（至少 2
-                个交易日，且需能同时计算基准对
-                {chartTargets.join('、')}
-                的比价）。请联网同步或稍后再试。
-                {trioPointCount > 0 && trioPointCount < 2
-                  ? ` 当前仅有 ${trioPointCount} 日。`
-                  : ''}
-              </Text>
             ) : (
-              <FxMultiTrendChart
-                dates={chartDates}
-                series={multiSeries}
-                width={chartW}
-                height={chartH}
-                gridStroke={theme.chartGridStroke}
-                axisLabelColor={axisMuted}
-                formatY={formatChartAxisY}
-              />
+              <>
+                {activeFxSeries ? (
+                  <>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '600',
+                        color: theme.primary,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {FX_CODE_LABEL_ZH[activeFxSeries.code] ?? activeFxSeries.code}{' '}
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: muted }}>
+                        纵轴：多少 {chartBase} = 1 {activeFxSeries.code}
+                      </Text>
+                    </Text>
+                    {activeFxSeries.pointCount >= 2 &&
+                    activeFxSeries.dates.length >= 2 ? (
+                      <>
+                        <FxMultiTrendChart
+                          dates={activeFxSeries.dates}
+                          series={activeFxSeries.series}
+                          width={chartW}
+                          height={chartH}
+                          gridStroke={theme.chartGridStroke}
+                          axisLabelColor={axisMuted}
+                          formatY={(n) =>
+                            formatRateOrSmallNumberOneLine(
+                              n,
+                              activeFxSeries?.code ?? null
+                            )
+                          }
+                        />
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: muted,
+                            marginTop: 6,
+                          }}
+                        >
+                          当前币种有效交易日 {activeFxSeries.pointCount} 天
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={{ fontSize: 14, color: muted }}>
+                        「{activeFxSeries.code}
+                        」近一月可计算的有效交易日不足 2 天（当前{' '}
+                        {activeFxSeries.pointCount}{' '}
+                        天）。请联网同步或换选其它图标；旧版历史可能暂缺英镑等字段。
+                      </Text>
+                    )}
+                  </>
+                ) : null}
+              </>
             )}
-            {chartDates.length >= 2 ? (
-              <Text style={{ fontSize: 11, color: muted, marginTop: 4 }}>
-                窗口内共 {chartDates.length} 个交易日 ·                 高亮：
-                {multiSeries.find((s) => s.code === selectedChartCode)?.code ??
-                  multiSeries[0]?.code ??
-                  '—'}{' '}
-                相对 {FX_CODE_LABEL_ZH[chartBase] ?? chartBase}（上图共
-                {multiSeries.length} 条线）
-              </Text>
-            ) : null}
           </View>
 
           <View
@@ -423,6 +430,7 @@ export default function SettingsFxScreen() {
                     return (
                       <Text
                         key={o.code}
+                        {...numberSingleLineTextProps}
                         style={{
                           fontSize: 15,
                           fontWeight: '600',

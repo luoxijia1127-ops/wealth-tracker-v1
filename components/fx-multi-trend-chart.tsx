@@ -320,7 +320,7 @@ export function FxMultiTrendChart({
         key={`yl-${i}`}
         x={PAD_L - 6}
         y={yy + 4}
-        fontSize={10}
+        fontSize={8}
         fontWeight="600"
         fill={axisLabelColor}
         textAnchor="end"
@@ -335,7 +335,7 @@ export function FxMultiTrendChart({
       key={`x-${i}-${lab.text}`}
       x={lab.x}
       y={h - 10}
-      fontSize={10}
+      fontSize={8}
       fontWeight="600"
       fill={axisLabelColor}
       textAnchor="middle"
@@ -384,7 +384,7 @@ export function FxMultiTrendChart({
                   <SvgText
                     x={cx}
                     y={preferBelow ? cy + 14 : cy - 10}
-                    fontSize={9}
+                    fontSize={8}
                     fontWeight="600"
                     fill={axisLabelColor}
                     textAnchor="middle"
@@ -426,7 +426,7 @@ export function FxMultiTrendChart({
                 <SvgText
                   x={minCx}
                   y={minBelow ? minCy + 14 : minCy - 18}
-                  fontSize={9}
+                  fontSize={8}
                   fontWeight="600"
                   fill={axisLabelColor}
                   textAnchor="middle"
@@ -457,7 +457,7 @@ export function FxMultiTrendChart({
                 <SvgText
                   x={maxCx}
                   y={maxBelow ? maxCy + 14 : maxCy - 18}
-                  fontSize={9}
+                  fontSize={8}
                   fontWeight="600"
                   fill={axisLabelColor}
                   textAnchor="middle"

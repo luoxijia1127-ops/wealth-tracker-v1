@@ -37,7 +37,7 @@ export const FX_CODE_LABEL_ZH: Record<string, string> = {
 
 /**
  * 走势图纵轴基准 = 当前默认展示货币（须在 App 支持的展示币种内）；非法值退回 CNY。
- * 主五币走势的「目标线」由 {@link pickFourFxChartTargets} 按是否在主五币内决定 4 条或 5 条。
+ * 主五币走势目标币种列表由 {@link pickFxMonthlyChartTargets} 决定（4 或 5 个）；各币种图表单独筛有效交易日。
  */
 export function effectiveChartBase(displayCurrency: string): string {
   const raw = displayCurrency.trim().toUpperCase();
@@ -45,7 +45,7 @@ export function effectiveChartBase(displayCurrency: string): string {
   return (FX_CHART_POOL as readonly string[]).includes(dc) ? dc : 'CNY';
 }
 
-/** 与基准不同的前三条主序（兼容旧逻辑；当前走势页请用 {@link pickFourFxChartTargets}） */
+/** 与基准不同的前三条主序（兼容旧逻辑） */
 export function pickThreeChartTargets(base: string): string[] {
   const b = /^[A-Z]{3}$/.test(base) ? base : 'CNY';
   return FX_TREND_MAJOR_FIVE.filter((c) => c !== b).slice(0, 3);
@@ -101,33 +101,27 @@ export function basePerOneTarget(
   return 1 / u;
 }
 
-function chartRowsSupportBaseTarget(
-  rows: FxUsdMidRates[],
-  base: string,
-  target: string
-): boolean {
-  if (rows.length === 0) return true;
-  return rows.every((h) => {
-    const v = basePerOneTarget(h.rates, base, target);
-    return typeof v === 'number' && Number.isFinite(v) && v > 0;
-  });
-}
-
 /**
- * 近一月走势：主五币对称逻辑（见 {@link FX_TREND_MAJOR_FIVE}）。
+ * 近一月走势涉及的主五币目标代码（不含基准本身）。
+ * 默认展示币 ∈ 主五币 → 其余 4 个；否则 → 主五币全部 5 个。
+ * 各币种单独作图时，再按日过滤「该日该币种有有效串联价」的条目，勿要求全窗口每一天都有该币种（否则易漏掉 GBP 等回填较晚的字段）。
  */
-export function pickFourFxChartTargets(
-  chartBase: string,
-  rows: FxUsdMidRates[]
-): string[] {
+export function pickFxMonthlyChartTargets(chartBase: string): string[] {
   const base = /^[A-Z]{3}$/.test(chartBase) ? chartBase.toUpperCase() : 'CNY';
   const five = FX_TREND_MAJOR_FIVE as readonly string[];
   const baseInFive = (five as readonly string[]).includes(base);
-  const candidates: string[] = baseInFive
-    ? five.filter((c) => c !== base)
-    : [...five];
-  return candidates.filter((c) => chartRowsSupportBaseTarget(rows, base, c));
+  return baseInFive ? five.filter((c) => c !== base).slice() : [...five];
 }
 
-/** 旧名兼容；等同于 {@link pickFourFxChartTargets} */
+/**
+ * @param _rows 已弃用，保留参数以免旧调用编译失败；目标列表不再依赖「全日齐全」。
+ */
+export function pickFourFxChartTargets(
+  chartBase: string,
+  _rows?: FxUsdMidRates[]
+): string[] {
+  return pickFxMonthlyChartTargets(chartBase);
+}
+
+/** 旧名兼容 */
 export const pickFxChartLineTargets = pickFourFxChartTargets;

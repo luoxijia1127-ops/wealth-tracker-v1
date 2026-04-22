@@ -4,6 +4,7 @@
  */
 
 import { toEastMoneySecid } from '@/lib/eastmoney-secid';
+import { formatMoneyCompactKString } from '@/lib/numeric-display-one-line';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
   convertDisplayValueToCny,
@@ -156,6 +157,8 @@ function enforceCommaThousandsInMoneyString(formatted: string): string {
 /** 按币种格式化金额（全应用统一用这个，不要再用 en-US USD 的局部 formatCurrency） */
 export function formatMoney(value: number, currency: string): string {
   const code = /^[A-Z]{3}$/.test(currency) ? currency : 'CNY';
+  const compact = formatMoneyCompactKString(value, code);
+  if (compact != null) return compact;
   try {
     const s = new Intl.NumberFormat('zh-CN', {
       style: 'currency',
@@ -185,6 +188,10 @@ export function formatMoneyDisplayParts(
   currency: string
 ): MoneyDisplayParts {
   const code = /^[A-Z]{3}$/.test(currency) ? currency : 'CNY';
+  const compact = formatMoneyCompactKString(value, code);
+  if (compact != null) {
+    return { leading: '', integer: compact, fraction: '' };
+  }
   try {
     const raw = new Intl.NumberFormat('zh-CN', {
       style: 'currency',

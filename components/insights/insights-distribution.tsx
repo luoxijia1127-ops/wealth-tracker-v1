@@ -12,6 +12,7 @@ import {
   hasUsdAnchoredFxTable,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
+import { numberSingleLineTextProps } from '@/lib/numeric-display-one-line';
 import {
   DONUT_EXPLODE,
   DONUT_SELECTED_SCALE,
@@ -183,8 +184,8 @@ export function DistributionBreakdown({
                 {a.name}
               </Text>
               <Text
+                {...numberSingleLineTextProps}
                 style={[styles.breakdownValue, { color: textSecondary }]}
-                numberOfLines={1}
               >
                 {display}
               </Text>

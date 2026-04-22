@@ -674,12 +674,12 @@ export default function AddModal() {
         showsVerticalScrollIndicator={false}
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         nestedScrollEnabled
-        onScrollBeginDrag={() => setMenuOpen(null)}
       >
         <GlassSurface
           borderRadius={36}
           intensity={54}
           variant="editorial"
+          style={{ overflow: 'visible' }}
           contentStyle={styles.glassFormInner}
         >
         <View style={styles.categoryRowWrap}>
@@ -827,23 +827,30 @@ export default function AddModal() {
             )}
             {!goldSuggestLoading && goldSuggestions.length > 0 && (
               <View style={styles.suggestBox}>
-                {goldSuggestions.map((item) => (
-                  <Pressable
-                    key={`${item.exchange}-${item.code}-${item.quoteId ?? ''}`}
-                    style={({ pressed }) => [
-                      styles.suggestRow,
-                      pressed && styles.suggestRowPressed,
-                    ]}
-                    onPress={() => onPickGoldInstrument(item)}
-                  >
-                    <Text style={styles.suggestCode}>
-                      {formatExchangeSymbol(item.exchange, item.code)}
-                    </Text>
-                    <Text style={styles.suggestName} numberOfLines={2}>
-                      {item.name}
-                    </Text>
-                  </Pressable>
-                ))}
+                <ScrollView
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator
+                  style={styles.suggestScroll}
+                >
+                  {goldSuggestions.map((item) => (
+                    <Pressable
+                      key={`${item.exchange}-${item.code}-${item.quoteId ?? ''}`}
+                      style={({ pressed }) => [
+                        styles.suggestRow,
+                        pressed && styles.suggestRowPressed,
+                      ]}
+                      onPress={() => onPickGoldInstrument(item)}
+                    >
+                      <Text style={styles.suggestCode}>
+                        {formatExchangeSymbol(item.exchange, item.code)}
+                      </Text>
+                      <Text style={styles.suggestName} numberOfLines={2}>
+                        {item.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
               </View>
             )}
             {!goldSuggestLoading &&
@@ -870,56 +877,58 @@ export default function AddModal() {
                 </Pressable>
               </View>
             )}
-            <FormRow styles={styles} iconMuted={iconMuted} icon="pie-chart-outline">
-              <View style={[styles.listedTwoCol, { alignItems: 'flex-start' }]}>
-                <View style={[styles.listedColFlex, { maxWidth: '36%' }]}>
-                  <Text style={styles.formRowLabel}>数量（克）</Text>
-                  <TextInput
-                    placeholder="克"
-                    placeholderTextColor={placeholderColor}
-                    style={styles.inputCompact}
-                    value={shares}
-                    onChangeText={setShares}
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-                <View style={[styles.listedColFlex, { flex: 1.4, minWidth: 0 }]}>
-                  <Text style={styles.formRowLabel}>单价（CNY/克）</Text>
-                  <View style={styles.inputCurrencyShell}>
+            <View style={styles.formRowWithCurrencyPicker}>
+              <FormRow styles={styles} iconMuted={iconMuted} icon="pie-chart-outline">
+                <View style={[styles.listedTwoCol, { alignItems: 'flex-start' }]}>
+                  <View style={[styles.listedColFlex, { maxWidth: '36%' }]}>
+                    <Text style={styles.formRowLabel}>数量（克）</Text>
                     <TextInput
-                      placeholder="单价"
+                      placeholder="克"
                       placeholderTextColor={placeholderColor}
-                      style={styles.inputCurrencyField}
-                      value={costPrice}
-                      onChangeText={setCostPrice}
+                      style={styles.inputCompact}
+                      value={shares}
+                      onChangeText={setShares}
                       keyboardType="decimal-pad"
                     />
-                    <View style={styles.inputCurrencyDivider} />
-                    <InlineSelect
-                      menuKey="ccy"
-                      openKey={menuOpen}
-                      setOpenKey={setMenuOpen}
-                      value={assetCurrency}
-                      options={currencySelectOptions}
-                      onChange={(v) => setAssetCurrency(v)}
-                      embedded
-                      primaryColor={theme.primary}
-                      mutedColor={iconMuted}
-                    />
+                  </View>
+                  <View style={[styles.listedColFlex, { flex: 1.4, minWidth: 0 }]}>
+                    <Text style={styles.formRowLabel}>单价（CNY/克）</Text>
+                    <View style={styles.inputCurrencyShell}>
+                      <TextInput
+                        placeholder="单价"
+                        placeholderTextColor={placeholderColor}
+                        style={styles.inputCurrencyField}
+                        value={costPrice}
+                        onChangeText={setCostPrice}
+                        keyboardType="decimal-pad"
+                      />
+                      <View style={styles.inputCurrencyDivider} />
+                      <InlineSelect
+                        menuKey="ccy"
+                        openKey={menuOpen}
+                        setOpenKey={setMenuOpen}
+                        value={assetCurrency}
+                        options={currencySelectOptions}
+                        onChange={(v) => setAssetCurrency(v)}
+                        embedded
+                        primaryColor={theme.primary}
+                        mutedColor={iconMuted}
+                      />
+                    </View>
                   </View>
                 </View>
-              </View>
-              {goldQuoteLoading && goldInstrumentPick?.quoteId ? (
-                <View style={styles.suggestLoadingRow}>
-                  <ActivityIndicator size="small" color={theme.primary} />
-                  <Text style={styles.suggestLoadingText}>
-                    同步参考价…
-                  </Text>
-                </View>
-              ) : goldQuoteHint && goldInstrumentPick?.quoteId ? (
-                <Text style={styles.hint}>参考：{goldQuoteHint}</Text>
-              ) : null}
-            </FormRow>
+                {goldQuoteLoading && goldInstrumentPick?.quoteId ? (
+                  <View style={styles.suggestLoadingRow}>
+                    <ActivityIndicator size="small" color={theme.primary} />
+                    <Text style={styles.suggestLoadingText}>
+                      同步参考价…
+                    </Text>
+                  </View>
+                ) : goldQuoteHint && goldInstrumentPick?.quoteId ? (
+                  <Text style={styles.hint}>参考：{goldQuoteHint}</Text>
+                ) : null}
+              </FormRow>
+            </View>
             <View style={[styles.formRow, { zIndex: 25 }]}>
               <View style={styles.formRowIconColumn}>
                 <View style={styles.formRowIconLabelSpacer} />
@@ -985,25 +994,32 @@ export default function AddModal() {
             )}
             {!suggestLoading && suggestions.length > 0 && (
               <View style={styles.suggestBox}>
-                {suggestions.map((item) => (
-                  <Pressable
-                    key={`${item.exchange}-${item.code}-${
-                      item.quoteId ?? item.intlQuoteSymbol ?? ''
-                    }`}
-                    style={({ pressed }) => [
-                      styles.suggestRow,
-                      pressed && styles.suggestRowPressed,
-                    ]}
-                    onPress={() => onPickInstrument(item)}
-                  >
-                    <Text style={styles.suggestCode}>
-                      {formatExchangeSymbol(item.exchange, item.code)}
-                    </Text>
-                    <Text style={styles.suggestName} numberOfLines={2}>
-                      {item.name}
-                    </Text>
-                  </Pressable>
-                ))}
+                <ScrollView
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator
+                  style={styles.suggestScroll}
+                >
+                  {suggestions.map((item) => (
+                    <Pressable
+                      key={`${item.exchange}-${item.code}-${
+                        item.quoteId ?? item.intlQuoteSymbol ?? ''
+                      }`}
+                      style={({ pressed }) => [
+                        styles.suggestRow,
+                        pressed && styles.suggestRowPressed,
+                      ]}
+                      onPress={() => onPickInstrument(item)}
+                    >
+                      <Text style={styles.suggestCode}>
+                        {formatExchangeSymbol(item.exchange, item.code)}
+                      </Text>
+                      <Text style={styles.suggestName} numberOfLines={2}>
+                        {item.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
               </View>
             )}
             {!suggestLoading &&
@@ -1023,59 +1039,61 @@ export default function AddModal() {
                   · {instrumentPick.name}
                 </Text>
                 <Pressable onPress={clearInstrumentSelection}>
-                  <Text style={styles.changeLink}>更换</Text>
+                  <Text style={styles.changeLinkModify}>修改</Text>
                 </Pressable>
               </View>
             )}
 
-            <FormRow styles={styles} iconMuted={iconMuted} icon="pie-chart-outline">
-              <View style={[styles.listedTwoCol, { alignItems: 'flex-start' }]}>
-                <View style={[styles.listedColFlex, { maxWidth: '36%' }]}>
-                  <Text style={styles.formRowLabel}>份额</Text>
-                  <TextInput
-                    placeholder="份"
-                    placeholderTextColor={placeholderColor}
-                    style={styles.inputCompact}
-                    value={shares}
-                    onChangeText={setShares}
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-                <View style={[styles.listedColFlex, { flex: 1.4, minWidth: 0 }]}>
-                  <Text style={styles.formRowLabel}>单价</Text>
-                  <View style={styles.inputCurrencyShell}>
+            <View style={styles.formRowWithCurrencyPicker}>
+              <FormRow styles={styles} iconMuted={iconMuted} icon="pie-chart-outline">
+                <View style={[styles.listedTwoCol, { alignItems: 'flex-start' }]}>
+                  <View style={[styles.listedColFlex, { maxWidth: '36%' }]}>
+                    <Text style={styles.formRowLabel}>份额</Text>
                     <TextInput
-                      placeholder="单价"
+                      placeholder="份"
                       placeholderTextColor={placeholderColor}
-                      style={styles.inputCurrencyField}
-                      value={costPrice}
-                      onChangeText={setCostPrice}
+                      style={styles.inputCompact}
+                      value={shares}
+                      onChangeText={setShares}
                       keyboardType="decimal-pad"
                     />
-                    <View style={styles.inputCurrencyDivider} />
-                    <InlineSelect
-                      menuKey="ccy"
-                      openKey={menuOpen}
-                      setOpenKey={setMenuOpen}
-                      value={assetCurrency}
-                      options={currencySelectOptions}
-                      onChange={(v) => setAssetCurrency(v)}
-                      embedded
-                      primaryColor={theme.primary}
-                      mutedColor={iconMuted}
-                    />
+                  </View>
+                  <View style={[styles.listedColFlex, { flex: 1.4, minWidth: 0 }]}>
+                    <Text style={styles.formRowLabel}>单价</Text>
+                    <View style={styles.inputCurrencyShell}>
+                      <TextInput
+                        placeholder="单价"
+                        placeholderTextColor={placeholderColor}
+                        style={styles.inputCurrencyField}
+                        value={costPrice}
+                        onChangeText={setCostPrice}
+                        keyboardType="decimal-pad"
+                      />
+                      <View style={styles.inputCurrencyDivider} />
+                      <InlineSelect
+                        menuKey="ccy"
+                        openKey={menuOpen}
+                        setOpenKey={setMenuOpen}
+                        value={assetCurrency}
+                        options={currencySelectOptions}
+                        onChange={(v) => setAssetCurrency(v)}
+                        embedded
+                        primaryColor={theme.primary}
+                        mutedColor={iconMuted}
+                      />
+                    </View>
                   </View>
                 </View>
-              </View>
-              {listedQuoteLoading ? (
-                <View style={styles.suggestLoadingRow}>
-                  <ActivityIndicator size="small" color={theme.primary} />
-                  <Text style={styles.suggestLoadingText}>同步参考价…</Text>
-                </View>
-              ) : listedQuoteHint ? (
-                <Text style={styles.hint}>参考：{listedQuoteHint}</Text>
-              ) : null}
-            </FormRow>
+                {listedQuoteLoading ? (
+                  <View style={styles.suggestLoadingRow}>
+                    <ActivityIndicator size="small" color={theme.primary} />
+                    <Text style={styles.suggestLoadingText}>同步参考价…</Text>
+                  </View>
+                ) : listedQuoteHint ? (
+                  <Text style={styles.hint}>参考：{listedQuoteHint}</Text>
+                ) : null}
+              </FormRow>
+            </View>
 
             <FormRow
               styles={styles}
@@ -1142,35 +1160,37 @@ export default function AddModal() {
                 onChangeText={setName}
               />
             </FormRow>
-            <FormRow
-              styles={styles}
-              iconMuted={iconMuted}
-              icon="cash-outline"
-              label="当前金额"
-            >
-              <View style={styles.inputCurrencyShell}>
-                <TextInput
-                  placeholder="金额"
-                  placeholderTextColor={placeholderColor}
-                  style={styles.inputCurrencyField}
-                  value={value}
-                  onChangeText={setValue}
-                  keyboardType="decimal-pad"
-                />
-                <View style={styles.inputCurrencyDivider} />
-                <InlineSelect
-                  menuKey="ccy"
-                  openKey={menuOpen}
-                  setOpenKey={setMenuOpen}
-                  value={assetCurrency}
-                  options={currencySelectOptions}
-                  onChange={(v) => setAssetCurrency(v)}
-                  embedded
-                  primaryColor={theme.primary}
-                  mutedColor={iconMuted}
-                />
-              </View>
-            </FormRow>
+            <View style={styles.formRowWithCurrencyPicker}>
+              <FormRow
+                styles={styles}
+                iconMuted={iconMuted}
+                icon="cash-outline"
+                label="当前金额"
+              >
+                <View style={styles.inputCurrencyShell}>
+                  <TextInput
+                    placeholder="金额"
+                    placeholderTextColor={placeholderColor}
+                    style={styles.inputCurrencyField}
+                    value={value}
+                    onChangeText={setValue}
+                    keyboardType="decimal-pad"
+                  />
+                  <View style={styles.inputCurrencyDivider} />
+                  <InlineSelect
+                    menuKey="ccy"
+                    openKey={menuOpen}
+                    setOpenKey={setMenuOpen}
+                    value={assetCurrency}
+                    options={currencySelectOptions}
+                    onChange={(v) => setAssetCurrency(v)}
+                    embedded
+                    primaryColor={theme.primary}
+                    mutedColor={iconMuted}
+                  />
+                </View>
+              </FormRow>
+            </View>
           </>
         )}
 

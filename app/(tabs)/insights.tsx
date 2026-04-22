@@ -15,6 +15,7 @@ import { formatMoney, formatMoneyDisplayParts } from '@/lib/asset-value';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
+import { numberSingleLineTextProps } from '@/lib/numeric-display-one-line';
 import { themeFinanceDeltaColor } from '@/lib/finance-colors';
 import {
   getCachedFxUsdRates,
@@ -51,6 +52,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -360,7 +362,17 @@ export default function Insights() {
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefreshInsights} tintColor={theme.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void onRefreshInsights()}
+            tintColor={theme.primary}
+            title={Platform.OS === 'ios' ? '更新中…' : undefined}
+            titleColor={textMuted}
+            colors={[theme.primary]}
+            progressBackgroundColor={
+              appearance === 'dark' ? 'rgba(32,32,38,0.98)' : '#ffffff'
+            }
+          />
         }
       >
         {/* Editorial Masthead：背景铺满至状态栏/刘海，文案用 paddingTop 避让 */}
@@ -395,9 +407,8 @@ export default function Insights() {
             <View style={styles.heroNetWorthValueWrap}>
               {heroNetWorthParts ? (
                 <Text
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.48}
+                  {...numberSingleLineTextProps}
+                  minimumFontScale={displayCurrency === 'CNY' ? 0.24 : 0.48}
                   style={{ textAlign: 'right', width: '100%' }}
                 >
                   <Text style={styles.heroMetricValue}>
@@ -482,7 +493,14 @@ export default function Insights() {
                     }}
                     pointerEvents="none"
                   >
-                    <Text style={[styles.chartPosterValue, { fontSize: 32, width: 'auto', textAlign: 'right', lineHeight: 36 }]}>
+                    <Text
+                      {...numberSingleLineTextProps}
+                      minimumFontScale={0.35}
+                      style={[
+                        styles.chartPosterValue,
+                        { fontSize: 32, width: 'auto', textAlign: 'right', lineHeight: 36 },
+                      ]}
+                    >
                       {posterValue}
                     </Text>
                     <Text style={{ fontSize: 14, fontWeight: '700', color: inkColor, letterSpacing: 0, textAlign: 'right' }}>

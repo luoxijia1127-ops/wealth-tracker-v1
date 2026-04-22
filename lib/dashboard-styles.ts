@@ -106,11 +106,12 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     /** 中左底：总资产 */
     heroTotalBlock: {
       position: 'absolute',
-      left: 32,
+      left: 28,
       right: 0,
       top: 265,
       height: 180,
-      paddingHorizontal: 28,
+      paddingLeft: 22,
+      paddingRight: 10,
       paddingVertical: 20,
       justifyContent: 'center',
       alignItems: 'flex-end',
@@ -152,11 +153,6 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       textTransform: 'uppercase',
       color: p65,
       marginTop: 8,
-    },
-    totalValueSplit: {
-      flexDirection: 'row',
-      alignItems: 'baseline',
-      alignSelf: 'flex-end',
     },
     totalValueInt: {
       fontSize: 48,
@@ -228,15 +224,16 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       flex: 1,
       justifyContent: 'center',
       paddingVertical: 16,
-      paddingHorizontal: 12,
+      paddingHorizontal: 10,
     },
+    /** 分类行右侧金额：加宽列，避免 6～7 位人民币 + 小数被裁切 */
     categoryDeltaCell: {
-      width: '30%',
+      width: '32%',
       justifyContent: 'center',
-      alignItems: 'flex-start',
+      alignItems: 'stretch',
       paddingVertical: 16,
-      paddingRight: 24,
-      paddingLeft: 10,
+      paddingRight: 14,
+      paddingLeft: 4,
     },
     categoryName: {
       fontFamily: AppFont.displayBold,
@@ -303,6 +300,9 @@ export function createDashboardStyles(t: AppPaletteTheme) {
     },
     assetRowRightCol: {
       alignItems: 'flex-end',
+      minWidth: 128,
+      maxWidth: '44%',
+      flexShrink: 0,
     },
     assetValue: {
       fontFamily: AppFont.bold,

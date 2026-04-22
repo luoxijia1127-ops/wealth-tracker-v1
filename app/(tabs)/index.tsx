@@ -27,6 +27,7 @@ import {
   magazineStrongOnBlock,
 } from '@/lib/editorial-reference-layout';
 import { themeFinanceDeltaColor } from '@/lib/finance-colors';
+import { numberSingleLineTextProps } from '@/lib/numeric-display-one-line';
 import {
   ensureFxUsdRatesHistoryBackfill,
   getCachedFxUsdRates,
@@ -52,6 +53,7 @@ import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -131,16 +133,37 @@ function AssetPrimaryValue({
     const intFmt = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     const intSt = hero ? styles.totalValueInt : styles.categoryAmount;
     const decSt = hero ? styles.totalValueDec : { fontSize: 16, fontWeight: '600' as const, paddingTop: 9, letterSpacing: -0.4 };
+    /** 整数 ≥7 位时略降最小字号，尽量整段「¥ + 千分位 + 小数」单行放下 */
+    const intLen = intRaw.length;
+    const intMinScale = hero
+      ? intLen >= 7
+        ? 0.22
+        : intLen >= 6
+          ? 0.26
+          : 0.3
+      : intLen >= 7
+        ? 0.32
+        : intLen >= 6
+          ? 0.38
+          : 0.44;
 
+    /** 单层嵌套 Text：整段「¥整数.小数」一起参与 adjustsFontSizeToFit；占满可用宽便于缩字不切尾 */
     return (
-      <View style={hero ? styles.totalValueSplit : { flexDirection: 'row', alignItems: 'baseline' }}>
+      <Text
+        {...numberSingleLineTextProps}
+        minimumFontScale={intMinScale}
+        style={{ width: '100%', textAlign: 'right' }}
+      >
         <Text style={[intSt, { color: accentColor }]}>¥{intFmt}</Text>
         <Text style={[decSt, { color: accentColor }]}>.{dec}</Text>
-      </View>
+      </Text>
     );
   }
   return (
-    <Text style={[hero ? styles.totalValueForeign : styles.categoryAmount, { color: accentColor }]}>
+    <Text
+      {...numberSingleLineTextProps}
+      style={[hero ? styles.totalValueForeign : styles.categoryAmount, { color: accentColor }]}
+    >
       {formatMoney(amount, currency)}
     </Text>
   );
@@ -343,7 +366,7 @@ function CategoryCollageRow({
 
       {isExpanded ? (
         <View style={{ flexDirection: 'row', backgroundColor: mainBgColor || rowBgColor }}>
-          <View style={{ width: '20%' }} />
+          <View style={{ width: '15%' }} />
           <View style={styles.assetListContainer}>
             {assets.map((a, i) => {
               const cur = getAssetCurrency(a);
@@ -372,7 +395,12 @@ function CategoryCollageRow({
                     ) : null}
                   </View>
                   <View style={styles.assetRowRightCol}>
-                    <Text style={[styles.assetValue, { color: mastheadInk }]}>{formatMoney(amt, cur)}</Text>
+                    <Text
+                      {...numberSingleLineTextProps}
+                      style={[styles.assetValue, { color: mastheadInk }]}
+                    >
+                      {formatMoney(amt, cur)}
+                    </Text>
                     {a.markPriceDate ? (
                       <Text style={[styles.assetQuoteDate, { color: rgbaFromHex(mastheadInk, 0.4) }]}>{a.markPriceDate}</Text>
                     ) : null}
@@ -518,7 +546,17 @@ export default function Dashboard() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 32, flexGrow: 1 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={syncingQuotes} onRefresh={refreshMarketData} tintColor={theme.primary} />
+          <RefreshControl
+            refreshing={syncingQuotes}
+            onRefresh={() => void refreshMarketData()}
+            tintColor={theme.primary}
+            title={Platform.OS === 'ios' ? '更新中…' : undefined}
+            titleColor={rgbaFromHex(theme.primary, 0.55)}
+            colors={[theme.primary]}
+            progressBackgroundColor={
+              appearance === 'dark' ? 'rgba(32,32,38,0.98)' : '#ffffff'
+            }
+          />
         }
       >
         <DashboardHeroUpperHalf

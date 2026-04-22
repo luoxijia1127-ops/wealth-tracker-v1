@@ -89,6 +89,7 @@ export function InlineSelect<T extends string>(props: Props<T>) {
         <View
           style={[
             styles.menu,
+            embedded && styles.menuEmbedded,
             {
               borderColor: `${primaryColor}28`,
               backgroundColor: 'rgba(255,255,255,0.98)',
@@ -99,6 +100,7 @@ export function InlineSelect<T extends string>(props: Props<T>) {
             style={styles.menuScroll}
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
+            showsVerticalScrollIndicator
           >
             {options.map((o) => (
               <Pressable
@@ -109,11 +111,19 @@ export function InlineSelect<T extends string>(props: Props<T>) {
                 }}
                 style={({ pressed }) => [
                   styles.row,
+                  embedded && styles.rowEmbedded,
                   o.value === value && { backgroundColor: `${primaryColor}12` },
                   pressed && { opacity: 0.85 },
                 ]}
               >
-                <Text style={[styles.rowText, { color: primaryColor }]} numberOfLines={2}>
+                <Text
+                  style={[
+                    styles.rowText,
+                    embedded && styles.rowTextEmbedded,
+                    { color: primaryColor },
+                  ]}
+                  numberOfLines={2}
+                >
                   {o.label}
                 </Text>
               </Pressable>
@@ -131,11 +141,13 @@ const styles = StyleSheet.create({
     zIndex: 2,
     alignSelf: 'stretch',
   },
+  /** 嵌入金额行右侧：不占满剩余宽度，靠右；宽度约为原约一半，与下拉同宽 */
   wrapEmbedded: {
-    flex: 1,
-    minWidth: 56,
-    maxWidth: 92,
+    alignSelf: 'flex-end',
+    minWidth: 40,
+    maxWidth: 66,
     justifyContent: 'center',
+    zIndex: 50,
   },
   trigger: {
     flexDirection: 'row',
@@ -158,10 +170,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderRadius: 0,
     paddingVertical: 0,
-    paddingHorizontal: 6,
-    minWidth: 52,
+    paddingHorizontal: 4,
+    minWidth: 0,
     minHeight: 36,
-    flex: 1,
+    justifyContent: 'flex-end',
+    gap: 2,
   },
   triggerText: {
     fontSize: 13,
@@ -169,28 +182,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   triggerTextEmbedded: {
+    flex: 0,
+    flexShrink: 1,
     fontSize: 14,
     textAlign: 'right',
+    maxWidth: '100%',
   },
   menu: {
     position: 'absolute',
     right: 0,
     top: '100%',
     marginTop: 4,
-    maxHeight: 200,
+    maxHeight: 280,
     minWidth: '100%',
+    width: '100%',
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
-    zIndex: 50,
+    zIndex: 60,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
   },
+  /** 与触发区同宽、右缘对齐（由父 wrap 宽度决定） */
+  menuEmbedded: {
+    alignSelf: 'stretch',
+    right: 0,
+    elevation: 18,
+  },
   menuScroll: {
-    maxHeight: 200,
+    maxHeight: 280,
   },
   row: {
     paddingVertical: 10,
@@ -199,5 +222,12 @@ const styles = StyleSheet.create({
   rowText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  rowEmbedded: {
+    alignItems: 'flex-end',
+  },
+  rowTextEmbedded: {
+    width: '100%',
+    textAlign: 'right',
   },
 });
