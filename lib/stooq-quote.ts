@@ -1,19 +1,40 @@
 /**
  * Stooq 延迟行情（CSV，无密钥）：美股 `aapl.us`、港股 `700.hk`、英欧 `vod.l` 等。
  * 大陆网络通常可访问；与 OpenFIGI 联想配合使用。
+ *
+ * 部分欧股/英股在 `q/l` 单行接口上常返回 N/D，则回退到带 `d1`/`d2` 的日 K 取最近收盘。
  */
 
 import { buildStooqCsvUrl } from '@/lib/config/endpoints';
+import { addCalendarDaysToShanghaiYmd, getShanghaiDateString } from '@/lib/date-shanghai';
 import { isValidIntlStooqQuoteSymbol } from '@/lib/intl-exchange-stooq';
 
 const STOOQ_UA =
   'Mozilla/5.0 (compatible; Nest/1.0; +https://stooq.com)';
+
+const STOOQ_CSV_HEADERS = {
+  Accept: 'text/csv,*/*',
+  'User-Agent': STOOQ_UA,
+} as const;
 
 export type StooqQuoteRow = {
   close: number;
   /** YYYY-MM-DD */
   tradeDate: string;
 };
+
+function stripBom(raw: string): string {
+  return raw.replace(/^\uFEFF/, '');
+}
+
+/** 拆成非空行（跳过 UTF-8 BOM、空行；避免 q/l 第二行为空时整段解析失败） */
+function splitStooqCsvLines(text: string): string[] {
+  return stripBom(text)
+    .trim()
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+}
 
 function parseStooqCsvLine(line: string): StooqQuoteRow | null {
   const cols = line.split(',');
@@ -25,6 +46,58 @@ function parseStooqCsvLine(line: string): StooqQuoteRow | null {
   return { close, tradeDate: date };
 }
 
+/** 跳过表头后第一条可解析数据行 */
+function firstStooqDataRow(text: string): StooqQuoteRow | null {
+  const lines = splitStooqCsvLines(text);
+  for (let i = 1; i < lines.length; i++) {
+    const row = parseStooqCsvLine(lines[i]!);
+    if (row) return row;
+  }
+  return null;
+}
+
+/**
+ * 日 K CSV 中取「时间上最后一条」有效收盘（表头后按行序递增，取末条）。
+ * 若响应过大（无 d1/d2 时），只扫尾部若干行以控内存。
+ */
+function lastStooqDataRowInLines(lines: string[], maxTailScan: number): StooqQuoteRow | null {
+  if (lines.length < 2) return null;
+  const start = Math.max(1, lines.length - maxTailScan);
+  let best: StooqQuoteRow | null = null;
+  for (let i = start; i < lines.length; i++) {
+    const row = parseStooqCsvLine(lines[i]!);
+    if (row) best = row;
+  }
+  return best;
+}
+
+/**
+ * `q/d/l` 最近约 140 个上海日历日的日 K（d1/d2 为 YYYYMMDD）；用于 q/l 即时行 N/D 时的回退。
+ */
+async function fetchStooqLatestDailyBar(
+  sym: string,
+  signal?: AbortSignal
+): Promise<StooqQuoteRow | null> {
+  const today = getShanghaiDateString();
+  const start = addCalendarDaysToShanghaiYmd(today, -140);
+  const d1 = start.replace(/-/g, '');
+  const d2 = today.replace(/-/g, '');
+  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d&d1=${d1}&d2=${d2}`;
+  try {
+    const res = await fetch(url, {
+      signal,
+      headers: STOOQ_CSV_HEADERS,
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const lines = splitStooqCsvLines(text);
+    const tail = lines.length > 900 ? 900 : lines.length;
+    return lastStooqDataRowInLines(lines, tail);
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchStooqQuote(
   intlQuoteSymbol: string,
   signal?: AbortSignal
@@ -34,15 +107,18 @@ export async function fetchStooqQuote(
 
   const url = buildStooqCsvUrl(sym);
   try {
-    const res = await fetch(url, { signal });
+    const res = await fetch(url, {
+      signal,
+      headers: STOOQ_CSV_HEADERS,
+    });
     if (!res.ok) return null;
     const text = await res.text();
-    const lines = text.trim().split(/\r?\n/);
-    if (lines.length < 2) return null;
-    return parseStooqCsvLine(lines[1]!);
+    const fromQl = firstStooqDataRow(text);
+    if (fromQl) return fromQl;
   } catch {
-    return null;
+    /* 继续尝试日 K */
   }
+  return fetchStooqLatestDailyBar(sym, signal);
 }
 
 /** Stooq q/l 单行：外汇/贵金属即期（如 xauusd、xagusd），Close 为 USD/金衡盎司 */
@@ -64,10 +140,7 @@ export async function fetchStooqForexSpotLatest(
   try {
     const res = await fetch(url, {
       signal,
-      headers: {
-        Accept: 'text/csv,*/*',
-        'User-Agent': STOOQ_UA,
-      },
+      headers: { ...STOOQ_CSV_HEADERS },
     });
     if (!res.ok) return null;
     const text = await res.text();
@@ -91,10 +164,13 @@ export async function fetchStooqCloseOnOrBefore(
   if (!isValidIntlStooqQuoteSymbol(sym)) return null;
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`;
   try {
-    const res = await fetch(url, { signal });
+    const res = await fetch(url, {
+      signal,
+      headers: STOOQ_CSV_HEADERS,
+    });
     if (!res.ok) return null;
     const text = await res.text();
-    const lines = text.trim().split(/\r?\n/);
+    const lines = splitStooqCsvLines(text);
     const rows: StooqQuoteRow[] = [];
     for (let i = 1; i < lines.length; i++) {
       const row = parseStooqCsvLine(lines[i]!);

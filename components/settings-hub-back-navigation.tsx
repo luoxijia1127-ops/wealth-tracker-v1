@@ -24,15 +24,22 @@ export function SettingsHubBackButton() {
   );
 }
 
+type SettingsHubBackTopBarProps = {
+  /** 默认 16；紧凑页（如添加资产 modal）可减小 */
+  paddingBottom?: number;
+};
+
 /** 含安全区顶距与左右 16，与 settings-data-hub / settings-support-hub 顶栏一致 */
-export function SettingsHubBackTopBar() {
+export function SettingsHubBackTopBar({
+  paddingBottom = 16,
+}: SettingsHubBackTopBarProps) {
   const insets = useSafeAreaInsets();
   return (
     <View
       style={{
         paddingTop: insets.top,
         paddingHorizontal: 16,
-        paddingBottom: 16,
+        paddingBottom,
         flexDirection: 'row',
         alignItems: 'center',
       }}

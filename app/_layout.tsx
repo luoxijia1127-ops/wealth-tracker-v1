@@ -55,7 +55,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="modal"
             options={{
-              headerShown: true,
+              headerShown: false,
               presentation: 'modal',
               title: '添加资产',
               gestureEnabled: true,
@@ -99,7 +99,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-attribution"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '净值变动归因',
               headerShadowVisible: false,
             }}
@@ -107,7 +107,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-fx"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '汇率信息',
               headerShadowVisible: false,
             }}
@@ -203,7 +203,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="market"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '市场',
               headerShadowVisible: false,
             }}

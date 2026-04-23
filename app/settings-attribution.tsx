@@ -28,6 +28,9 @@ import {
   type MarketMoverEntry,
 } from '@/lib/trade-summary';
 import { CATEGORY_LABEL_ZH } from '@/types/asset';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
+import { AppFont } from '@/lib/app-fonts';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams } from 'expo-router';
 import {
@@ -524,26 +527,44 @@ export default function SettingsAttributionScreen() {
     color: active ? theme.primary : muted,
   });
 
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
+
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.pageBg }}
-      contentContainerStyle={{
-        paddingTop: 12,
-        paddingBottom: insets.bottom + 28,
-        paddingHorizontal: 20,
-      }}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text
-        style={{
-          fontSize: 18,
-          fontWeight: '800',
-          color: theme.primary,
-          marginBottom: 10,
-        }}
+    <View style={hubStyles.screen}>
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          {
+            paddingBottom: insets.bottom + 28,
+            paddingHorizontal: 20,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
       >
-        收益日历
-      </Text>
+        <View
+          style={[
+            hubStyles.mastheadBlock,
+            { paddingTop: 16, paddingHorizontal: 4 },
+          ]}
+        >
+          <Text style={hubStyles.masthead}>ATTRIBUTION</Text>
+          <Text style={hubStyles.kicker}>NET WORTH · DAILY DELTA</Text>
+          <Text
+            style={{
+              fontFamily: AppFont.displayBold,
+              fontSize: 26,
+              letterSpacing: -0.6,
+              lineHeight: 30,
+              color: theme.primary,
+              marginTop: 6,
+            }}
+          >
+            净值变动归因
+          </Text>
+        </View>
 
       <Text
         style={{
@@ -1023,5 +1044,6 @@ export default function SettingsAttributionScreen() {
         </View>
       </Modal>
     </ScrollView>
+    </View>
   );
 }

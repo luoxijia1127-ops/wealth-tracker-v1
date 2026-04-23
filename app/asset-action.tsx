@@ -1872,7 +1872,7 @@ export default function AssetActionScreen() {
                     </Text>
                   </Pressable>
 
-                  <Text style={[styles.formRowLabel, { marginTop: 22 }]}>
+                  <Text style={[styles.formRowLabel, { marginTop: 2 }]}>
                     余额流水
                   </Text>
                   {cashRows.length === 0 ? (

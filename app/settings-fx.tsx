@@ -6,6 +6,7 @@ import {
   FxMultiTrendChart,
   type FxMultiSeries,
 } from '@/components/fx-multi-trend-chart';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { ASSET_CURRENCY_OPTIONS } from '@/lib/asset-currency';
@@ -24,7 +25,9 @@ import {
   getFxUsdRatesHistory,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
+import { AppFont } from '@/lib/app-fonts';
 import { addCalendarDaysYmd } from '@/lib/insights-model';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import {
   formatRateOrSmallNumberOneLine,
   numberSingleLineTextProps,
@@ -196,15 +199,44 @@ export default function SettingsFxScreen() {
     tableBase !== displayCurrency &&
     /^[A-Z]{3}$/.test(displayCurrency);
 
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
+
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.pageBg }}
-      contentContainerStyle={{
-        paddingTop: 12,
-        paddingBottom: insets.bottom + 24,
-        paddingHorizontal: 20,
-      }}
-    >
+    <View style={hubStyles.screen}>
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          {
+            paddingBottom: insets.bottom + 28,
+            paddingHorizontal: 20,
+          },
+        ]}
+      >
+        <View
+          style={[
+            hubStyles.mastheadBlock,
+            { paddingTop: 16, paddingHorizontal: 4 },
+          ]}
+        >
+          <Text style={hubStyles.masthead}>FX</Text>
+          <Text style={hubStyles.kicker}>FRANKFURTER · DISPLAY BASE</Text>
+          <Text
+            style={{
+              fontFamily: AppFont.displayBold,
+              fontSize: 26,
+              letterSpacing: -0.6,
+              lineHeight: 30,
+              color: theme.primary,
+              marginTop: 6,
+            }}
+          >
+            汇率信息
+          </Text>
+        </View>
+
       {loading ? (
         <ActivityIndicator color={theme.primary} />
       ) : (
@@ -449,5 +481,6 @@ export default function SettingsFxScreen() {
         </>
       )}
     </ScrollView>
+    </View>
   );
 }

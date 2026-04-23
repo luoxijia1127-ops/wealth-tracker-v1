@@ -9,6 +9,7 @@ import { FormRow } from '@/components/add-asset/form-row';
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { InlineSelect } from '@/components/add-asset/inline-select';
 import { GlassSurface } from '@/components/glass-surface';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { TradingDateCalendarModal } from '@/components/trading-date-calendar-modal';
 import { formatYmdChineseLine, YmdDateFields } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
@@ -45,7 +46,9 @@ import {
     searchUnifiedInstruments,
     type UnifiedSuggestItem,
 } from '@/lib/instrument-search';
+import { AppFont } from '@/lib/app-fonts';
 import { createAddModalStyles } from '@/lib/modal-styles';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { assetRepository } from '@/lib/repositories/asset-repository';
 import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
@@ -65,14 +68,8 @@ import {
     type SimpleAsset,
 } from '@/types/asset';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRouter } from 'expo-router';
-import {
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useState,
-} from 'react';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -88,9 +85,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AddModal() {
   const router = useRouter();
-  const navigation = useNavigation();
   const { theme } = useAppPalette();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const placeholderColor = useMemo(
     () => rgbaFromHex(theme.primary, 0.42),
     [theme.primary]
@@ -140,19 +137,6 @@ export default function AddModal() {
   const [goldSuggestLoading, setGoldSuggestLoading] = useState(false);
   const [goldInstrumentPick, setGoldInstrumentPick] =
     useState<UnifiedSuggestItem | null>(null);
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: '添加资产',
-      headerStyle: { backgroundColor: theme.pageBg },
-      headerTintColor: theme.primary,
-      headerTitleStyle: {
-        color: theme.primary,
-        fontWeight: '700',
-        fontSize: 17,
-      },
-    });
-  }, [navigation, theme.pageBg, theme.primary]);
 
   const isListedCategory = isListedAssetCategory(category);
   const showGoldForm = category === 'Gold';
@@ -633,7 +617,8 @@ export default function AddModal() {
     }
   };
 
-  const keyboardOffset = Platform.OS === 'ios' ? insets.top + 56 : 0;
+  /** 与自定义顶栏（安全区 + 返回行）高度大致对齐 */
+  const keyboardOffset = Platform.OS === 'ios' ? insets.top + 60 : 0;
 
   const openTradeDatePicker = () => {
     if (Platform.OS === 'web') return;
@@ -661,10 +646,11 @@ export default function AddModal() {
       keyboardVerticalOffset={keyboardOffset}
     >
       <View style={styles.modalAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar paddingBottom={6} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{
-          paddingTop: 12,
+          paddingTop: 0,
           paddingBottom: insets.bottom + 120,
           paddingHorizontal: 14,
           flexGrow: 1,
@@ -675,6 +661,32 @@ export default function AddModal() {
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         nestedScrollEnabled
       >
+        <View
+          style={[
+            hubStyles.mastheadBlock,
+            {
+              paddingTop: 4,
+              paddingBottom: 4,
+              paddingHorizontal: 0,
+            },
+          ]}
+        >
+          <Text style={hubStyles.masthead}>ADD ASSET</Text>
+          <Text style={hubStyles.kicker}>LISTED · CASH · GOLD</Text>
+          <Text
+            style={{
+              fontFamily: AppFont.displayBold,
+              fontSize: 26,
+              letterSpacing: -0.6,
+              lineHeight: 30,
+              color: theme.primary,
+              marginTop: 4,
+            }}
+          >
+            添加资产
+          </Text>
+        </View>
+
         <GlassSurface
           borderRadius={36}
           intensity={54}

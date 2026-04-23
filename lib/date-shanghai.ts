@@ -26,3 +26,15 @@ export function shanghaiYmdToLocalNoon(ymd: string): Date {
   const day = parseInt(m[3]!, 10);
   return new Date(y, mo - 1, day, 12, 0, 0, 0);
 }
+
+/** 上海日历日 YYYY-MM-DD 加减整数天，仍返回 YYYY-MM-DD（用于行情区间等） */
+export function addCalendarDaysToShanghaiYmd(ymd: string, deltaDays: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!m) return ymd;
+  const y = parseInt(m[1]!, 10);
+  const mo = parseInt(m[2]!, 10) - 1;
+  const d = parseInt(m[3]!, 10);
+  const utcNoon = Date.UTC(y, mo, d, 12, 0, 0);
+  const shifted = new Date(utcNoon + deltaDays * 86400000);
+  return formatInstantToShanghaiDateString(shifted);
+}

@@ -10,6 +10,12 @@ import {
   type IntlSuggestRow,
   type UnifiedSuggestItem,
 } from '@/lib/openfigi-search';
+import {
+  buildIntlStooqSymbol,
+  INTL_EXCHANGE_LABEL_ZH,
+  isValidIntlStooqQuoteSymbol,
+  type IntlListingExchange,
+} from '@/lib/intl-exchange-stooq';
 import { fetchStooqQuote } from '@/lib/stooq-quote';
 
 export type { UnifiedSuggestItem } from '@/lib/openfigi-search';
@@ -30,12 +36,49 @@ const KNOWN_HK_CODE: Record<string, string> = {
   比亚迪: '1211',
 };
 
-/** Stooq 能拉到收盘价则视为有效美股/港股代码（绕过 OpenFIGI 前 100 条被指数占满的问题） */
+/** Stooq 后缀 → 本 App 交易所（与 intl-exchange-stooq 白名单一致） */
+const STOOQ_SUFFIX_VENUE: Record<string, IntlListingExchange> = {
+  us: 'US',
+  hk: 'HK',
+  l: 'LSE',
+  de: 'XETR',
+  pa: 'XPAR',
+  as: 'XAMS',
+  sw: 'XSWX',
+  mi: 'XMIL',
+  mc: 'BMEX',
+  br: 'XAMS',
+  st: 'XSTO',
+  ol: 'XOSL',
+  co: 'XCSE',
+  he: 'XHEL',
+  i: 'XDUB',
+};
+
+/** 纯字母 ticker 在 Stooq 上探测顺序：英股优先，再常见欧陆后缀 */
+const EU_STOOQ_PROBE: { suffix: string; venue: IntlListingExchange }[] = [
+  { suffix: 'l', venue: 'LSE' },
+  { suffix: 'de', venue: 'XETR' },
+  { suffix: 'pa', venue: 'XPAR' },
+  { suffix: 'as', venue: 'XAMS' },
+  { suffix: 'sw', venue: 'XSWX' },
+  { suffix: 'mi', venue: 'XMIL' },
+  { suffix: 'mc', venue: 'BMEX' },
+  { suffix: 'br', venue: 'XAMS' },
+  { suffix: 'st', venue: 'XSTO' },
+  { suffix: 'ol', venue: 'XOSL' },
+  { suffix: 'co', venue: 'XCSE' },
+  { suffix: 'he', venue: 'XHEL' },
+  { suffix: 'i', venue: 'XDUB' },
+];
+
+/** Stooq 能拉到收盘价则视为有效代码（绕过 OpenFIGI 排序/条数限制；含英欧显式后缀与 .l 探测） */
 async function stooqLookupHints(
   query: string,
   signal?: AbortSignal
 ): Promise<IntlSuggestRow[]> {
   const t = query.trim();
+  const compact = t.replace(/\s+/g, '');
   const out: IntlSuggestRow[] = [];
   const seenStooq = new Set<string>();
 
@@ -54,22 +97,49 @@ async function stooqLookupHints(
     });
   };
 
+  const explicit = /^([A-Za-z0-9][A-Za-z0-9.\-]{0,15})\.(US|HK|L|DE|PA|AS|SW|MI|MC|BR|ST|OL|CO|HE|I)$/i.exec(
+    compact
+  );
+  if (explicit) {
+    const base = explicit[1]!;
+    const suf = explicit[2]!.toLowerCase();
+    const st = buildIntlStooqSymbol(base, suf);
+    const venue = STOOQ_SUFFIX_VENUE[suf];
+    if (venue && isValidIntlStooqQuoteSymbol(st) && !seenStooq.has(st)) {
+      const row = await fetchStooqQuote(st, signal);
+      if (row) {
+        seenStooq.add(st);
+        const codeDisp = base.replace(/\./g, '-').toUpperCase();
+        out.push({
+          code: codeDisp,
+          name: `${codeDisp}（${INTL_EXCHANGE_LABEL_ZH[venue]}）`,
+          exchange: venue,
+          intlQuoteSymbol: st,
+        });
+      }
+    }
+  }
+
   const hkKnown =
     KNOWN_HK_CODE[t] ?? KNOWN_HK_CODE[t.toLowerCase()];
   if (hkKnown) {
     await pushHk(hkKnown, `${t === '腾讯' || t.toLowerCase() === 'tencent' ? '腾讯控股' : t}（港股 ${hkKnown}）`);
   }
 
-  const usLike = t.replace(/\s+/g, '');
-  if (/^[A-Za-z][A-Za-z0-9.\-]{0,9}$/.test(usLike)) {
-    const st = usTickerToStooq(usLike);
+  const hkDigits = t.replace(/\D/g, '');
+  if (/^\d{4,5}$/.test(hkDigits)) {
+    await pushHk(hkDigits, `港股 ${parseInt(hkDigits, 10)}`);
+  }
+
+  if (/^[A-Za-z][A-Za-z0-9.\-]{0,9}$/.test(compact)) {
+    const st = usTickerToStooq(compact);
     if (!seenStooq.has(st)) {
       const row = await fetchStooqQuote(st, signal);
       if (row) {
         seenStooq.add(st);
         out.push({
-          code: usLike.toUpperCase().replace(/\./g, '-'),
-          name: `${usLike.toUpperCase()}（美股）`,
+          code: compact.toUpperCase().replace(/\./g, '-'),
+          name: `${compact.toUpperCase()}（美股）`,
           exchange: 'US',
           intlQuoteSymbol: st,
         });
@@ -77,9 +147,26 @@ async function stooqLookupHints(
     }
   }
 
-  const hkDigits = t.replace(/\D/g, '');
-  if (/^\d{4,5}$/.test(hkDigits)) {
-    await pushHk(hkDigits, `港股 ${parseInt(hkDigits, 10)}`);
+  if (/^[A-Za-z]{2,5}$/.test(compact)) {
+    const usSym = usTickerToStooq(compact);
+    if (!seenStooq.has(usSym)) {
+      for (const { suffix, venue } of EU_STOOQ_PROBE) {
+        const st = buildIntlStooqSymbol(compact, suffix);
+        if (seenStooq.has(st)) continue;
+        const row = await fetchStooqQuote(st, signal);
+        if (row) {
+          seenStooq.add(st);
+          const codeDisp = compact.toUpperCase();
+          out.push({
+            code: codeDisp,
+            name: `${codeDisp}（${INTL_EXCHANGE_LABEL_ZH[venue]}，Stooq）`,
+            exchange: venue,
+            intlQuoteSymbol: st,
+          });
+          break;
+        }
+      }
+    }
   }
 
   return out;
@@ -110,7 +197,8 @@ export async function searchUnifiedInstruments(
     stooqLookupHints(q, signal),
   ]);
 
-  const mergedIntl = dedupeIntlRows(stooqIntl, figiIntl);
+  /** OpenFIGI 在前：避免短 ticker 的 Stooq 美股探测（如 BATS→bats.us）盖住用户更可能要的英欧联想 */
+  const mergedIntl = dedupeIntlRows(figiIntl, stooqIntl);
 
   const out: UnifiedSuggestItem[] = [];
   for (const e of em) {

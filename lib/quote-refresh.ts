@@ -121,7 +121,8 @@ function mergeStooqQuote(
   const next: SimpleAsset = {
     ...a,
     markPrice: row.close,
-    markPriceDate: getShanghaiDateString(),
+    /** 与 lastClose 同一交易日，避免「同步日」与 Stooq  bar 日期不一致 */
+    markPriceDate: row.tradeDate,
     lastClose: row.close,
     lastCloseDate: row.tradeDate,
   };

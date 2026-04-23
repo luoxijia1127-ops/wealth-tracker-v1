@@ -80,6 +80,8 @@ function passesFigiEquitySecurity(row: FigiRow, tk: string): boolean {
   if (
     st === 'Common Stock' ||
     st === 'ETF' ||
+    st === 'ETC' ||
+    st === 'ETP' ||
     st === 'REIT' ||
     st.includes('Receipt') ||
     st.includes('ADR') ||
@@ -87,10 +89,31 @@ function passesFigiEquitySecurity(row: FigiRow, tk: string): boolean {
   ) {
     return isValidFigiEquityTicker(tk);
   }
+  /** 实物商品线（英欧 ETC 等）在 OpenFIGI 上常见此描述，非期货合约 */
+  if (
+    /physical/i.test(st) &&
+    /commodity|commodities/i.test(st) &&
+    !st.includes('Future')
+  ) {
+    return isValidFigiEquityTicker(tk);
+  }
   if (sector === 'Equity' && isValidFigiEquityTicker(tk)) {
     return true;
   }
-  if (st2 === 'ETF' && isValidFigiEquityTicker(tk)) return true;
+  if (
+    (st2 === 'ETF' || st2 === 'ETC' || st2 === 'ETP') &&
+    isValidFigiEquityTicker(tk)
+  ) {
+    return true;
+  }
+  if (
+    /\bETC\b/i.test(st) ||
+    /\bETP\b/i.test(st) ||
+    /\bETC\b/i.test(st2) ||
+    /\bETP\b/i.test(st2)
+  ) {
+    return isValidFigiEquityTicker(tk);
+  }
   return false;
 }
 
@@ -143,6 +166,8 @@ function figiRowScore(row: FigiRow, qRaw: string, qNorm: string): number {
   if (qNorm.length >= 2 && nmU.includes(qNorm)) s += 15;
   if (row.securityType === 'Common Stock') s += 8;
   if (row.securityType === 'ETF') s += 5;
+  if (row.securityType === 'ETC' || row.securityType2 === 'ETC') s += 5;
+  if (row.securityType === 'ETP' || row.securityType2 === 'ETP') s += 4;
   return s;
 }
 

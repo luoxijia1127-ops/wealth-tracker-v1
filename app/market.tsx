@@ -3,8 +3,8 @@
  */
 
 import { MarketWorldMapCard } from '@/components/market-world-map';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
-import { editorialAmbientWash } from '@/lib/editorial-theme';
 import { rgbaFromHex } from '@/lib/color-utils';
 import {
   formatMarketPct,
@@ -20,15 +20,15 @@ import {
   loadCachedMarketQuotes,
   saveMarketQuotesCache,
 } from '@/lib/market-quotes-cache';
+import { AppFont } from '@/lib/app-fonts';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -38,8 +38,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const RISE = '#e11d48';
 const FALL = '#16a34a';
 
+/** 分组左上角小写英文标题（与设置子页 kicker 同层级） */
+const SECTION_KICKER: Record<string, string> = {
+  us: 'US INDICES',
+  asia: 'ASIA PACIFIC',
+  eu: 'EUROPE & UK',
+  fx: 'FOREIGN EXCHANGE',
+  major: 'COMMODITIES & CRYPTO',
+};
+
 export default function MarketScreen() {
-  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { theme, appearance } = useAppPalette();
   const p = theme.primary;
@@ -51,19 +59,12 @@ export default function MarketScreen() {
     () => rgbaFromHex(theme.surfaceWhite, 0.94),
     [theme.surfaceWhite]
   );
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
 
   const [quotes, setQuotes] = useState<MarketQuoteResult[]>([]);
   /** 首次从本地缓存恢复完成前为 false，不触发网络请求 */
   const [cacheReady, setCacheReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerStyle: { backgroundColor: theme.pageBg },
-      headerTintColor: p,
-      headerTitleStyle: { fontWeight: '700', color: p },
-    });
-  }, [navigation, theme.pageBg, p]);
 
   const byId = useMemo(() => {
     const m = new Map<string, MarketQuoteResult>();
@@ -102,21 +103,18 @@ export default function MarketScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
-      <View
-        pointerEvents="none"
-        style={{
-          ...StyleSheet.absoluteFillObject,
-          backgroundColor: editorialAmbientWash(theme),
-        }}
-      />
+    <View style={hubStyles.screen}>
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingTop: 12,
-          paddingBottom: insets.bottom + 24,
-          paddingHorizontal: 0,
-        }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          {
+            paddingBottom: insets.bottom + 28,
+            paddingHorizontal: 0,
+          },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -132,6 +130,11 @@ export default function MarketScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        <View style={[hubStyles.mastheadBlock, { paddingTop: 16 }]}>
+          <Text style={hubStyles.masthead}>MARKET</Text>
+          <Text style={hubStyles.kicker}>INDICES & FX · DELAYED</Text>
+        </View>
+
         {!cacheReady ? (
           <View style={{ paddingVertical: 48, alignItems: 'center' }}>
             <ActivityIndicator size="large" color={p} />
@@ -169,17 +172,23 @@ export default function MarketScreen() {
         {cacheReady
           ? MARKET_SECTIONS.map((sec) => (
           <View key={sec.key} style={{ marginBottom: 18 }}>
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: '800',
-                color: p,
-                paddingHorizontal: 18,
-                marginBottom: 8,
-              }}
-            >
-              {sec.title}
-            </Text>
+            <View style={{ paddingHorizontal: 24, marginBottom: 10 }}>
+              <Text style={hubStyles.kicker}>
+                {SECTION_KICKER[sec.key] ?? sec.key.toUpperCase()}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: AppFont.displayBold,
+                  fontSize: 26,
+                  letterSpacing: -0.6,
+                  lineHeight: 30,
+                  color: p,
+                  marginTop: 6,
+                }}
+              >
+                {sec.title}
+              </Text>
+            </View>
             <View
               style={{
                 marginHorizontal: 14,
