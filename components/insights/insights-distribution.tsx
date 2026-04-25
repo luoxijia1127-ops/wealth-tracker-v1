@@ -15,6 +15,9 @@ import {
 import { numberSingleLineTextProps } from '@/lib/numeric-display-one-line';
 import {
   DONUT_EXPLODE,
+  DONUT_PCT_LABEL_INSIDE_MIN,
+  DONUT_PCT_LABEL_OMIT_BELOW,
+  DONUT_PCT_LABEL_OUTSIDE_PAD,
   DONUT_SELECTED_SCALE,
   getDonutPieCurves,
   type DonutSlice,
@@ -35,38 +38,53 @@ export function DistributionDonut({
   ringSize,
   selectedCategory,
   onToggleCategory,
+  labelInk = 'rgba(36, 40, 52, 0.92)',
 }: {
   slices: DonutSlice[];
   width: number;
   ringSize: number;
   selectedCategory: AssetCategory | null;
   onToggleCategory: (category: AssetCategory) => void;
+  /** 环外占比数字颜色（与主题主色一致更易读） */
+  labelInk?: string;
 }) {
   const { curves, total, outer } = getDonutPieCurves(slices, width, ringSize);
   const cx = width / 2;
   const cy = ringSize / 2;
   const pctFontSize = Math.max(9, Math.min(13, Math.round(outer * 0.28)));
+  const pctFontSizeOutside = Math.max(10, Math.min(14, Math.round(outer * 0.32)));
 
   return (
-    <Svg width={width} height={ringSize}>
+    <Svg width={width} height={ringSize} overflow="visible">
       <G x={cx} y={cy}>
         {curves.map((c) => {
           const isSel = selectedCategory === c.item.category;
           const dimOthers = selectedCategory !== null && !isSel;
           const [gx, gy] = c.sector.centroid;
           const len = Math.hypot(gx, gy) || 1;
+          const ux = gx / len;
+          const uy = gy / len;
           const pull = isSel ? DONUT_EXPLODE : 0;
-          const tx = (gx / len) * pull;
-          const ty = (gy / len) * pull;
+          const pullDx = ux * pull;
+          const pullDy = uy * pull;
           const scale = isSel ? DONUT_SELECTED_SCALE : 1;
           const transform =
             scale !== 1
-              ? `translate(${tx},${ty}) translate(${gx},${gy}) scale(${scale}) translate(${-gx},${-gy})`
-              : `translate(${tx},${ty})`;
+              ? `translate(${pullDx},${pullDy}) translate(${gx},${gy}) scale(${scale}) translate(${-gx},${-gy})`
+              : `translate(${pullDx},${pullDy})`;
 
           const pctRaw = total > 0 ? (100 * c.item.value) / total : 0;
           const pctLabel =
             pctRaw > 0 && pctRaw < 1 ? '<1%' : `${Math.round(pctRaw)}%`;
+
+          const showPctLabel = pctRaw >= DONUT_PCT_LABEL_OMIT_BELOW;
+          const useOutside =
+            pctRaw > 0 &&
+            pctRaw < DONUT_PCT_LABEL_INSIDE_MIN &&
+            pctRaw >= DONUT_PCT_LABEL_OMIT_BELOW;
+          const labelX = useOutside ? ux * (outer + DONUT_PCT_LABEL_OUTSIDE_PAD) : gx;
+          const labelY = useOutside ? uy * (outer + DONUT_PCT_LABEL_OUTSIDE_PAD) : gy;
+          const fs = useOutside ? pctFontSizeOutside : pctFontSize;
 
           return (
             <G key={`${c.item.category}-${c.index}`} transform={transform}>
@@ -79,21 +97,27 @@ export function DistributionDonut({
                 onPress={() => onToggleCategory(c.item.category)}
                 accessibilityLabel={`${c.item.name}，占比 ${pctRaw.toFixed(1)}%`}
               />
-              <SvgText
-                x={gx}
-                y={gy}
-                textAnchor="middle"
-                alignmentBaseline="central"
-                fontSize={pctFontSize}
-                fontWeight="700"
-                fill="rgba(255,255,255,0.96)"
-                stroke="rgba(45, 52, 72, 0.35)"
-                strokeWidth={0.35}
-                fillOpacity={dimOthers ? 0.42 : 1}
-                pointerEvents="none"
-              >
-                {pctLabel}
-              </SvgText>
+              {showPctLabel ? (
+                <SvgText
+                  x={labelX}
+                  y={labelY}
+                  textAnchor="middle"
+                  alignmentBaseline="central"
+                  fontSize={fs}
+                  fontWeight="700"
+                  fill={useOutside ? labelInk : 'rgba(255,255,255,0.96)'}
+                  stroke={
+                    useOutside
+                      ? 'rgba(255,255,255,0.88)'
+                      : 'rgba(45, 52, 72, 0.35)'
+                  }
+                  strokeWidth={useOutside ? 0.55 : 0.35}
+                  fillOpacity={dimOthers ? 0.42 : 1}
+                  pointerEvents="none"
+                >
+                  {pctLabel}
+                </SvgText>
+              ) : null}
             </G>
           );
         })}

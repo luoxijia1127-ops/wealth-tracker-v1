@@ -132,7 +132,7 @@ export default function MarketScreen() {
       >
         <View style={[hubStyles.mastheadBlock, { paddingTop: 16 }]}>
           <Text style={hubStyles.masthead}>MARKET</Text>
-          <Text style={hubStyles.kicker}>INDICES & FX · DELAYED</Text>
+          <Text style={hubStyles.kicker}>INDICES & FX</Text>
         </View>
 
         {!cacheReady ? (

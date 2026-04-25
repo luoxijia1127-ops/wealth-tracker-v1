@@ -2,9 +2,12 @@
  * 隐私政策：优先应用内 WebView 加载托管页；未配置 URL 时展示本地摘要。
  */
 
+import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { getPrivacyPolicyUrl } from '@/lib/privacy-policy-url';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function SettingsPrivacyScreen() {
   const insets = useSafeAreaInsets();
   const { theme, appearance } = useAppPalette();
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const secondary = rgbaFromHex(theme.primary, 0.65);
   const muted = rgbaFromHex(theme.primary, 0.5);
 
@@ -33,7 +37,15 @@ export default function SettingsPrivacyScreen() {
 
   if (policyUrl) {
     return (
-      <View style={[styles.fill, { backgroundColor: theme.pageBg }]}>
+      <View style={[hubStyles.screen, { flex: 1 }]}>
+        <View style={hubStyles.screenAmbient} pointerEvents="none" />
+        <SettingsHubBackTopBar />
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="PRIVACY"
+          kicker="POLICY & HOSTED PAGE"
+        />
+        <View style={[styles.fill, { backgroundColor: theme.pageBg }]}>
         {loading && !loadError && (
           <View style={[styles.loadingOverlay, { backgroundColor: loadingOverlayBg }]} pointerEvents="none">
             <ActivityIndicator size="large" color={theme.primary} />
@@ -43,7 +55,7 @@ export default function SettingsPrivacyScreen() {
           </View>
         )}
         {loadError && (
-          <View style={[styles.errorBox, { paddingTop: insets.top + 16 }]}>
+          <View style={[styles.errorBox, { paddingTop: 12 }]}>
             <Text style={{ fontSize: 15, color: theme.primary, fontWeight: '700' }}>
               无法加载页面
             </Text>
@@ -90,19 +102,29 @@ export default function SettingsPrivacyScreen() {
             setSupportMultipleWindows={false}
           />
         )}
+        </View>
       </View>
     );
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.pageBg }}
-      contentContainerStyle={{
-        paddingTop: insets.top + 16,
-        paddingBottom: insets.bottom + 24,
-        paddingHorizontal: 20,
-      }}
-    >
+    <View style={hubStyles.screen}>
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="PRIVACY"
+          kicker="DATA ON YOUR DEVICE"
+        />
+        <View style={{ paddingHorizontal: 20 }}>
       <Text style={{ fontSize: 17, fontWeight: '800', color: theme.primary, marginBottom: 12 }}>
         隐私与数据
       </Text>
@@ -120,7 +142,9 @@ export default function SettingsPrivacyScreen() {
         完整隐私政策：请在构建时设置环境变量 EXPO_PUBLIC_PRIVACY_POLICY_URL
         为你的托管页面地址（https），将在应用内通过 WebView 展示。
       </Text>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 

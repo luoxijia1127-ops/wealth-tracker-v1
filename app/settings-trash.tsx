@@ -3,6 +3,8 @@
  */
 
 import { RecycleRecordsTable } from '@/components/recycle-records-table';
+import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import {
   formatRecycleTransactionSummary,
@@ -11,14 +13,16 @@ import {
   type AssetRecycleRecord,
 } from '@/lib/asset-recycle';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SettingsTrashScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const p = theme.primary;
   const muted = rgbaFromHex(p, 0.55);
   const [rows, setRows] = useState<AssetRecycleRecord[]>([]);
@@ -71,16 +75,25 @@ export default function SettingsTrashScreen() {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.pageBg }}
-      contentContainerStyle={{
-        paddingTop: 12,
-        paddingBottom: insets.bottom + 24,
-        paddingHorizontal: 16,
-      }}
-    >
+    <View style={hubStyles.screen}>
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="TRASH"
+          kicker="RECENTLY DELETED ASSETS"
+        />
+        <View style={{ paddingHorizontal: 16 }}>
       <Text style={{ fontSize: 14, lineHeight: 21, color: muted, marginBottom: 16 }}>
-        在总览删除的资产暂存于此（最近若干条）。表格与资产交易明细一致横向滑动；点「恢复」回到主列表，并自删除日起回补净值与逐资产日快照，随后同步当日行情。
+        在总览删除的资产暂存于此。点「恢复」回到主列表。
       </Text>
       {loading ? (
         <ActivityIndicator color={p} style={{ marginTop: 24 }} />
@@ -96,6 +109,8 @@ export default function SettingsTrashScreen() {
           onRestore={onRestore}
         />
       )}
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }

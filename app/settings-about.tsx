@@ -2,28 +2,42 @@
  * 关于应用
  */
 
+import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import Constants from 'expo-constants';
+import { useMemo } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SettingsAboutScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const secondary = rgbaFromHex(theme.primary, 0.65);
 
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.pageBg }}
-      contentContainerStyle={{
-        paddingTop: insets.top + 16,
-        paddingBottom: insets.bottom + 24,
-        paddingHorizontal: 20,
-      }}
-    >
+    <View style={hubStyles.screen}>
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="ABOUT"
+          kicker="APP & VERSION"
+        />
+        <View style={{ paddingHorizontal: 20 }}>
       <Text style={{ fontSize: 22, fontWeight: '800', color: theme.primary, marginBottom: 8 }}>
         Nest
       </Text>
@@ -42,6 +56,8 @@ export default function SettingsAboutScreen() {
           基于 Expo / React Native 构建。本应用仅供个人记账与复盘，不构成投资建议。
         </Text>
       </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }

@@ -2,6 +2,7 @@
  * 编辑或删除单条现金/余额流水（增加、减少，无单价）。
  */
 
+import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
@@ -21,11 +22,12 @@ import { YmdDateFields } from '@/components/ymd-date-fields';
 import { GlassSurface } from '@/components/glass-surface';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createAddModalStyles } from '@/lib/modal-styles';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { deleteListedTradeEntry, updateListedTradeEntry } from '@/lib/trade-ledger';
 import type { CashLedgerEntry, SimpleAsset } from '@/types/asset';
 import { useFocusEffect } from '@react-navigation/native';
-import { useGlobalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -41,7 +43,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function CashLedgerEditScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { assetId, entryId } = useGlobalSearchParams<{
     assetId?: string;
@@ -49,6 +50,7 @@ export default function CashLedgerEditScreen() {
   }>();
   const { theme } = useAppPalette();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const labelMuted = useMemo(
     () => rgbaFromHex(theme.primary, 0.62),
     [theme.primary]
@@ -121,19 +123,6 @@ export default function CashLedgerEditScreen() {
       void load();
     }, [load])
   );
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: '编辑余额流水',
-      headerStyle: { backgroundColor: theme.pageBg },
-      headerTintColor: theme.primary,
-      headerTitleStyle: {
-        color: theme.primary,
-        fontWeight: '700',
-        fontSize: 17,
-      },
-    });
-  }, [navigation, theme.pageBg, theme.primary]);
 
   const cur = asset ? getAssetCurrency(asset) : 'CNY';
 
@@ -275,62 +264,116 @@ export default function CashLedgerEditScreen() {
 
   if (!assetId || !entryId) {
     return (
-      <View style={styles.keyboardRoot}>
+      <View style={hubStyles.screen}>
+        <View style={hubStyles.screenAmbient} pointerEvents="none" />
         <SettingsHubBackTopBar />
-        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
-          <Text style={styles.headerName}>参数无效</Text>
-        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            hubStyles.scrollContent,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <SettingsEditorialMasthead
+            styles={hubStyles}
+            title="CASH LEDGER"
+            kicker="BALANCE · IN OR OUT"
+          />
+          <View style={{ paddingHorizontal: 24 }}>
+            <Text style={styles.headerName}>参数无效</Text>
+          </View>
+        </ScrollView>
       </View>
     );
   }
 
   if (loading) {
     return (
-      <View style={styles.keyboardRoot}>
+      <View style={hubStyles.screen}>
+        <View style={hubStyles.screenAmbient} pointerEvents="none" />
         <SettingsHubBackTopBar />
-        <View
-          style={{
-            flex: 1,
-            paddingTop: 24,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            hubStyles.scrollContent,
+            {
+              flexGrow: 1,
+              paddingBottom: insets.bottom + 24,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
         >
-          <ActivityIndicator color={theme.primary} />
-        </View>
+          <SettingsEditorialMasthead
+            styles={hubStyles}
+            title="CASH LEDGER"
+            kicker="BALANCE · IN OR OUT"
+          />
+          <View
+            style={{
+              flex: 1,
+              minHeight: 200,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ActivityIndicator color={theme.primary} />
+          </View>
+        </ScrollView>
       </View>
     );
   }
 
   if (!asset || !entry) {
     return (
-      <View style={styles.keyboardRoot}>
+      <View style={hubStyles.screen}>
+        <View style={hubStyles.screenAmbient} pointerEvents="none" />
         <SettingsHubBackTopBar />
-        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
-          <Text style={styles.headerName}>未找到该流水</Text>
-        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            hubStyles.scrollContent,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <SettingsEditorialMasthead
+            styles={hubStyles}
+            title="CASH LEDGER"
+            kicker="BALANCE · IN OR OUT"
+          />
+          <View style={{ paddingHorizontal: 24 }}>
+            <Text style={styles.headerName}>未找到该流水</Text>
+          </View>
+        </ScrollView>
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardRoot}
+      style={hubStyles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
     >
-      <View style={styles.modalAmbient} pointerEvents="none" />
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={{
-          paddingTop: 12,
-          paddingBottom: insets.bottom + 40,
-          paddingHorizontal: 14,
-        }}
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          { paddingBottom: insets.bottom + 40 },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="CASH LEDGER"
+          kicker="BALANCE · IN OR OUT"
+        />
+        <View style={{ paddingHorizontal: 14 }}>
         <GlassSurface borderRadius={32} intensity={50} contentStyle={styles.glassFormInner}>
           <FormRow
             first
@@ -486,6 +529,7 @@ export default function CashLedgerEditScreen() {
             <Text style={styles.saveButtonText}>删除此流水</Text>
           </Pressable>
         </GlassSurface>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

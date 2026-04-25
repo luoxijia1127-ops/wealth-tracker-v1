@@ -218,14 +218,28 @@ function DashboardHeroUpperHalf({
       <View style={[styles.heroBlueTopBlock, { backgroundColor: blocks.blockB }]} />
       <View style={[styles.heroMastheadYellowBg, { backgroundColor: blocks.blockA }]} />
       <View style={[styles.heroMastheadTextLayer, { paddingTop: insets.top + 24 }]}>
-        <Text
-          style={[styles.masthead, { color: mastheadInk }]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.72}
-        >
-          Dashboard
-        </Text>
+        <View style={styles.mastheadTitleRow}>
+          <View style={styles.mastheadTitleFill}>
+            <Text
+              style={[styles.masthead, { color: mastheadInk }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+            >
+              Dashboard
+            </Text>
+          </View>
+          <Pressable
+            style={({ pressed }) => [styles.heroAddFabOuter, pressed && styles.headerAddFabPressed]}
+            onPress={() => void onPressAdd()}
+            accessibilityLabel="添加资产"
+            hitSlop={8}
+          >
+            <View style={styles.heroAddFabHalo}>
+              <MaterialIcons name="add" size={26} color={mastheadInk} />
+            </View>
+          </Pressable>
+        </View>
         <Text style={[styles.kicker, { color: mastheadInk }]}>PORTFOLIO SUMMARY</Text>
       </View>
 
@@ -282,15 +296,6 @@ function DashboardHeroUpperHalf({
           </View>
         ) : null}
       </View>
-
-      <Pressable
-        style={({ pressed }) => [styles.heroAddHitAbs, { top: insets.top + 6 }, pressed && styles.headerAddFabPressed]}
-        onPress={() => void onPressAdd()}
-        accessibilityLabel="添加资产"
-        hitSlop={8}
-      >
-        <MaterialIcons name="add" size={32} color={mastheadInk} />
-      </Pressable>
     </View>
   );
 }

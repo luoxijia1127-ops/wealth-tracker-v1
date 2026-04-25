@@ -85,6 +85,30 @@ export default function Insights() {
     [appearance, theme.primary]
   );
 
+  /** 资产变动下「盈利最多 / 亏损最多」：底随主题主色，边随涨跌语义色 */
+  const summaryWinnerSurface = useMemo(
+    () => ({
+      backgroundColor:
+        appearance === 'dark'
+          ? rgbaFromHex(theme.primary, 0.22)
+          : rgbaFromHex(theme.primary, 0.07),
+      borderWidth: 1,
+      borderColor: rgbaFromHex(theme.statusPositive, 0.42),
+    }),
+    [appearance, theme.primary, theme.statusPositive]
+  );
+  const summaryLoserSurface = useMemo(
+    () => ({
+      backgroundColor:
+        appearance === 'dark'
+          ? rgbaFromHex(theme.primary, 0.22)
+          : rgbaFromHex(theme.primary, 0.07),
+      borderWidth: 1,
+      borderColor: rgbaFromHex(theme.statusNegative, 0.42),
+    }),
+    [appearance, theme.primary, theme.statusNegative]
+  );
+
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
@@ -112,6 +136,15 @@ export default function Insights() {
     const h = Math.round(windowHeight * 0.38);
     return Math.min(380, Math.max(280, h));
   }, [windowHeight]);
+
+  /**
+   * 走势区高度：masthead 占位 + 与 `insights-trend-tab` 内期间行/图间距压缩后，
+   * 把省下的纵向往 Svg 高度回收（见 trendChartWrap paddingTop、期间行 padding）。
+   */
+  const trendChartPlotHeight = useMemo(
+    () => Math.max(235, chartHeight - 68),
+    [chartHeight]
+  );
 
   const chartWidth = useMemo(() => {
     return Math.max(260, windowWidth - 32); // marginHorizontal: 16 * 2 = 32
@@ -480,7 +513,50 @@ export default function Insights() {
         <View style={styles.chartPoster}>
 
           {chartTab === 'trend' && (
-             <View style={{ flex: 1, justifyContent: 'flex-end', paddingTop: 10 }}>
+            <View style={{ flex: 1, paddingTop: 10 }}>
+              <View
+                style={[
+                  styles.returnMastheadBlock,
+                  {
+                    marginBottom: 14,
+                    alignSelf: 'stretch',
+                    alignItems: 'flex-end',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.returnKicker,
+                    { color: textSecondary, width: '100%', textAlign: 'right' },
+                  ]}
+                >
+                  NET WORTH
+                </Text>
+                <Text
+                  style={[
+                    styles.returnTitle,
+                    { color: theme.primary, width: '100%', textAlign: 'right' },
+                  ]}
+                >
+                  ASSET CHANGE
+                </Text>
+                <Text
+                  style={[
+                    styles.returnSubTitle,
+                    { color: textSecondary, width: '100%', textAlign: 'right' },
+                  ]}
+                >
+                  SNAPSHOTS & RANGE
+                </Text>
+              </View>
+              <View
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  justifyContent: 'flex-end',
+                  position: 'relative',
+                }}
+              >
                 {periodChange && (
                   <View
                     style={{
@@ -503,27 +579,22 @@ export default function Insights() {
                     >
                       {posterValue}
                     </Text>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: inkColor, letterSpacing: 0, textAlign: 'right' }}>
-                      {posterPct}
-                    </Text>
                     <Text
                       style={{
-                        fontSize: 10,
-                        fontWeight: '500',
-                        color: inkSoft,
+                        fontSize: 14,
+                        fontWeight: '700',
+                        color: inkColor,
+                        letterSpacing: 0,
                         textAlign: 'right',
-                        marginTop: 6,
-                        maxWidth: 220,
-                        lineHeight: 14,
                       }}
                     >
-                      区间内最新净值 vs 起点日（或该日前最近快照）
+                      {posterPct}
                     </Text>
                   </View>
                 )}
                 <InsightsTrendChart
                   chartWidth={chartWidth}
-                  chartHeight={chartHeight - 10} // leave space for top value
+                  chartHeight={trendChartPlotHeight}
                   trendModel={trendModel}
                   styles={styles}
                   textSecondary={textSecondary}
@@ -542,24 +613,77 @@ export default function Insights() {
                   usdRatesForTooltip={fxRates?.rates ?? null}
                   onDataPointClick={({ index, x, y }) => setTrendTip({ index, x, y })}
                 />
-             </View>
+              </View>
+            </View>
           )}
 
           {chartTab === 'distribution' && donutSlices.length > 0 && (
             <View style={styles.donutBlock}>
-              <View style={styles.donutInteractiveRow}>
-                <View style={[styles.donutWing, styles.donutWingLeft, !distributionPanelOpen && styles.donutWingBalanced, distributionPanelOpen && distributionPanelSide === 'left' && styles.donutWingMajor, distributionPanelOpen && distributionPanelSide === 'right' && styles.donutWingMinor]}>
-                  {selectedDistributionCategory && distributionPanelSide === 'left' && (
-                    <DistributionBreakdown category={selectedDistributionCategory} assets={assets} styles={styles} primary={inkColor} textSecondary={inkSoft} usdRates={fxRates?.rates ?? null} displayCurrency={displayCurrency} />
-                  )}
+              <View style={styles.donutInteractiveRowWrap}>
+                <View style={styles.donutInteractiveRow}>
+                  <View style={[styles.donutWing, styles.donutWingLeft, !distributionPanelOpen && styles.donutWingBalanced, distributionPanelOpen && distributionPanelSide === 'left' && styles.donutWingMajor, distributionPanelOpen && distributionPanelSide === 'right' && styles.donutWingMinor]}>
+                    {selectedDistributionCategory && distributionPanelSide === 'left' && (
+                      <DistributionBreakdown category={selectedDistributionCategory} assets={assets} styles={styles} primary={inkColor} textSecondary={inkSoft} usdRates={fxRates?.rates ?? null} displayCurrency={displayCurrency} />
+                    )}
+                  </View>
+                  <View
+                    style={[
+                      styles.donutCenter,
+                      {
+                        width: effectiveDonutWidth,
+                        position: 'relative',
+                        marginTop: 24,
+                      },
+                    ]}
+                  >
+                    <DistributionDonut
+                      slices={donutSlices}
+                      width={effectiveDonutWidth}
+                      ringSize={donutRingHeight}
+                      selectedCategory={selectedDistributionCategory}
+                      onToggleCategory={toggleDistributionCategory}
+                      labelInk={inkColor}
+                    />
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.donutPosterCornerBR,
+                        { opacity: 0.34, right: -70 },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.returnKicker,
+                          {
+                            color: textSecondary,
+                            textAlign: 'right',
+                            fontSize: 35,
+                            lineHeight: 32,
+                            letterSpacing: -0.45,
+                          },
+                        ]}
+                      >
+                        BY CATEGORY
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.donutWing, styles.donutWingRight, !distributionPanelOpen && styles.donutWingBalanced, distributionPanelOpen && distributionPanelSide === 'right' && styles.donutWingMajor, distributionPanelOpen && distributionPanelSide === 'left' && styles.donutWingMinor]}>
+                    {selectedDistributionCategory && distributionPanelSide === 'right' && (
+                      <DistributionBreakdown category={selectedDistributionCategory} assets={assets} styles={styles} primary={inkColor} textSecondary={inkSoft} usdRates={fxRates?.rates ?? null} displayCurrency={displayCurrency} />
+                    )}
+                  </View>
                 </View>
-                <View style={[styles.donutCenter, { width: effectiveDonutWidth }]}>
-                  <DistributionDonut slices={donutSlices} width={effectiveDonutWidth} ringSize={donutRingHeight} selectedCategory={selectedDistributionCategory} onToggleCategory={toggleDistributionCategory} />
-                </View>
-                <View style={[styles.donutWing, styles.donutWingRight, !distributionPanelOpen && styles.donutWingBalanced, distributionPanelOpen && distributionPanelSide === 'right' && styles.donutWingMajor, distributionPanelOpen && distributionPanelSide === 'left' && styles.donutWingMinor]}>
-                  {selectedDistributionCategory && distributionPanelSide === 'right' && (
-                    <DistributionBreakdown category={selectedDistributionCategory} assets={assets} styles={styles} primary={inkColor} textSecondary={inkSoft} usdRates={fxRates?.rates ?? null} displayCurrency={displayCurrency} />
-                  )}
+                <View pointerEvents="none" style={styles.donutPosterCornerTL}>
+                  <View style={{ opacity: 0.60 }}>
+                    <Text style={[styles.returnKicker, { color: textSecondary }]}>
+                      PORTFOLIO
+                    </Text>
+                  </View>
+                  <View style={{ opacity: 0.12 }}>
+                    <Text style={[styles.returnTitle, { color: theme.primary }]}>
+                      ASSET MIX
+                    </Text>
+                  </View>
                 </View>
               </View>
               <View style={styles.donutLegend}>
@@ -570,7 +694,13 @@ export default function Insights() {
                     <Pressable key={s.category} onPress={() => toggleDistributionCategory(s.category)} style={[styles.donutLegendRow, active && styles.donutLegendRowActive]}>
                       <View style={[styles.legendDot, { backgroundColor: s.color }]} />
                       <Text style={[styles.donutLegendName, { color: inkColor }]}>{s.name}</Text>
-                      <Text style={[styles.donutLegendPct, { color: inkColor }]}>{pct.toFixed(1)}%</Text>
+                      <Text
+                        {...numberSingleLineTextProps}
+                        minimumFontScale={0.82}
+                        style={[styles.donutLegendPct, { color: inkColor }]}
+                      >
+                        {pct > 0 && pct < 0.1 ? '<0.1%' : `${pct.toFixed(1)}%`}
+                      </Text>
                     </Pressable>
                   );
                 })}
@@ -599,14 +729,7 @@ export default function Insights() {
           <View style={{ marginHorizontal: 16, marginTop: 8, paddingBottom: 16 }}>
             {topGainer || topLoser ? (
               <View style={styles.summaryRow}>
-                <View
-                  style={[
-                    styles.summaryWinnerBlock,
-                    {
-                      backgroundColor: rgbaFromHex(theme.statusPositive, 0.14),
-                    },
-                  ]}
-                >
+                <View style={[styles.summaryWinnerBlock, summaryWinnerSurface]}>
                   <Text style={[styles.summaryLabel, { color: inkSoft }]}>
                     盈利最多
                   </Text>
@@ -639,14 +762,7 @@ export default function Insights() {
                     <Text style={[styles.summaryName, { color: inkSoft }]}>—</Text>
                   )}
                 </View>
-                <View
-                  style={[
-                    styles.summaryLoserBlock,
-                    {
-                      backgroundColor: rgbaFromHex(theme.statusNegative, 0.14),
-                    },
-                  ]}
-                >
+                <View style={[styles.summaryLoserBlock, summaryLoserSurface]}>
                   <Text style={[styles.summaryLabel, { color: inkSoft }]}>
                     亏损最多
                   </Text>

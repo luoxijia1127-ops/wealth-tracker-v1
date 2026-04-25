@@ -158,12 +158,6 @@ function patchBaselineBuyFunding(
 /** 场内「编辑信息」里可切换的类别，仅三类 */
 const LISTED_EDIT_CATEGORIES: AssetCategory[] = ['Stock', 'Fund', 'ETF'];
 
-function formatCashLine(e: CashLedgerEntry, currency: string): string {
-  const lab = e.side === 'in' ? '增加' : '减少';
-  const rel = e.relatedAssetName ? ` · 关联：${e.relatedAssetName}` : '';
-  return `${e.entryDate} · ${lab} ${formatMoney(e.amount, currency)}${rel}`;
-}
-
 /** 加减余额：解析变动金额（可带 +/-；无符号视为增加） */
 function parseSignedCashDelta(s: string): number | null {
   const t = s.trim().replace(/,/g, '');
@@ -1822,9 +1816,6 @@ export default function AssetActionScreen() {
                       {formatMoney(cashCurrentBalance, getAssetCurrency(asset))}
                     </Text>
                   </FormRow>
-                  <Text style={[styles.hintMuted, { marginBottom: 14 }]}>
-                    变动用正负号表示：增加填 + 或减少填 -；也可只填「更新后余额」自动计算变动。
-                  </Text>
                   <FormRow
                     styles={styles}
                     iconMuted={iconMuted}
@@ -1856,7 +1847,7 @@ export default function AssetActionScreen() {
                       onChangeText={onCashNewBalanceChange}
                       keyboardType="decimal-pad"
                       placeholderTextColor={placeholderColor}
-                      placeholder="填写目标余额，或由上栏变动自动带出"
+                      placeholder="可直接填写余额，倒算变动金额"
                     />
                   </FormRow>
                   <Pressable
@@ -1872,48 +1863,153 @@ export default function AssetActionScreen() {
                     </Text>
                   </Pressable>
 
-                  <Text style={[styles.formRowLabel, { marginTop: 2 }]}>
-                    余额流水
-                  </Text>
-                  {cashRows.length === 0 ? (
-                    <Text style={[styles.hintMuted, { marginTop: 10 }]}>
-                      暂无记录
-                    </Text>
-                  ) : (
-                    <View style={{ marginTop: 12, gap: 10 }}>
-                      {cashRows.map((row) => (
-                        <Pressable
-                          key={row.id}
-                          style={styles.headerCard}
-                          disabled={cashRowsSynthetic}
-                          onPress={() => {
-                            if (cashRowsSynthetic) return;
-                            router.push({
-                              pathname: '/cash-ledger-edit',
-                              params: { assetId: asset.id, entryId: row.id },
-                            });
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              color: theme.primary,
-                              fontWeight: '600',
-                            }}
-                          >
-                            {formatCashLine(row, getAssetCurrency(asset))}
-                          </Text>
-                          {!cashRowsSynthetic ? (
-                            <Text
-                              style={{ fontSize: 12, color: muted, marginTop: 6 }}
-                            >
-                              点按编辑
-                            </Text>
-                          ) : null}
-                        </Pressable>
-                      ))}
+                  <View style={[styles.tradeDetailSection, { marginTop: 18 }]}>
+                    <View style={styles.tradeDetailTitleRow}>
+                      <Text style={styles.tradeDetailTitle}>余额流水</Text>
+                      <View style={styles.tradeDetailTitleActions}>
+                        <Ionicons
+                          name="reorder-three-outline"
+                          size={22}
+                          color={theme.primary}
+                        />
+                        <Ionicons
+                          name="options-outline"
+                          size={20}
+                          color={iconMuted}
+                        />
+                      </View>
                     </View>
-                  )}
+                    {cashRows.length === 0 ? (
+                      <Text style={[styles.hintMuted, { marginTop: 10 }]}>
+                        暂无记录
+                      </Text>
+                    ) : (
+                      <>
+                        <View style={styles.cashLedgerTableOuter}>
+                          <View style={styles.cashLedgerTableInner}>
+                            <View style={styles.tradeTableHeader}>
+                              <View style={styles.cashLedgerTypeCol}>
+                                <Text
+                                  style={[styles.tradeTh, styles.cashLedgerThCenter]}
+                                >
+                                  类型
+                                </Text>
+                              </View>
+                              <View style={styles.cashLedgerAmountCol}>
+                                <Text
+                                  style={[styles.tradeTh, styles.cashLedgerThCenter]}
+                                >
+                                  变动金额
+                                </Text>
+                              </View>
+                              <View style={styles.cashLedgerRelatedCol}>
+                                <Text
+                                  style={[styles.tradeTh, styles.cashLedgerThCenter]}
+                                  numberOfLines={1}
+                                >
+                                  关联
+                                </Text>
+                              </View>
+                            </View>
+                            {cashRows.map((row, rowIdx) => {
+                              const isIn = row.side === 'in';
+                              const cur = getAssetCurrency(asset);
+                              const amtColor = isIn ? FINANCE_UP : FINANCE_DOWN;
+                              const amtText = isIn
+                                ? `+${formatMoney(row.amount, cur)}`
+                                : `-${formatMoney(row.amount, cur)}`;
+                              const rel =
+                                row.relatedAssetName?.trim() || '—';
+                              return (
+                                <Pressable
+                                  key={row.id}
+                                  style={({ pressed }) => [
+                                    styles.tradeTableRow,
+                                    rowIdx % 2 === 1 && styles.tradeTableRowAlt,
+                                    pressed &&
+                                      !cashRowsSynthetic && {
+                                        opacity: 0.88,
+                                      },
+                                  ]}
+                                  disabled={cashRowsSynthetic}
+                                  onPress={() => {
+                                    if (cashRowsSynthetic) return;
+                                    router.push({
+                                      pathname: '/cash-ledger-edit',
+                                      params: {
+                                        assetId: asset.id,
+                                        entryId: row.id,
+                                      },
+                                    });
+                                  }}
+                                >
+                                  <View style={styles.cashLedgerTypeCol}>
+                                    <View
+                                      style={
+                                        isIn
+                                          ? styles.cashLedgerIconCircleIn
+                                          : styles.cashLedgerIconCircleOut
+                                      }
+                                    >
+                                      <Ionicons
+                                        name={isIn ? 'arrow-down' : 'arrow-up'}
+                                        size={16}
+                                        color="#FFFFFF"
+                                      />
+                                    </View>
+                                    <View style={{ alignItems: 'center' }}>
+                                      <Text
+                                        style={[
+                                          styles.tradeTypeLabel,
+                                          { color: amtColor, textAlign: 'center' },
+                                        ]}
+                                        numberOfLines={1}
+                                      >
+                                        {isIn ? '增加' : '减少'}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tradeTypeDate,
+                                          { textAlign: 'center' },
+                                        ]}
+                                        numberOfLines={1}
+                                      >
+                                        {row.entryDate}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                  <View style={styles.cashLedgerAmountCol}>
+                                    <Text
+                                      style={[
+                                        styles.cashLedgerTdAmount,
+                                        { color: amtColor },
+                                      ]}
+                                      numberOfLines={1}
+                                      adjustsFontSizeToFit
+                                      minimumFontScale={0.65}
+                                    >
+                                      {amtText}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.cashLedgerRelatedCol}>
+                                    <Text
+                                      style={styles.cashLedgerTdRelated}
+                                      numberOfLines={2}
+                                    >
+                                      {rel}
+                                    </Text>
+                                  </View>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                        {!cashRowsSynthetic ? (
+                          <Text style={styles.tradeEditHint}>点按行可编辑</Text>
+                        ) : null}
+                      </>
+                    )}
+                  </View>
             </GlassSurface>
             ) : (
               <GlassSurface

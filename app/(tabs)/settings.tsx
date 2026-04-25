@@ -10,7 +10,7 @@ import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
 import type { ComponentProps } from 'react';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
@@ -38,6 +38,17 @@ export default function SettingsScreen() {
   const openMembership = () => {
     router.push('/paywall');
   };
+
+  const onShareApp = useCallback(async () => {
+    try {
+      await Share.share({
+        message: '推荐 Nest：本地资产与净值记账。',
+        title: 'Nest',
+      });
+    } catch {
+      Alert.alert('分享失败', '请重试。');
+    }
+  }, []);
 
   const toolTiles: Tile[] = useMemo(
     () => [
@@ -104,7 +115,35 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.mastheadBlock}>
-          <Text style={styles.masthead}>DAYBREAK</Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <Text
+              style={[styles.masthead, { flex: 1, minWidth: 0 }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              DAYBREAK
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="分享给朋友"
+              hitSlop={10}
+              onPress={() => void onShareApp()}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.65 : 1,
+                padding: 4,
+              })}
+            >
+              <MaterialIcons name="share" size={28} color={p} />
+            </Pressable>
+          </View>
           <Text style={styles.kicker}>EDITORIAL SETTINGS</Text>
         </View>
 

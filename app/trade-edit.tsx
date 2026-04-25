@@ -5,6 +5,7 @@
 import { FormRow } from '@/components/add-asset/form-row';
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { GlassSurface } from '@/components/glass-surface';
+import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { YmdDateFields } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { normalizeAssetCurrency } from '@/lib/asset-currency';
@@ -18,6 +19,7 @@ import {
 import { rgbaFromHex } from '@/lib/color-utils';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
 import { createAddModalStyles } from '@/lib/modal-styles';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import {
   deleteListedTradeEntry,
   updateListedTradeEntry,
@@ -26,18 +28,18 @@ import type { SimpleAsset, TradeLedgerEntry } from '@/types/asset';
 import { getListedUnitPrice } from '@/types/asset';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useFocusEffect } from '@react-navigation/native';
-import { useGlobalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -117,7 +119,6 @@ function buildFundingPatch(
 
 export default function TradeEditScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { assetId, tradeId } = useGlobalSearchParams<{
     assetId?: string;
@@ -125,6 +126,7 @@ export default function TradeEditScreen() {
   }>();
   const { theme } = useAppPalette();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const placeholderColor = useMemo(
     () => rgbaFromHex(theme.primary, 0.42),
     [theme.primary]
@@ -192,19 +194,6 @@ export default function TradeEditScreen() {
   );
 
   const useGram = asset?.category === 'Gold';
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: useGram ? '编辑流水（克）' : '编辑流水',
-      headerStyle: { backgroundColor: theme.pageBg },
-      headerTintColor: theme.primary,
-      headerTitleStyle: {
-        color: theme.primary,
-        fontWeight: '700',
-        fontSize: 17,
-      },
-    });
-  }, [navigation, theme.pageBg, theme.primary, useGram]);
 
   const onSave = async () => {
     if (!asset || !trade) return;
@@ -364,62 +353,118 @@ export default function TradeEditScreen() {
 
   if (!assetId || !tradeId) {
     return (
-      <View style={styles.keyboardRoot}>
+      <View style={hubStyles.screen}>
+        <View style={hubStyles.screenAmbient} pointerEvents="none" />
         <SettingsHubBackTopBar />
-        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
-          <Text style={styles.headerName}>参数无效</Text>
-        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            hubStyles.scrollContent,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <SettingsEditorialMasthead
+            styles={hubStyles}
+            title="EDIT TRADE"
+            kicker="LOT OR GRAM ENTRY"
+          />
+          <View style={{ paddingHorizontal: 24 }}>
+            <Text style={styles.headerName}>参数无效</Text>
+          </View>
+        </ScrollView>
       </View>
     );
   }
 
   if (loading) {
     return (
-      <View style={styles.keyboardRoot}>
+      <View style={hubStyles.screen}>
+        <View style={hubStyles.screenAmbient} pointerEvents="none" />
         <SettingsHubBackTopBar />
-        <View
-          style={{
-            flex: 1,
-            paddingTop: 24,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            hubStyles.scrollContent,
+            {
+              flexGrow: 1,
+              paddingBottom: insets.bottom + 24,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
         >
-          <ActivityIndicator color={theme.primary} />
-        </View>
+          <SettingsEditorialMasthead
+            styles={hubStyles}
+            title="EDIT TRADE"
+            kicker="LOT OR GRAM ENTRY"
+          />
+          <View
+            style={{
+              flex: 1,
+              minHeight: 200,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ActivityIndicator color={theme.primary} />
+          </View>
+        </ScrollView>
       </View>
     );
   }
 
   if (!asset || !trade) {
     return (
-      <View style={styles.keyboardRoot}>
+      <View style={hubStyles.screen}>
+        <View style={hubStyles.screenAmbient} pointerEvents="none" />
         <SettingsHubBackTopBar />
-        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
-          <Text style={styles.headerName}>未找到该流水</Text>
-        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            hubStyles.scrollContent,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <SettingsEditorialMasthead
+            styles={hubStyles}
+            title="EDIT TRADE"
+            kicker="LOT OR GRAM ENTRY"
+          />
+          <View style={{ paddingHorizontal: 24 }}>
+            <Text style={styles.headerName}>未找到该流水</Text>
+          </View>
+        </ScrollView>
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardRoot}
+      style={hubStyles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
     >
-      <View style={styles.modalAmbient} pointerEvents="none" />
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={{
-          paddingTop: 12,
-          paddingBottom: insets.bottom + 40,
-          paddingHorizontal: 14,
-        }}
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          { paddingBottom: insets.bottom + 40 },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="EDIT TRADE"
+          kicker={
+            useGram ? 'GRAM · DATE & PRICE' : 'SHARES · DATE & PRICE'
+          }
+        />
+        <View style={{ paddingHorizontal: 14 }}>
         <GlassSurface borderRadius={32} intensity={50} contentStyle={styles.glassFormInner}>
           <FormRow
             first
@@ -545,6 +590,7 @@ export default function TradeEditScreen() {
             <Text style={styles.saveButtonText}>删除此流水</Text>
           </Pressable>
         </GlassSurface>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

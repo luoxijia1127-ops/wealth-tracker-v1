@@ -11,7 +11,7 @@ import {
   editorialSurfaceFill,
   editorialTableRowAlt,
 } from '@/lib/editorial-theme';
-import { FINANCE_UP } from '@/lib/finance-colors';
+import { FINANCE_DOWN, FINANCE_UP } from '@/lib/finance-colors';
 import { Platform, StyleSheet } from 'react-native';
 
 export function createAddModalStyles(t: AppPaletteTheme) {
@@ -283,11 +283,13 @@ export function createAddModalStyles(t: AppPaletteTheme) {
       letterSpacing: 0.5,
       marginBottom: 6,
     },
+    /** 资产详情/编辑顶：资产名称主标题（市值等副文用 headerMeta，勿共用字号） */
     headerName: {
-      fontSize: 20,
+      fontSize: 32,
+      lineHeight: 31,
       fontWeight: '700',
       color: p,
-      letterSpacing: -0.3,
+      letterSpacing: -0.45,
       marginBottom: 8,
     },
     headerMeta: {
@@ -710,6 +712,77 @@ export function createAddModalStyles(t: AppPaletteTheme) {
     tradeTdPnl: {
       fontSize: 12,
       fontWeight: '700',
+    },
+    /**
+     * 类现金余额流水：三列（类型 / 变动金额 / 关联），flex 铺满屏宽，尽量不横向滑动。
+     */
+    cashLedgerTableOuter: {
+      width: '100%',
+      alignSelf: 'stretch',
+    },
+    cashLedgerTableInner: {
+      width: '100%',
+      alignSelf: 'stretch',
+      paddingBottom: 4,
+    },
+    cashLedgerTypeCol: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingHorizontal: 4,
+    },
+    cashLedgerAmountCol: {
+      width: '30%',
+      minWidth: 76,
+      maxWidth: 118,
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cashLedgerTdAmount: {
+      fontSize: 14,
+      fontWeight: '700',
+      width: '100%',
+      textAlign: 'center',
+    },
+    cashLedgerRelatedCol: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 4,
+    },
+    cashLedgerTdRelated: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: p65,
+      lineHeight: 15,
+      width: '100%',
+      textAlign: 'center',
+    },
+    /** 类现金流水表头：与 tradeTh 一致且列内居中 */
+    cashLedgerThCenter: {
+      textAlign: 'center',
+      width: '100%',
+    },
+    cashLedgerIconCircleIn: {
+      width: 24,
+      height: 24,
+      borderRadius: 14,
+      backgroundColor: rgbaFromHex(FINANCE_UP, 0.24),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cashLedgerIconCircleOut: {
+      width: 24,
+      height: 24,
+      borderRadius: 14,
+      backgroundColor: rgbaFromHex(FINANCE_DOWN, 0.26),
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     tradeEditHint: {
       fontSize: 11,

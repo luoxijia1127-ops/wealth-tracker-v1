@@ -2,8 +2,11 @@
  * 用户协议：可选 WebView 加载托管页；未配置 URL 时展示本地正文。
  */
 
+import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { getTermsOfServiceUrl } from '@/lib/terms-of-service-url';
 import { useMemo, useState } from 'react';
 import {
@@ -48,6 +51,7 @@ function Section({
 export default function SettingsTermsScreen() {
   const insets = useSafeAreaInsets();
   const { theme, appearance } = useAppPalette();
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const secondary = rgbaFromHex(theme.primary, 0.68);
   const muted = rgbaFromHex(theme.primary, 0.52);
 
@@ -61,7 +65,15 @@ export default function SettingsTermsScreen() {
 
   if (termsUrl) {
     return (
-      <View style={[styles.fill, { backgroundColor: theme.pageBg }]}>
+      <View style={[hubStyles.screen, { flex: 1 }]}>
+        <View style={hubStyles.screenAmbient} pointerEvents="none" />
+        <SettingsHubBackTopBar />
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="TERMS"
+          kicker="USER AGREEMENT"
+        />
+        <View style={[styles.fill, { backgroundColor: theme.pageBg }]}>
         {loading && !loadError && (
           <View style={[styles.loadingOverlay, { backgroundColor: loadingOverlayBg }]} pointerEvents="none">
             <ActivityIndicator size="large" color={theme.primary} />
@@ -69,7 +81,7 @@ export default function SettingsTermsScreen() {
           </View>
         )}
         {loadError && (
-          <View style={[styles.errorBox, { paddingTop: insets.top + 16 }]}>
+          <View style={[styles.errorBox, { paddingTop: 12 }]}>
             <Text style={{ fontSize: 15, color: theme.primary, fontWeight: '700' }}>
               无法加载页面
             </Text>
@@ -116,19 +128,29 @@ export default function SettingsTermsScreen() {
             setSupportMultipleWindows={false}
           />
         )}
+        </View>
       </View>
     );
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.pageBg }}
-      contentContainerStyle={{
-        paddingTop: insets.top + 16,
-        paddingBottom: insets.bottom + 28,
-        paddingHorizontal: 20,
-      }}
-    >
+    <View style={hubStyles.screen}>
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          { paddingBottom: insets.bottom + 28 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="TERMS"
+          kicker="USER AGREEMENT · LOCAL"
+        />
+        <View style={{ paddingHorizontal: 20 }}>
       <Text style={{ fontSize: 20, fontWeight: '800', color: theme.primary, marginBottom: 8 }}>
         Nest 用户协议
       </Text>
@@ -190,7 +212,9 @@ export default function SettingsTermsScreen() {
       <Text style={{ fontSize: 12, lineHeight: 18, color: muted, marginTop: 8 }}>
         提示：以上为便于理解的草案，正式上架前建议结合产品与司法辖区由专业人士审阅。
       </Text>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 

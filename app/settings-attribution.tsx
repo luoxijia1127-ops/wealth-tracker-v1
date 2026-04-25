@@ -566,25 +566,13 @@ export default function SettingsAttributionScreen() {
           </Text>
         </View>
 
-      <Text
-        style={{
-          fontSize: 12,
-          fontWeight: '500',
-          color: muted,
-          marginBottom: 14,
-          lineHeight: 18,
-        }}
-      >
-        按日对照「总净值快照」变化（折人民币时与总览一致）。点击某日可查看各资产市值贡献与外部流水；红涨绿跌为 A
-        股习惯展示。
-      </Text>
-
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: 12,
+          marginTop: 12,
           flexWrap: 'wrap',
           gap: 8,
         }}

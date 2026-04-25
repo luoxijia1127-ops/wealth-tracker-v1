@@ -46,7 +46,6 @@ import {
     searchUnifiedInstruments,
     type UnifiedSuggestItem,
 } from '@/lib/instrument-search';
-import { AppFont } from '@/lib/app-fonts';
 import { createAddModalStyles } from '@/lib/modal-styles';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
@@ -665,26 +664,14 @@ export default function AddModal() {
           style={[
             hubStyles.mastheadBlock,
             {
-              paddingTop: 4,
-              paddingBottom: 4,
+              paddingTop: 0,
+              paddingBottom: 0,
               paddingHorizontal: 0,
+              marginBottom: 6,
             },
           ]}
         >
           <Text style={hubStyles.masthead}>ADD ASSET</Text>
-          <Text style={hubStyles.kicker}>LISTED · CASH · GOLD</Text>
-          <Text
-            style={{
-              fontFamily: AppFont.displayBold,
-              fontSize: 26,
-              letterSpacing: -0.6,
-              lineHeight: 30,
-              color: theme.primary,
-              marginTop: 4,
-            }}
-          >
-            添加资产
-          </Text>
         </View>
 
         <GlassSurface

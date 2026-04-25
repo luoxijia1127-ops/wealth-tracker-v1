@@ -3,6 +3,8 @@
  * 支持 .zip（推荐）与纯 .json；支持「覆盖恢复」与「合并到当前数据」两种策略。
  */
 
+import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import {
@@ -15,8 +17,9 @@ import {
   type BackupPayload,
   type BackupPreview,
 } from '@/lib/backup-bundle';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import * as DocumentPicker from 'expo-document-picker';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -36,6 +39,7 @@ type PickedFile = {
 export default function SettingsImportScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const muted = rgbaFromHex(theme.primary, 0.55);
   const chipBg = rgbaFromHex(theme.primary, 0.08);
   const dangerColor = theme.statusNegative;
@@ -150,14 +154,23 @@ export default function SettingsImportScreen() {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.pageBg }}
-      contentContainerStyle={{
-        paddingTop: 12,
-        paddingBottom: insets.bottom + 24,
-        paddingHorizontal: 20,
-      }}
-    >
+    <View style={hubStyles.screen}>
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="IMPORT"
+          kicker="RESTORE FROM BACKUP"
+        />
+        <View style={{ paddingHorizontal: 20 }}>
       <Text style={{ fontSize: 13, color: muted, lineHeight: 20, marginBottom: 16 }}>
         从上一台设备导出的 .zip 备份中恢复数据。支持「覆盖恢复」（推荐换机场景）与「合并导入」。
         备份为明文 JSON，请妥善保管文件。
@@ -371,7 +384,9 @@ export default function SettingsImportScreen() {
           </Text>
         </View>
       )}
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 

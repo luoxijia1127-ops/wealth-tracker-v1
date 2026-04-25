@@ -492,6 +492,12 @@ export function buildDonutSlices(
 
 export const DONUT_EXPLODE = 12;
 export const DONUT_SELECTED_SCALE = 1.08;
+/** 占比 ≥ 此阈值时，百分比画在环带质心内侧 */
+export const DONUT_PCT_LABEL_INSIDE_MIN = 12;
+/** 低于此占比不在环周绘制数字，仅依赖下方图例 */
+export const DONUT_PCT_LABEL_OMIT_BELOW = 3;
+/** 介于 OMIT 与 INSIDE_MIN 之间：画在环外沿径向，避免细扇区拥挤 */
+export const DONUT_PCT_LABEL_OUTSIDE_PAD = 14;
 
 /** 与环形图绘制共用，保证质心用于面板左右判断时一致 */
 export function getDonutPieCurves(

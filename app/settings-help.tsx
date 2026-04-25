@@ -2,9 +2,12 @@
  * 帮助与反馈
  */
 
+import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { rgbaFromHex } from '@/lib/color-utils';
-import { useCallback } from 'react';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
+import { useCallback, useMemo } from 'react';
 import { Linking, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +16,7 @@ const FEEDBACK_EMAIL = 'nest_feedback@163.com';
 export default function SettingsHelpScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const secondary = rgbaFromHex(theme.primary, 0.65);
   const muted = rgbaFromHex(theme.primary, 0.5);
   const linkColor = rgbaFromHex(theme.primary, 0.95);
@@ -29,14 +33,23 @@ export default function SettingsHelpScreen() {
   ];
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.pageBg }}
-      contentContainerStyle={{
-        paddingTop: insets.top + 16,
-        paddingBottom: insets.bottom + 24,
-        paddingHorizontal: 20,
-      }}
-    >
+    <View style={hubStyles.screen}>
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="HELP"
+          kicker="TIPS & FEEDBACK"
+        />
+        <View style={{ paddingHorizontal: 20 }}>
       <Text style={{ fontSize: 17, fontWeight: '800', color: theme.primary, marginBottom: 14 }}>
         使用提示
       </Text>
@@ -63,6 +76,8 @@ export default function SettingsHelpScreen() {
         </Text>
         。
       </Text>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }

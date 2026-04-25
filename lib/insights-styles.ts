@@ -224,7 +224,7 @@ export function createInsightsStyles(
       textAlign: 'right',
     },
 
-    /** Summary Blocks（资产变动 · 盈利最多 / 亏损最多） */
+    /** Summary Blocks（资产变动 · 盈利最多 / 亏损最多）；底色与描边由 insights 页按 theme.primary + status 注入 */
     summaryRow: {
       flexDirection: 'row',
       marginHorizontal: 0,
@@ -323,7 +323,7 @@ export function createInsightsStyles(
     },
     trendChartWrap: {
       position: 'relative',
-      paddingTop: 60,
+      paddingTop: 12,
     },
     trendTooltip: {
       position: 'absolute',
@@ -417,6 +417,12 @@ export function createInsightsStyles(
       paddingBottom: 12,
       paddingTop: 12,
     },
+    /** 三列 + 角标 masthead 的定位参考（角标相对整行，不限于环柱宽） */
+    donutInteractiveRowWrap: {
+      position: 'relative',
+      alignSelf: 'stretch',
+      width: '100%',
+    },
     donutInteractiveRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -430,6 +436,21 @@ export function createInsightsStyles(
     donutWingLeft: { alignItems: 'flex-end', paddingRight: 2 },
     donutWingRight: { alignItems: 'flex-start', paddingLeft: 2 },
     donutCenter: { flexShrink: 0, alignItems: 'center' },
+    /** 资产分布：角标式英文 masthead，相对整行定位（可与饼图/空白区重叠） */
+    donutPosterCornerTL: {
+      position: 'absolute',
+      left: 8,
+      top: 4,
+      zIndex: 4,
+    },
+    /** 相对环柱底部右角（饼图区域），文案可向左延伸、不限于环宽 */
+    donutPosterCornerBR: {
+      position: 'absolute',
+      right: 0,
+      bottom: 4,
+      alignItems: 'flex-end',
+      zIndex: 4,
+    },
     breakdownCard: {
       backgroundColor: rgbaFromHex(p, 0.04),
       paddingHorizontal: 12,
@@ -496,6 +517,9 @@ export function createInsightsStyles(
       letterSpacing: 0.5,
     },
     donutLegendPct: {
+      flexShrink: 0,
+      minWidth: 52,
+      maxWidth: '36%',
       fontSize: 14,
       fontWeight: '800',
       textAlign: 'right',

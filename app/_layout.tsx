@@ -73,7 +73,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="trade-edit"
             options={{
-              headerShown: true,
+              headerShown: false,
               presentation: 'modal',
               gestureEnabled: true,
               headerShadowVisible: false,
@@ -82,7 +82,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="cash-ledger-edit"
             options={{
-              headerShown: true,
+              headerShown: false,
               presentation: 'modal',
               gestureEnabled: true,
               headerShadowVisible: false,
@@ -115,7 +115,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-export"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '数据与导出',
               headerShadowVisible: false,
             }}
@@ -123,7 +123,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-import"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '导入备份',
               headerShadowVisible: false,
             }}
@@ -131,7 +131,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-help"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '帮助与反馈',
               headerShadowVisible: false,
             }}
@@ -139,7 +139,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-about"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '关于应用',
               headerShadowVisible: false,
             }}
@@ -147,7 +147,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-privacy"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '隐私政策',
               headerShadowVisible: false,
             }}
@@ -155,7 +155,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-terms"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '用户协议',
               headerShadowVisible: false,
             }}
@@ -179,7 +179,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-cashflow-colors"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '应用配色',
               headerShadowVisible: false,
             }}
@@ -187,7 +187,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-archived"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '已归档',
               headerShadowVisible: false,
             }}
@@ -195,7 +195,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings-trash"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: '最近删除',
               headerShadowVisible: false,
             }}

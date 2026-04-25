@@ -8,7 +8,7 @@ import type { AppPaletteId, AppPaletteTheme } from '@/lib/app-palette';
 export const APP_PALETTE_THEMES_DARK: Record<AppPaletteId, AppPaletteTheme> = {
   miami: {
     id: 'miami',
-    nameZh: '迈阿密落日',
+    nameZh: '夏日余晖',
     swatches: ['#F09094', '#FF9E45', '#FFD666', '#3DD4C4', '#E8C060'],
     pageBg: '#141210',
     primary: '#F2EDE4',
@@ -44,7 +44,7 @@ export const APP_PALETTE_THEMES_DARK: Record<AppPaletteId, AppPaletteTheme> = {
 
   sea: {
     id: 'sea',
-    nameZh: '彩色黎明',
+    nameZh: '午夜幻梦',
     swatches: ['#9B9FFF', '#FFD54A', '#FFAB6B', '#FF7B4A', '#7B6FD9'],
     pageBg: '#12101C',
     primary: '#E8E4F8',
@@ -54,7 +54,8 @@ export const APP_PALETTE_THEMES_DARK: Record<AppPaletteId, AppPaletteTheme> = {
       ETF: '#FFAB6B',
       Cash: '#FF7B4A',
       Gold: '#B8B4FF',
-      Custom: '#9B9FFF',
+      /** 与 Stock 淡紫区分：偏青绿高光 */
+      Custom: '#5EDCC8',
     },
     folderListBg: 'rgba(255, 255, 255, 0.06)',
     purposeAccent: '#FFAB6B',
@@ -79,7 +80,7 @@ export const APP_PALETTE_THEMES_DARK: Record<AppPaletteId, AppPaletteTheme> = {
 
   cotton_candy_romance: {
     id: 'cotton_candy_romance',
-    nameZh: '海洋日落',
+    nameZh: '深海岛屿',
     swatches: ['#2EB8CC', '#2EC4C8', '#A8E8D8', '#FFB84D', '#E88840'],
     pageBg: '#0A1012',
     primary: '#E8F4F2',
@@ -124,7 +125,8 @@ export const APP_PALETTE_THEMES_DARK: Record<AppPaletteId, AppPaletteTheme> = {
       ETF: '#2EE8B8',
       Cash: '#FFE08A',
       Gold: '#8AD4F0',
-      Custom: '#4AB8E8',
+      /** 与 Stock 天蓝区分：偏亮紫 */
+      Custom: '#B794F6',
     },
     folderListBg: 'rgba(255, 255, 255, 0.06)',
     purposeAccent: '#FF7A9A',
@@ -184,7 +186,7 @@ export const APP_PALETTE_THEMES_DARK: Record<AppPaletteId, AppPaletteTheme> = {
 
   berry_muse: {
     id: 'berry_muse',
-    nameZh: '酒渍蔷薇',
+    nameZh: '莫奈花园',
     swatches: ['#FF8AB8', '#F5C4D4', '#FFE88A', '#D4E86A', '#D4C4F8'],
     pageBg: '#181014',
     primary: '#F8E8F0',
@@ -220,7 +222,7 @@ export const APP_PALETTE_THEMES_DARK: Record<AppPaletteId, AppPaletteTheme> = {
   /** Coolors「blush」深色版：炭底 + 雾粉高光 */
   purple_rain_journal: {
     id: 'purple_rain_journal',
-    nameZh: '雾紫雨天',
+    nameZh: '暮色温柔',
     swatches: ['#F2B5CC', '#D7A3BB', '#C997B1', '#A38EA7', '#5E5E68'],
     pageBg: '#16161C',
     primary: '#F4E6EC',

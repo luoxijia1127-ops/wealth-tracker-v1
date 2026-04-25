@@ -92,7 +92,7 @@ function accentsFromSwatches(
 export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
   miami: {
     id: 'miami',
-    nameZh: '迈阿密落日',
+    nameZh: '夏日余晖',
     /** 参考图左：珊瑚 / 橙 / 金黄 / 青绿 + 金色点缀 */
     swatches: ['#E07A7E', '#F28C28', '#F2C94C', '#1DB5A6', '#D4A843'],
     /** 底部文件框 / 口袋区奶油色 */
@@ -134,7 +134,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
   /** Coolors「Colorful Daybreak」 */
   sea: {
     id: 'sea',
-    nameZh: '彩色黎明',
+    nameZh: '午夜幻梦',
     swatches: ['#3D348B', '#7678ED', '#F7B801', '#F18701', '#F35B04'],
     pageBg: '#F5F3FC',
     primary: '#3D348B',
@@ -144,7 +144,8 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
       ETF: '#F18701',
       Cash: '#F35B04',
       Gold: '#3D348B',
-      Custom: '#7678ED',
+      /** 与 Stock 紫蓝区分：同系偏青绿，六类各一色 */
+      Custom: '#3AB8A8',
     },
     folderListBg: 'rgba(255, 255, 255, 0.88)',
     purposeAccent: '#F18701',
@@ -170,7 +171,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
   /** Coolors「Ocean Sunset」 */
   cotton_candy_romance: {
     id: 'cotton_candy_romance',
-    nameZh: '海洋日落',
+    nameZh: '深海岛屿',
     swatches: ['#005F73', '#0A9396', '#94D2BD', '#EE9B00', '#CA6702'],
     pageBg: '#F2EDE6',
     primary: '#001219',
@@ -216,7 +217,8 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
       ETF: '#06D6A0',
       Cash: '#FFD166',
       Gold: '#073B4C',
-      Custom: '#118AB2',
+      /** 与 Stock 青蓝区分：偏紫罗兰，六类各一色 */
+      Custom: '#7C6FD6',
     },
     folderListBg: 'rgba(255, 255, 255, 0.9)',
     purposeAccent: '#EF476F',
@@ -277,7 +279,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
 
   berry_muse: {
     id: 'berry_muse',
-    nameZh: '酒渍蔷薇',
+    nameZh: '莫奈花园',
     swatches: ['#F195B5', '#EAC1CF', '#F6D87A', '#C5D973', '#CBB6EF'],
     pageBg: '#FAF3ED',
     primary: '#4A273D',
@@ -313,7 +315,7 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
   /** Coolors「blush」雾粉 → 灰紫 → 炭灰 */
   purple_rain_journal: {
     id: 'purple_rain_journal',
-    nameZh: '雾紫雨天',
+    nameZh: '暮色温柔',
     swatches: ['#F2B5CC', '#D7A3BB', '#C997B1', '#A38EA7', '#5E5E68'],
     pageBg: '#FAF4F7',
     primary: '#5E5E68',

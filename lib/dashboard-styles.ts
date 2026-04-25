@@ -6,7 +6,7 @@ import { AppFont } from '@/lib/app-fonts';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { editorialAmbientWash } from '@/lib/editorial-theme';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export function createDashboardStyles(t: AppPaletteTheme) {
   const p = t.primary;
@@ -46,25 +46,18 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       backgroundColor: 'transparent',
       overflow: 'visible',
     },
-    /** 在黄底之上、Dashboard 字之下，避免挡住标题 */
-    heroAddHitAbs: {
-      position: 'absolute',
-      right: 12,
-      zIndex: 25,
-      padding: 10,
-    },
     headerAddFabPressed: {
       opacity: 0.8,
     },
     /**
      * 左上：杂志大标题 — 拆成「黄底 / 文字」两层，便于紫色块压在黄底下面、字永远在最上。
-     * 勿用窄 width + 大 padding，否则「Dashboard」会被水平裁切；用 right 为「+」留白。
+     * 勿用窄 width + 大 padding，否则「Dashboard」会被水平裁切；「+」与标题同排见 mastheadTitleRow。
      */
     heroMastheadYellowBg: {
       position: 'absolute',
       top: 0,
       left: 0,
-      right: 52,
+      right: 0,
       height: 200,
       zIndex: 5,
     },
@@ -72,14 +65,54 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       position: 'absolute',
       top: 0,
       left: 0,
-      right: 52,
+      right: 0,
       minHeight: 200,
       paddingLeft: 28,
-      paddingRight: 12,
+      paddingRight: 16,
       paddingBottom: 12,
       zIndex: 30,
       backgroundColor: 'transparent',
       overflow: 'visible',
+    },
+    /** Dashboard 标题行：左侧标题 + 右侧添加（与字同排） */
+    mastheadTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      width: '100%',
+      minWidth: 0,
+    },
+    mastheadTitleFill: {
+      flex: 1,
+      minWidth: 0,
+    },
+    heroAddFabOuter: {
+      flexShrink: 0,
+      padding: 2,
+    },
+    /** 圆形光晕 + 轻底，便于在黄底上辨认 */
+    heroAddFabHalo: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: rgbaFromHex(p, 0.14),
+      borderWidth: StyleSheet.hairlineWidth * 2,
+      borderColor: rgbaFromHex(p, 0.26),
+      ...Platform.select({
+        ios: {
+          shadowColor: p,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 14,
+        },
+        android: {
+          elevation: 12,
+        },
+        default: {},
+      }),
     },
     /** 右上：偏紫的色块（压在黄底下面） */
     heroBlueTopBlock: {

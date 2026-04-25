@@ -173,7 +173,18 @@ export function InsightsTrendChart({
 
   return (
     <>
-      <View style={[{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 24, paddingVertical: 12 }]}>
+      <View
+        style={[
+          {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 6,
+            paddingHorizontal: 24,
+            paddingTop: 4,
+            paddingBottom: 6,
+          },
+        ]}
+      >
         {TREND_TIMEFRAME_OPTIONS.map((opt) => {
           const active = timeframe === opt.id;
           const accent = theme.primary;

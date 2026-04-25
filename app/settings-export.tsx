@@ -4,6 +4,8 @@
  *   - 期间 CSV——仅手动流水（现金增减 + 场内买卖），供 Excel 审阅，不用于恢复。
  */
 
+import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { getAssets } from '@/lib/asset-storage';
 import {
@@ -19,6 +21,7 @@ import {
   manualTransactionsToCsv,
   type DatePresetId,
 } from '@/lib/manual-transactions-export';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import type { SimpleAsset } from '@/types/asset';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -54,6 +57,7 @@ function validateYmd(s: string): boolean {
 export default function SettingsExportScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const muted = rgbaFromHex(theme.primary, 0.5);
   const chipBg = rgbaFromHex(theme.primary, 0.1);
   const chipActiveBg = rgbaFromHex(theme.primary, 0.22);
@@ -223,14 +227,25 @@ export default function SettingsExportScreen() {
   ];
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.pageBg }}
-      contentContainerStyle={{
-        paddingTop: 12,
-        paddingBottom: insets.bottom + 24,
-        paddingHorizontal: 20,
-      }}
-    >
+    <View style={hubStyles.screen}>
+      <View style={hubStyles.screenAmbient} pointerEvents="none" />
+      <SettingsHubBackTopBar />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          hubStyles.scrollContent,
+          {
+            paddingBottom: insets.bottom + 24,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <SettingsEditorialMasthead
+          styles={hubStyles}
+          title="EXPORT"
+          kicker="BACKUP & PERIOD CSV"
+        />
+        <View style={{ paddingHorizontal: 20 }}>
       {loading ? (
         <ActivityIndicator color={theme.primary} style={{ marginVertical: 24 }} />
       ) : (
@@ -442,6 +457,8 @@ export default function SettingsExportScreen() {
           )}
         </>
       )}
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
