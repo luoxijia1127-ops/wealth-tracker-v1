@@ -9,10 +9,12 @@ import {
   YmdDateFields,
 } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { formatMoney } from '@/lib/asset-value';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
+import type { TranslationKey } from '@/lib/language';
 import {
   addCalendarDaysYmd,
   snapshotDisplayTotalInDisplay,
@@ -80,6 +82,7 @@ export function InsightsTrendChart({
   usdRatesForTooltip?: FxUsdMidRates['rates'] | null;
 }) {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [draftStart, setDraftStart] = useState('');
   const [draftEnd, setDraftEnd] = useState('');
@@ -227,7 +230,7 @@ export function InsightsTrendChart({
                 adjustsFontSizeToFit
                 minimumFontScale={0.82}
               >
-                {opt.label}
+                {t(`trend.range.${opt.id}` as TranslationKey)}
               </Text>
             </Pressable>
           );
@@ -338,7 +341,7 @@ export function InsightsTrendChart({
                 color: theme.primary,
               }}
             >
-              自定义区间
+              {t('trend.customRange')}
             </Text>
             {Platform.OS === 'web' ? (
               <View style={{ paddingHorizontal: 20, gap: 14 }}>
@@ -351,7 +354,7 @@ export function InsightsTrendChart({
                       color: textMuted,
                     }}
                   >
-                    开始日期
+                    {t('trend.startDate')}
                   </Text>
                   <YmdDateFields
                     value={draftStart}
@@ -370,7 +373,7 @@ export function InsightsTrendChart({
                       color: textMuted,
                     }}
                   >
-                    结束日期
+                    {t('trend.endDate')}
                   </Text>
                   <YmdDateFields
                     value={draftEnd}
@@ -394,11 +397,11 @@ export function InsightsTrendChart({
                     borderBottomColor: 'rgba(0,0,0,0.08)',
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="选择开始日期"
+                  accessibilityLabel={t('trend.startDate')}
                 >
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={{ fontSize: 12, color: textMuted }}>
-                      开始日期
+                      {t('trend.startDate')}
                     </Text>
                     <Text
                       style={{
@@ -427,11 +430,11 @@ export function InsightsTrendChart({
                     borderBottomColor: 'rgba(0,0,0,0.08)',
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="选择结束日期"
+                  accessibilityLabel={t('trend.endDate')}
                 >
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={{ fontSize: 12, color: textMuted }}>
-                      结束日期
+                      {t('trend.endDate')}
                     </Text>
                     <Text
                       style={{
@@ -460,7 +463,9 @@ export function InsightsTrendChart({
               }}
             >
               <Pressable onPress={closeCustomSheet}>
-                <Text style={{ fontSize: 16, color: textSecondary }}>取消</Text>
+                <Text style={{ fontSize: 16, color: textSecondary }}>
+                  {t('common.cancel')}
+                </Text>
               </Pressable>
               <Pressable onPress={confirmCustomRange}>
                 <Text
@@ -470,7 +475,7 @@ export function InsightsTrendChart({
                     color: theme.primary,
                   }}
                 >
-                  确定
+                  {t('common.confirm')}
                 </Text>
               </Pressable>
             </View>

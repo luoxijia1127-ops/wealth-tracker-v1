@@ -7,6 +7,7 @@
 import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { getAssets } from '@/lib/asset-storage';
 import {
   buildBackupZip,
@@ -15,6 +16,7 @@ import {
   writeZipToCache,
 } from '@/lib/backup-bundle';
 import { rgbaFromHex } from '@/lib/color-utils';
+import type { TranslationKey } from '@/lib/language';
 import {
   collectManualTransactions,
   getPresetDateRange,
@@ -40,13 +42,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const PRESETS: { id: DatePresetId; label: string }[] = [
-  { id: 'd7', label: '近7天' },
-  { id: 'd30', label: '近30天' },
-  { id: 'm3', label: '近3个月' },
-  { id: 'year', label: '本年' },
-  { id: 'all', label: '全部' },
-];
+const PRESET_IDS: DatePresetId[] = ['d7', 'd30', 'm3', 'year', 'all'];
 
 type ExportMode = 'backup' | 'csv';
 
@@ -57,6 +53,7 @@ function validateYmd(s: string): boolean {
 export default function SettingsExportScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const { locale, t } = useLanguage();
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const muted = rgbaFromHex(theme.primary, 0.5);
   const chipBg = rgbaFromHex(theme.primary, 0.1);
@@ -100,6 +97,17 @@ export default function SettingsExportScreen() {
   }, [assets, startDate, endDate]);
 
   const placeholderColor = muted;
+  const presets = useMemo(
+    () =>
+      PRESET_IDS.map((id) => ({
+        id,
+        label:
+          id === 'all'
+            ? t('common.all')
+            : t(`export.preset.${id}` as TranslationKey),
+      })),
+    [t]
+  );
 
   const applyPreset = (id: DatePresetId) => {
     const r = getPresetDateRange(id, assets);
@@ -113,7 +121,7 @@ export default function SettingsExportScreen() {
     try {
       const payload = await collectBackupData();
       if (payload.assets.length === 0) {
-        Alert.alert('无数据', '当前没有任何资产数据可备份。');
+        Alert.alert(t('common.noData'), t('export.noBackupData'));
         return;
       }
       const bytes = await buildBackupZip(payload);
@@ -131,7 +139,7 @@ export default function SettingsExportScreen() {
           a.click();
           URL.revokeObjectURL(url);
         } catch {
-          Alert.alert('导出失败', '浏览器无法生成下载，请重试。');
+          Alert.alert(t('export.failedTitle'), t('export.webDownloadFailed'));
         }
         return;
       }
@@ -141,13 +149,13 @@ export default function SettingsExportScreen() {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/zip',
           UTI: 'public.zip-archive',
-          dialogTitle: '保存备份文件',
+          dialogTitle: t('export.backup'),
         });
       } else {
-        Alert.alert('备份已生成', `文件路径：${uri}`);
+        Alert.alert(t('export.backupReady'), t('export.filePath', { uri }));
       }
     } catch (e) {
-      Alert.alert('导出失败', (e as Error).message);
+      Alert.alert(t('export.failedTitle'), (e as Error).message);
     } finally {
       setExporting(false);
     }
@@ -155,11 +163,11 @@ export default function SettingsExportScreen() {
 
   const onExportCsv = async () => {
     if (!validateYmd(startDate) || !validateYmd(endDate)) {
-      Alert.alert('日期无效', '请使用 YYYY-MM-DD 格式，例如 2026-01-15。');
+      Alert.alert(t('export.invalidDateTitle'), t('export.invalidDateMessage'));
       return;
     }
     if (startDate > endDate) {
-      Alert.alert('期间无效', '开始日期不能晚于结束日期。');
+      Alert.alert(t('export.invalidRangeTitle'), t('export.invalidRangeMessage'));
       return;
     }
     const rows = collectManualTransactions(assets, {
@@ -167,12 +175,12 @@ export default function SettingsExportScreen() {
       end: endDate,
     });
     if (rows.length === 0) {
-      Alert.alert('无数据', '所选期间内没有可导出的手动流水。');
+      Alert.alert(t('common.noData'), t('export.noCsvData'));
       return;
     }
-    const csv = manualTransactionsToCsv(rows);
+    const csv = manualTransactionsToCsv(rows, locale);
     const fileSafe = `${startDate}_${endDate}`.replace(/[^\d_-]/g, '');
-    const downloadName = `nest-手动交易-${fileSafe}.csv`;
+    const downloadName = `nest-manual-${fileSafe}.csv`;
     /** 原生路径仅用 ASCII，避免部分系统对中文路径支持不佳 */
     const nativeFileName = `nest-manual-${fileSafe}.csv`;
 
@@ -186,7 +194,7 @@ export default function SettingsExportScreen() {
         a.click();
         URL.revokeObjectURL(url);
       } catch {
-        Alert.alert('导出失败', '浏览器无法生成下载，请重试。');
+        Alert.alert(t('export.failedTitle'), t('export.webDownloadFailed'));
       }
       return;
     }
@@ -202,7 +210,7 @@ export default function SettingsExportScreen() {
           await Sharing.shareAsync(fileUri, {
             mimeType: 'text/csv',
             UTI: 'public.comma-separated-values-text',
-            dialogTitle: '导出 CSV',
+            dialogTitle: t('export.csv'),
           });
           return;
         }
@@ -214,16 +222,16 @@ export default function SettingsExportScreen() {
     try {
       await Share.share({
         message: csv,
-        title: '手动交易明细',
+        title: t('export.shareCsvTitle'),
       });
     } catch {
-      Alert.alert('导出失败', '无法分享，请重试或检查系统权限。');
+      Alert.alert(t('export.failedTitle'), t('export.shareFailed'));
     }
   };
 
   const modeTabs: { id: ExportMode; label: string; sub: string }[] = [
-    { id: 'backup', label: '完整备份 (.zip)', sub: '换机恢复推荐' },
-    { id: 'csv', label: '期间 CSV', sub: '手动流水明细' },
+    { id: 'backup', label: t('export.mode.backup'), sub: t('export.mode.backupSub') },
+    { id: 'csv', label: t('export.mode.csv'), sub: t('export.mode.csvSub') },
   ];
 
   return (
@@ -302,18 +310,19 @@ export default function SettingsExportScreen() {
               <Text
                 style={{ fontSize: 14, fontWeight: '700', color: theme.primary, marginBottom: 10 }}
               >
-                完整备份
+                {t('export.backupTitle')}
               </Text>
               <Text style={{ fontSize: 13, color: muted, lineHeight: 20, marginBottom: 12 }}>
-                导出一个 .zip 文件，内含 backup.json（换机恢复的唯一数据源）以及三份 CSV（供 Excel 审阅）。
-                覆盖范围：
+                {t('export.backupDescription')}
+                {'\n'}
+                {t('export.coverage')}
               </Text>
               <View style={{ marginBottom: 12 }}>
                 {[
-                  '所有资产及其交易流水、现金流水、每日市值历史',
-                  '每日总净值快照（含折算人民币）',
-                  '每日逐资产市值（最长 730 天，支持重建「资产变动」视图）',
-                  '归档与最近删除记录',
+                  t('export.coverage.assets'),
+                  t('export.coverage.snapshots'),
+                  t('export.coverage.assetDaily'),
+                  t('export.coverage.archive'),
                 ].map((s) => (
                   <Text
                     key={s}
@@ -324,7 +333,7 @@ export default function SettingsExportScreen() {
                 ))}
               </View>
               <Text style={{ fontSize: 12, color: muted, lineHeight: 18, marginBottom: 16 }}>
-                备份文件为明文 JSON，未加密。请妥善保管，切勿上传到公开云盘。
+                {t('export.warningPlain')}
               </Text>
 
               <Pressable
@@ -340,17 +349,17 @@ export default function SettingsExportScreen() {
                 }}
               >
                 <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
-                  {exporting ? '正在生成…' : '导出完整备份 (.zip)'}
+                  {exporting ? t('export.generating') : t('export.mode.backup')}
                 </Text>
               </Pressable>
             </>
           ) : (
             <>
               <Text style={{ fontSize: 14, fontWeight: '700', color: theme.primary, marginBottom: 10 }}>
-                快捷期间
+                {t('export.quickRange')}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
-                {PRESETS.map((p) => {
+                {presets.map((p) => {
                   const active = activePreset === p.id;
                   return (
                     <Pressable
@@ -378,7 +387,7 @@ export default function SettingsExportScreen() {
               </View>
 
               <Text style={{ fontSize: 14, fontWeight: '700', color: theme.primary, marginBottom: 8 }}>
-                自定义区间（YYYY-MM-DD）
+                {t('export.customRange')}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 <TextInput
@@ -387,7 +396,7 @@ export default function SettingsExportScreen() {
                     setStartDate(t.trim());
                     setActivePreset(null);
                   }}
-                  placeholder="开始日期"
+                  placeholder={t('export.startDate')}
                   placeholderTextColor={placeholderColor}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -403,14 +412,14 @@ export default function SettingsExportScreen() {
                     backgroundColor: rgbaFromHex('#ffffff', 0.85),
                   }}
                 />
-                <Text style={{ color: muted, fontWeight: '700' }}>至</Text>
+                <Text style={{ color: muted, fontWeight: '700' }}>{t('export.to')}</Text>
                 <TextInput
                   value={endDate}
                   onChangeText={(t) => {
                     setEndDate(t.trim());
                     setActivePreset(null);
                   }}
-                  placeholder="结束日期"
+                  placeholder={t('export.endDate')}
                   placeholderTextColor={placeholderColor}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -428,7 +437,7 @@ export default function SettingsExportScreen() {
                 />
               </View>
               <Text style={{ fontSize: 12, color: muted, marginBottom: 16 }}>
-                当前区间约 {rowCount} 条流水（余额增减与场内买卖合计）
+                {t('export.rowCount', { count: rowCount })}
               </Text>
 
               <Pressable
@@ -442,16 +451,16 @@ export default function SettingsExportScreen() {
                 }}
               >
                 <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
-                  导出 CSV
+                  {t('export.csv')}
                 </Text>
               </Pressable>
               <Text style={{ fontSize: 12, color: muted, marginTop: 12, lineHeight: 18 }}>
                 {Platform.OS === 'web'
-                  ? '浏览器将下载 UTF-8 CSV 文件，可用 Excel 打开。'
-                  : '将通过系统分享面板发送 UTF-8 的 .csv 文件；若无法调起文件分享，将回退为纯文本。'}
+                  ? t('export.csvWebHint')
+                  : t('export.csvNativeHint')}
               </Text>
               <Text style={{ fontSize: 12, color: muted, marginTop: 6, lineHeight: 18 }}>
-                注：CSV 仅为明细审阅，不能用于换机恢复。换机恢复请使用「完整备份 (.zip)」。
+                {t('export.csvNote')}
               </Text>
             </>
           )}

@@ -3,6 +3,7 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import {
   APP_PALETTE_THEMES,
   PALETTE_IDS,
@@ -10,6 +11,7 @@ import {
   type AppPaletteId,
 } from '@/lib/app-palette';
 import { rgbaFromHex } from '@/lib/color-utils';
+import type { TranslationKey } from '@/lib/language';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,6 +70,7 @@ function PaletteSwatchStack({
 export default function SettingsPaletteScreen() {
   const insets = useSafeAreaInsets();
   const { theme, paletteId, setPaletteId } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const p = theme.primary;
 
@@ -98,14 +101,14 @@ export default function SettingsPaletteScreen() {
         <View style={styles.preferencesBlock}>
           <View style={{ gap: 0 }}>
             {PALETTE_IDS.map((id: AppPaletteId) => {
-              const t = APP_PALETTE_THEMES[id];
+              const palette = APP_PALETTE_THEMES[id];
               const selected = paletteId === id;
               const showNew = newSet.has(id);
               const four = [
-                t.swatches[0]!,
-                t.swatches[1]!,
-                t.swatches[2]!,
-                t.swatches[3]!,
+                palette.swatches[0]!,
+                palette.swatches[1]!,
+                palette.swatches[2]!,
+                palette.swatches[3]!,
               ] as const;
 
               return (
@@ -136,7 +139,7 @@ export default function SettingsPaletteScreen() {
                     }}
                     numberOfLines={1}
                   >
-                    {t.nameZh}
+                    {t(`settings.palette.${id}` as TranslationKey)}
                   </Text>
                   {showNew ? (
                     <Text

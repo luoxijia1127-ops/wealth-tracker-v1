@@ -5,9 +5,11 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
+import type { TranslationKey } from '@/lib/language';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { canAddAnotherAsset } from '@/lib/asset-limit';
-import { archiveAssetRecord } from '@/lib/asset-recycle';
+import { archiveAssetRecord, moveAssetToTrash } from '@/lib/asset-recycle';
 import { getAssets } from '@/lib/asset-storage';
 import {
   filterAssetsForDashboard,
@@ -49,7 +51,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import * as ExpoStatusBar from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -76,16 +78,6 @@ async function archiveHiddenAssetsIfAny(): Promise<SimpleAsset[]> {
     }
   }
   return getAssets();
-}
-
-function categoryTitle(cat: string): string {
-  if (cat === 'Stock') return 'STOCKS';
-  if (cat === 'Fund') return 'FUNDS';
-  if (cat === 'ETF') return 'ETFS';
-  if (cat === 'Cash') return 'CASH';
-  if (cat === 'Gold') return 'GOLD';
-  if (cat === 'Custom') return 'CUSTOM';
-  return cat.toUpperCase();
 }
 
 const CATEGORY_ROW_ICONS: Record<AssetCategory, keyof typeof MaterialIcons.glyphMap> = {
@@ -179,6 +171,9 @@ function DashboardHeroUpperHalf({
   netWorthSummary,
   dailyChange,
   onPressAdd,
+  addLabel,
+  todayChangeLabel,
+  totalValueLabel,
 }: {
   insets: { top: number; right: number; left: number; bottom: number };
   styles: DashboardStyles;
@@ -189,6 +184,9 @@ function DashboardHeroUpperHalf({
   netWorthSummary: { lines: string; hasMultiple: boolean };
   dailyChange: { diff: number; pct: number } | null;
   onPressAdd: () => void | Promise<void>;
+  addLabel: string;
+  todayChangeLabel: string;
+  totalValueLabel: string;
 }) {
   const mastheadInk = magazineStrongOnBlock(theme);
   const showMultiBand = netWorthSummary.hasMultiple;
@@ -232,7 +230,7 @@ function DashboardHeroUpperHalf({
           <Pressable
             style={({ pressed }) => [styles.heroAddFabOuter, pressed && styles.headerAddFabPressed]}
             onPress={() => void onPressAdd()}
-            accessibilityLabel="添加资产"
+            accessibilityLabel={addLabel}
             hitSlop={8}
           >
             <View style={styles.heroAddFabHalo}>
@@ -256,7 +254,9 @@ function DashboardHeroUpperHalf({
             </Text>
             <MaterialIcons name="chevron-right" size={28} color={deltaColor} style={{ marginLeft: 2, marginBottom: 2 }} />
           </View>
-          <Text style={[styles.metricLabel, { color: mastheadInk, marginTop: 2 }]}>TODAY'S CHANGE</Text>
+          <Text style={[styles.metricLabel, { color: mastheadInk, marginTop: 2 }]}>
+            {todayChangeLabel}
+          </Text>
         </Pressable>
         
         {netWorthDisplay !== null && Number.isFinite(netWorthDisplay) ? (
@@ -266,7 +266,9 @@ function DashboardHeroUpperHalf({
             {netWorthSummary.lines}
           </Text>
         )}
-        <Text style={[styles.metricLabel, { color: mastheadInk }]}>TOTAL VALUE</Text>
+        <Text style={[styles.metricLabel, { color: mastheadInk }]}>
+          {totalValueLabel}
+        </Text>
         {showMultiBand ? (
           <View style={styles.heroCurrencyBreakdownRow}>
             {breakdownParts.flatMap((part, i) => {
@@ -311,6 +313,7 @@ function CategoryCollageRow({
   isExpanded,
   onToggle,
   onEdit,
+  onDelete,
 }: {
   category: string;
   assets: SimpleAsset[];
@@ -322,7 +325,9 @@ function CategoryCollageRow({
   isExpanded: boolean;
   onToggle: () => void;
   onEdit: (asset: SimpleAsset) => void;
+  onDelete: (asset: SimpleAsset) => void;
 }) {
+  const { t } = useLanguage();
   const catUnified = sumDisplayValuesInCurrency(assets, displayCurrency, fxUsdRates);
   const subtitle = categoryNamesSubtitle(assets);
 
@@ -352,7 +357,9 @@ function CategoryCollageRow({
         </View>
 
         <View style={[styles.categoryMainCell, { backgroundColor: mainBgColor || rowBgColor }]}>
-          <Text style={[styles.categoryName, { color: mastheadInk }]}>{categoryTitle(category)}</Text>
+          <Text style={[styles.categoryName, { color: mastheadInk }]}>
+            {t(`asset.categoryPlural.${category}` as TranslationKey)}
+          </Text>
           {subtitle ? (
             <Text style={[styles.categoryMeta, { color: rgbaFromHex(mastheadInk, 0.6) }]} numberOfLines={2}>
               {subtitle}
@@ -386,6 +393,7 @@ function CategoryCollageRow({
                     { borderBottomColor: isLast ? 'transparent' : rgbaFromHex(mastheadInk, 0.08) }
                   ]}
                   onPress={() => onEdit(a)}
+                  onLongPress={() => onDelete(a)}
                 >
                   <View style={{ width: 3, height: 14, backgroundColor: accent, marginRight: 12, opacity: 0.8 }} />
                   <View style={styles.assetRowMiddleCol}>
@@ -394,7 +402,9 @@ function CategoryCollageRow({
                       <Text style={[styles.assetHoldings, { color: rgbaFromHex(mastheadInk, 0.5) }]}>
                         {[
                           a.account?.trim(), 
-                          (typeof a.shares === 'number' && a.shares > 0) ? `${a.shares} 份` : null
+                          (typeof a.shares === 'number' && a.shares > 0)
+                            ? `${a.shares} ${t('dashboard.shareUnit')}`
+                            : null
                         ].filter(Boolean).join(' · ')}
                       </Text>
                     ) : null}
@@ -422,19 +432,20 @@ function CategoryCollageRow({
 
 export default function Dashboard() {
   const { theme, appearance } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(() => createDashboardStyles(theme), [theme]);
 
   const handlePressAdd = useCallback(async () => {
     const gate = await canAddAnotherAsset();
     if (!gate.allowed) {
-      Alert.alert('已达免费上限', `免费版最多添加 ${FREE_ASSET_LIMIT} 个资产。订阅后可继续添加。`, [
-        { text: '取消', style: 'cancel' },
-        { text: '了解订阅', onPress: () => router.push('/paywall') },
+      Alert.alert(t('dashboard.limitTitle'), t('dashboard.limitMessage', { limit: FREE_ASSET_LIMIT }), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('dashboard.learnSubscription'), onPress: () => router.push('/paywall') },
       ]);
       return;
     }
     router.push({ pathname: '/modal', params: {} });
-  }, []);
+  }, [t]);
 
   const blocks = useMemo(() => magazineBlocks(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -458,9 +469,48 @@ export default function Dashboard() {
     });
   }, []);
 
+  const reloadDashboardState = useCallback(async () => {
+    const local = await archiveHiddenAssetsIfAny();
+    setAssets(local);
+    const dc = await loadDisplayCurrency();
+    setDisplayCurrency(dc);
+    setSnapshots(await getSnapshots());
+    const dash = filterAssetsForDashboard(local);
+    const needsFx = dash.some((a) => getAssetCurrency(a) !== dc);
+    const cached = await getCachedFxUsdRates();
+    setFxUsdRates(cached?.rates ?? null);
+    const unified = sumDisplayValuesInCurrency(dash, dc, cached?.rates ?? null);
+    if (unified !== null) setNetWorthDisplay(unified);
+    else if (!needsFx) setNetWorthDisplay(sumDisplayValuesNaive(dash));
+    else setNetWorthDisplay(null);
+  }, []);
+
   const handleEditAsset = useCallback((asset: SimpleAsset) => {
     router.push({ pathname: '/asset-action', params: { id: asset.id } });
   }, []);
+
+  const handleDeleteAsset = useCallback(
+    (asset: SimpleAsset) => {
+      Alert.alert(
+        t('asset.form.deleteTitle'),
+        t('asset.form.deleteMessage'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('asset.form.deleteTitle'),
+            style: 'destructive',
+            onPress: () => {
+              void (async () => {
+                await moveAssetToTrash(asset.id);
+                await reloadDashboardState();
+              })();
+            },
+          },
+        ]
+      );
+    },
+    [reloadDashboardState, t]
+  );
 
   const refreshMarketData = useCallback(async () => {
     setSyncingQuotes(true);
@@ -500,22 +550,8 @@ export default function Dashboard() {
       (async () => {
         try {
           void ensureFxUsdRatesHistoryBackfill();
-          const local = await archiveHiddenAssetsIfAny();
-          if (!cancelled && gen === focusLoadGen.current) {
-            setAssets(local);
-            setLoading(false);
-            const dc = await loadDisplayCurrency();
-            setDisplayCurrency(dc);
-            setSnapshots(await getSnapshots());
-            const dash = filterAssetsForDashboard(local);
-            const needsFx = dash.some((a) => getAssetCurrency(a) !== dc);
-            const cached = await getCachedFxUsdRates();
-            setFxUsdRates(cached?.rates ?? null);
-            const unified = sumDisplayValuesInCurrency(dash, dc, cached?.rates ?? null);
-            if (unified !== null) setNetWorthDisplay(unified);
-            else if (!needsFx) setNetWorthDisplay(sumDisplayValuesNaive(dash));
-            else setNetWorthDisplay(null);
-          }
+          await reloadDashboardState();
+          if (!cancelled && gen === focusLoadGen.current) setLoading(false);
         } catch {
           if (!cancelled && gen === focusLoadGen.current) {
             setAssets([]);
@@ -524,7 +560,7 @@ export default function Dashboard() {
         }
       })();
       return () => { cancelled = true; };
-    }, [])
+    }, [reloadDashboardState])
   );
 
   const dashboardAssets = useMemo(() => filterAssetsForDashboard(assets), [assets]);
@@ -555,7 +591,7 @@ export default function Dashboard() {
             refreshing={syncingQuotes}
             onRefresh={() => void refreshMarketData()}
             tintColor={theme.primary}
-            title={Platform.OS === 'ios' ? '更新中…' : undefined}
+            title={Platform.OS === 'ios' ? t('common.loading') : undefined}
             titleColor={rgbaFromHex(theme.primary, 0.55)}
             colors={[theme.primary]}
             progressBackgroundColor={
@@ -574,11 +610,16 @@ export default function Dashboard() {
           netWorthSummary={netWorthSummary}
           dailyChange={dailyChange}
           onPressAdd={handlePressAdd}
+          addLabel={t('dashboard.addAsset')}
+          todayChangeLabel={t('dashboard.todayChange')}
+          totalValueLabel={t('dashboard.totalValue')}
         />
         
         <View style={styles.groupsContainer}>
           {dashboardAssets.length === 0 ? (
-            <Text style={styles.emptyCategoryText}>暂无资产。点右上角「+」添加第一条资产。</Text>
+            <Text style={styles.emptyCategoryText}>
+              {t('dashboard.empty.subtitle')}
+            </Text>
           ) : (
             CATEGORY_ORDER.map((category) => {
               const list = grouped[category];
@@ -596,6 +637,7 @@ export default function Dashboard() {
                   isExpanded={expandedCategories.has(category)}
                   onToggle={() => toggleCategory(category)}
                   onEdit={handleEditAsset}
+                  onDelete={handleDeleteAsset}
                 />
               );
             })

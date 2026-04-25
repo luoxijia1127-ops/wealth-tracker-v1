@@ -12,6 +12,8 @@ import {
   hasUsdAnchoredFxTable,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
+import { useLanguage } from '@/contexts/language-context';
+import type { TranslationKey } from '@/lib/language';
 import { numberSingleLineTextProps } from '@/lib/numeric-display-one-line';
 import {
   DONUT_EXPLODE,
@@ -23,11 +25,7 @@ import {
   type DonutSlice,
 } from '@/lib/insights-model';
 import type { InsightsStyles } from '@/lib/insights-styles';
-import {
-  CATEGORY_LABEL_ZH,
-  type AssetCategory,
-  type SimpleAsset,
-} from '@/types/asset';
+import { type AssetCategory, type SimpleAsset } from '@/types/asset';
 import { useMemo } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { G, Path, Svg, Text as SvgText } from 'react-native-svg';
@@ -48,6 +46,7 @@ export function DistributionDonut({
   /** 环外占比数字颜色（与主题主色一致更易读） */
   labelInk?: string;
 }) {
+  const { t } = useLanguage();
   const { curves, total, outer } = getDonutPieCurves(slices, width, ringSize);
   const cx = width / 2;
   const cy = ringSize / 2;
@@ -55,7 +54,7 @@ export function DistributionDonut({
   const pctFontSizeOutside = Math.max(10, Math.min(14, Math.round(outer * 0.32)));
 
   return (
-    <Svg width={width} height={ringSize} overflow="visible">
+    <Svg width={width} height={ringSize} style={{ overflow: 'visible' }}>
       <G x={cx} y={cy}>
         {curves.map((c) => {
           const isSel = selectedCategory === c.item.category;
@@ -95,7 +94,9 @@ export function DistributionDonut({
                 stroke={isSel ? '#FFFFFF' : 'rgba(255,255,255,0.35)'}
                 strokeWidth={isSel ? 2.5 : 1}
                 onPress={() => onToggleCategory(c.item.category)}
-                accessibilityLabel={`${c.item.name}，占比 ${pctRaw.toFixed(1)}%`}
+                accessibilityLabel={`${t(
+                  `asset.category.${c.item.category}` as TranslationKey
+                )}, ${pctRaw.toFixed(1)}%`}
               />
               {showPctLabel ? (
                 <SvgText
@@ -144,6 +145,7 @@ export function DistributionBreakdown({
   usdRates?: FxUsdMidRates['rates'] | null;
   displayCurrency?: string;
 }) {
+  const { t } = useLanguage();
   const useFx = hasUsdAnchoredFxTable(usdRates);
   const target = /^[A-Z]{3}$/.test(displayCurrency) ? displayCurrency : 'CNY';
 
@@ -179,8 +181,9 @@ export function DistributionBreakdown({
         numberOfLines={1}
         ellipsizeMode="tail"
       >
-        {CATEGORY_LABEL_ZH[category]} · 明细
-        {useFx ? `（折合 ${target}）` : ''}
+        {t(`asset.category.${category}` as TranslationKey)} ·{' '}
+        {t('insights.distribution.detail')}
+        {useFx ? ` (${t('insights.distribution.converted', { target })})` : ''}
       </Text>
       <ScrollView
         nestedScrollEnabled

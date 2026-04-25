@@ -6,6 +6,7 @@ import { RecycleRecordsTable } from '@/components/recycle-records-table';
 import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import {
   buildArchivedDisplayRows,
   getArchivedRecords,
@@ -21,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function SettingsArchivedScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const p = theme.primary;
   const muted = rgbaFromHex(p, 0.55);
@@ -62,18 +64,18 @@ export default function SettingsArchivedScreen() {
         />
         <View style={{ paddingHorizontal: 16 }}>
       <Text style={{ fontSize: 14, lineHeight: 21, color: muted, marginBottom: 16 }}>
-        从清仓资产详情中「归档」的记录保存在此。
+        {t('archive.description')}
       </Text>
       {loading ? (
         <ActivityIndicator color={p} style={{ marginTop: 24 }} />
       ) : rows.length === 0 ? (
-        <Text style={{ fontSize: 15, color: muted, marginTop: 12 }}>暂无归档</Text>
+        <Text style={{ fontSize: 15, color: muted, marginTop: 12 }}>{t('archive.empty')}</Text>
       ) : (
         <RecycleRecordsTable
           variant="archived"
           rows={rows}
-          nameHeader="资产"
-          dateHeader="归档日"
+          nameHeader={t('archive.asset')}
+          dateHeader={t('archive.date')}
         />
       )}
         </View>

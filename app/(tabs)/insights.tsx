@@ -11,10 +11,12 @@ import { GoalProgressCard } from '@/components/insights/insights-goal-cards';
 import { InsightsTrendChart } from '@/components/insights/insights-trend-tab';
 import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { formatMoney, formatMoneyDisplayParts } from '@/lib/asset-value';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
+import type { TranslationKey } from '@/lib/language';
 import { numberSingleLineTextProps } from '@/lib/numeric-display-one-line';
 import { themeFinanceDeltaColor } from '@/lib/finance-colors';
 import {
@@ -64,6 +66,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Insights() {
   const { theme, appearance } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(
     () => createInsightsStyles(theme, appearance),
     [theme, appearance]
@@ -399,7 +402,7 @@ export default function Insights() {
             refreshing={refreshing}
             onRefresh={() => void onRefreshInsights()}
             tintColor={theme.primary}
-            title={Platform.OS === 'ios' ? '更新中…' : undefined}
+            title={Platform.OS === 'ios' ? t('common.loading') : undefined}
             titleColor={textMuted}
             colors={[theme.primary]}
             progressBackgroundColor={
@@ -436,7 +439,7 @@ export default function Insights() {
             DAYBREAK
           </Text>
           <View style={styles.heroNetWorthFooter}>
-            <Text style={styles.heroMetricLabel}>TOTAL VALUE</Text>
+            <Text style={styles.heroMetricLabel}>{t('insights.totalValue')}</Text>
             <View style={styles.heroNetWorthValueWrap}>
               {heroNetWorthParts ? (
                 <Text
@@ -502,7 +505,11 @@ export default function Insights() {
                     },
                   ]}
                 >
-                  {tab.id === 'trend' ? '资产变动' : tab.label}
+                  {tab.id === 'trend'
+                    ? t('insights.tab.trend')
+                    : tab.id === 'distribution'
+                      ? t('insights.tab.distribution')
+                      : t('insights.tab.returns')}
                 </Text>
               </Pressable>
             );
@@ -607,7 +614,11 @@ export default function Insights() {
                   customRange={trendCustomRange}
                   onCustomRangeChange={setTrendCustomRange}
                   hasChartData={hasSnapshotTrend}
-                  emptyHint={hasAnySnapshots ? '当前时间段无记录' : '暂无走势数据'}
+                  emptyHint={
+                    hasAnySnapshots
+                      ? t('insights.empty.trendRange')
+                      : t('insights.empty.trend')
+                  }
                   emptyHintColor={inkSoft}
                   displayCurrency={displayCurrency}
                   usdRatesForTooltip={fxRates?.rates ?? null}
@@ -693,7 +704,9 @@ export default function Insights() {
                   return (
                     <Pressable key={s.category} onPress={() => toggleDistributionCategory(s.category)} style={[styles.donutLegendRow, active && styles.donutLegendRowActive]}>
                       <View style={[styles.legendDot, { backgroundColor: s.color }]} />
-                      <Text style={[styles.donutLegendName, { color: inkColor }]}>{s.name}</Text>
+                      <Text style={[styles.donutLegendName, { color: inkColor }]}>
+                        {t(`asset.category.${s.category}` as TranslationKey)}
+                      </Text>
                       <Text
                         {...numberSingleLineTextProps}
                         minimumFontScale={0.82}
@@ -720,7 +733,9 @@ export default function Insights() {
 
           {!hasAssets && chartTab !== 'trend' && (
              <View style={styles.chartPlaceholder}>
-               <Text style={[styles.placeholderText, { color: inkSoft }]}>暂无数据</Text>
+               <Text style={[styles.placeholderText, { color: inkSoft }]}>
+                 {t('insights.empty.assets')}
+               </Text>
              </View>
           )}
         </View>
@@ -731,7 +746,7 @@ export default function Insights() {
               <View style={styles.summaryRow}>
                 <View style={[styles.summaryWinnerBlock, summaryWinnerSurface]}>
                   <Text style={[styles.summaryLabel, { color: inkSoft }]}>
-                    盈利最多
+                    {t('insights.summary.topGainer')}
                   </Text>
                   {topGainer ? (
                     <View style={styles.summaryValueRow}>
@@ -764,7 +779,7 @@ export default function Insights() {
                 </View>
                 <View style={[styles.summaryLoserBlock, summaryLoserSurface]}>
                   <Text style={[styles.summaryLabel, { color: inkSoft }]}>
-                    亏损最多
+                    {t('insights.summary.topLoser')}
                   </Text>
                   {topLoser ? (
                     <View style={styles.summaryValueRow}>
@@ -798,7 +813,7 @@ export default function Insights() {
               </View>
             ) : hasAssets ? (
               <Text style={{ fontSize: 13, fontWeight: '600', color: inkSoft }}>
-                暂无有效累计回报数据（需有买入与持仓）
+                {t('returns.emptyValid')}
               </Text>
             ) : null}
           </View>

@@ -3,12 +3,14 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { AppFont } from '@/lib/app-fonts';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { formatMoney } from '@/lib/asset-value';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { FINANCE_UP } from '@/lib/finance-colors';
 import type { InsightsStyles } from '@/lib/insights-styles';
+import type { TranslationKey } from '@/lib/language';
 import {
   CUMULATIVE_CHART_CAP,
   CUMULATIVE_CHART_FLOOR,
@@ -19,7 +21,6 @@ import {
 } from '@/lib/investment-return-metrics';
 import {
   ASSET_CATEGORY_ORDER,
-  CATEGORY_LABEL_ZH,
   type AssetCategory,
   type SimpleAsset,
 } from '@/types/asset';
@@ -71,18 +72,18 @@ function returnListRightBlockWidth(
   return Math.min(maxCol, Math.round(Math.max(floor, proportional)));
 }
 
-function reasonLabel(m: InvestmentReturnMetric): string {
+function reasonLabel(m: InvestmentReturnMetric, t: ReturnType<typeof useLanguage>['t']): string {
   switch (m.reason) {
     case 'no_buy':
-      return '缺少有效买入成本';
+      return t('returns.reason.no_buy');
     case 'bad_days':
-      return '持有天数≤0';
+      return t('returns.reason.bad_days');
     case 'bad_return_base':
-      return '累计亏损≥100%（年化不可用）';
+      return t('returns.reason.bad_return_base');
     case 'unsupported':
-      return '不支持或数据不足';
+      return t('returns.reason.unsupported');
     case 'zero_return':
-      return '累计收益 0%';
+      return t('returns.reason.zero_return');
     default:
       return '—';
   }
@@ -214,6 +215,7 @@ export function ReturnScatterPanel({
   textMuted: string;
 }) {
   const { appearance } = useAppPalette();
+  const { t } = useLanguage();
   const { width: windowWidth } = useWindowDimensions();
   const scatterPointStroke =
     appearance === 'dark' ? 'rgba(255,255,255,0.5)' : '#FFFFFF';
@@ -456,7 +458,9 @@ export function ReturnScatterPanel({
                     }}
                     numberOfLines={1}
                   >
-                    {`平均 ${model.avgDays.toFixed(0)} 天`}
+                    {model.avgDays === null
+                      ? ''
+                      : t('returns.avgDays', { days: model.avgDays.toFixed(0) })}
                   </Text>
                 );
               })()}
@@ -607,7 +611,7 @@ export function ReturnScatterPanel({
                   fontSize={10}
                   fontFamily={AppFont.semiBold}
                 >
-                  {`平均 ${pctFmt(model.avgCumRaw)}`}
+                  {t('returns.avgReturn', { pct: pctFmt(model.avgCumRaw) })}
                 </SvgText>
               )}
 
@@ -725,22 +729,30 @@ export function ReturnScatterPanel({
               >
                 <Text style={styles.returnTooltipTitle}>{m.name}</Text>
                 <Text style={styles.returnTooltipLine}>
-                  {CATEGORY_LABEL_ZH[m.category]}
+                  {t(`asset.category.${m.category}` as TranslationKey)}
                 </Text>
                 <Text style={styles.returnTooltipLine}>
-                  持有 {m.holdingDays} 天 · 买入{' '}
-                  {formatMoney(m.buyAmount, m.currency)}
+                  {t('returns.holdingBuy', {
+                    days: m.holdingDays,
+                    amount: formatMoney(m.buyAmount, m.currency),
+                  })}
                 </Text>
                 <Text style={styles.returnTooltipLine}>
-                  期末 {formatMoney(m.endValue, m.currency)}
+                  {t('returns.endValue', {
+                    amount: formatMoney(m.endValue, m.currency),
+                  })}
                 </Text>
                 <Text style={styles.returnTooltipLine}>
-                  现金流 {formatMoney(m.cashFlowNet, m.currency)}
+                  {t('returns.cashFlow', {
+                    amount: formatMoney(m.cashFlowNet, m.currency),
+                  })}
                 </Text>
                 <Text style={styles.returnTooltipLine}>
-                  累计 {pctFmt(m.cumulativeReturn)}
+                  {t('returns.cumulative', { pct: pctFmt(m.cumulativeReturn) })}
                   {m.annualizedReturn !== null
-                    ? ` · 年化(参考) ${pctFmt(m.annualizedReturn)}`
+                    ? ` · ${t('returns.annualized', {
+                        pct: pctFmt(m.annualizedReturn),
+                      })}`
                     : ''}
                 </Text>
               </View>
@@ -803,7 +815,7 @@ export function ReturnScatterPanel({
                   adjustsFontSizeToFit
                   minimumFontScale={0.75}
                 >
-                  {CATEGORY_LABEL_ZH[c]}
+                  {t(`asset.category.${c}` as TranslationKey)}
                 </Text>
               </Pressable>
             );
@@ -846,7 +858,7 @@ export function ReturnScatterPanel({
                 </Text>
                 <Text style={styles.returnListItemMeta}>
                   Holding: {m.holdingDays} Days
-                  {m.reason !== 'ok' ? ` · ${reasonLabel(m)}` : ''}
+                  {m.reason !== 'ok' ? ` · ${reasonLabel(m, t)}` : ''}
                 </Text>
               </View>
               <View

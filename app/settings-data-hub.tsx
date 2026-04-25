@@ -2,6 +2,7 @@
  * 数据管理页面
  */
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
@@ -14,30 +15,31 @@ export default function SettingsDataHubScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
 
   const dataTiles = [
     {
       id: 'export',
-      label: '导出数据',
+      label: t('settings.tiles.export'),
       icon: 'save-alt' as const,
       onPress: () => router.push('/settings-export'),
     },
     {
       id: 'import',
-      label: '导入备份',
+      label: t('settings.tiles.import'),
       icon: 'file-upload' as const,
       onPress: () => router.push('/settings-import'),
     },
     {
       id: 'archived',
-      label: '已归档',
+      label: t('settings.tiles.archived'),
       icon: 'inventory-2' as const,
       onPress: () => router.push('/settings-archived'),
     },
     {
       id: 'trash',
-      label: '最近删除',
+      label: t('settings.tiles.trash'),
       icon: 'delete-outline' as const,
       onPress: () => router.push('/settings-trash'),
     },

@@ -5,6 +5,7 @@
 import { MarketWorldMapCard } from '@/components/market-world-map';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import {
   formatMarketPct,
@@ -22,6 +23,7 @@ import {
 } from '@/lib/market-quotes-cache';
 import { AppFont } from '@/lib/app-fonts';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
+import type { TranslationKey } from '@/lib/language';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -38,18 +40,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const RISE = '#e11d48';
 const FALL = '#16a34a';
 
-/** 分组左上角小写英文标题（与设置子页 kicker 同层级） */
-const SECTION_KICKER: Record<string, string> = {
-  us: 'US INDICES',
-  asia: 'ASIA PACIFIC',
-  eu: 'EUROPE & UK',
-  fx: 'FOREIGN EXCHANGE',
-  major: 'COMMODITIES & CRYPTO',
-};
-
 export default function MarketScreen() {
   const insets = useSafeAreaInsets();
   const { theme, appearance } = useAppPalette();
+  const { t } = useLanguage();
   const p = theme.primary;
   const muted = rgbaFromHex(p, 0.55);
   /** 与增加资产表单行图标一致 */
@@ -120,7 +114,7 @@ export default function MarketScreen() {
             refreshing={refreshing}
             onRefresh={() => void refreshFromNetwork()}
             tintColor={p}
-            title={Platform.OS === 'ios' ? '更新中…' : undefined}
+            title={Platform.OS === 'ios' ? t('common.loading') : undefined}
             titleColor={muted}
             colors={[p]}
             progressBackgroundColor={
@@ -139,7 +133,7 @@ export default function MarketScreen() {
           <View style={{ paddingVertical: 48, alignItems: 'center' }}>
             <ActivityIndicator size="large" color={p} />
             <Text style={{ marginTop: 12, fontSize: 13, color: muted }}>
-              正在读取缓存…
+              {t('market.loadingCache')}
             </Text>
           </View>
         ) : null}
@@ -154,7 +148,7 @@ export default function MarketScreen() {
               paddingBottom: 8,
             }}
           >
-            暂无缓存数据，下拉即可加载行情。
+            {t('market.noCache')}
           </Text>
         ) : null}
 
@@ -173,9 +167,6 @@ export default function MarketScreen() {
           ? MARKET_SECTIONS.map((sec) => (
           <View key={sec.key} style={{ marginBottom: 18 }}>
             <View style={{ paddingHorizontal: 24, marginBottom: 10 }}>
-              <Text style={hubStyles.kicker}>
-                {SECTION_KICKER[sec.key] ?? sec.key.toUpperCase()}
-              </Text>
               <Text
                 style={{
                   fontFamily: AppFont.displayBold,
@@ -183,10 +174,9 @@ export default function MarketScreen() {
                   letterSpacing: -0.6,
                   lineHeight: 30,
                   color: p,
-                  marginTop: 6,
                 }}
               >
-                {sec.title}
+                {t(`market.section.${sec.key}` as TranslationKey)}
               </Text>
             </View>
             <View
@@ -249,7 +239,7 @@ export default function MarketScreen() {
                         }}
                         numberOfLines={2}
                       >
-                        {item.name}
+                        {t(`market.item.${item.id}` as TranslationKey)}
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end', minWidth: 108 }}>
@@ -292,7 +282,7 @@ export default function MarketScreen() {
               marginTop: 8,
             }}
           >
-            非实时数据，通常有交易日延迟；数值仅供参考，不构成投资建议。
+            {t('market.disclaimer')}
           </Text>
         ) : null}
       </ScrollView>

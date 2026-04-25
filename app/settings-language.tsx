@@ -3,13 +3,15 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { AppFont } from '@/lib/app-fonts';
 import { rgbaFromHex } from '@/lib/color-utils';
+import type { LanguageMode } from '@/lib/language';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LIST_ROW = {
@@ -24,9 +26,40 @@ const LIST_ROW = {
 export default function SettingsLanguageScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const { languageMode, locale, setLanguageMode, t } = useLanguage();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const p = theme.primary;
   const muted = rgbaFromHex(p, 0.55);
+  const options = useMemo(
+    () =>
+      [
+        {
+          id: 'system',
+          title: t('language.option.system'),
+          subtitle: t('language.status.system', {
+            locale:
+              locale === 'zh-CN'
+                ? t('language.resolved.zh')
+                : t('language.resolved.en'),
+          }),
+        },
+        {
+          id: 'zh-CN',
+          title: t('language.option.zh'),
+          subtitle: t('language.status.selected'),
+        },
+        {
+          id: 'en-US',
+          title: t('language.option.en'),
+          subtitle: t('language.status.selected'),
+        },
+      ] satisfies {
+        id: LanguageMode;
+        title: string;
+        subtitle: string;
+      }[],
+    [locale, t]
+  );
 
   return (
     <View style={styles.screen}>
@@ -51,31 +84,51 @@ export default function SettingsLanguageScreen() {
         </View>
 
         <View style={styles.preferencesBlock}>
-          <View style={LIST_ROW}>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontFamily: AppFont.semiBold,
-                  fontSize: 17,
-                  letterSpacing: -0.25,
-                  color: p,
+          {options.map((opt) => {
+            const selected = languageMode === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => {
+                  void setLanguageMode(opt.id);
                 }}
+                style={({ pressed }) => [
+                  LIST_ROW,
+                  pressed && { opacity: 0.82 },
+                ]}
               >
-                简体中文
-              </Text>
-              <Text
-                style={{
-                  fontFamily: AppFont.medium,
-                  fontSize: 12,
-                  color: muted,
-                  marginTop: 4,
-                }}
-              >
-                已启用
-              </Text>
-            </View>
-            <Ionicons name="checkmark-circle" size={22} color={p} />
-          </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: AppFont.semiBold,
+                      fontSize: 17,
+                      letterSpacing: -0.25,
+                      color: p,
+                    }}
+                  >
+                    {opt.title}
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: AppFont.medium,
+                      fontSize: 12,
+                      color: muted,
+                      marginTop: 4,
+                    }}
+                  >
+                    {opt.subtitle}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={22}
+                  color={selected ? p : muted}
+                />
+              </Pressable>
+            );
+          })}
           <Text
             style={{
               fontFamily: AppFont.medium,
@@ -87,7 +140,7 @@ export default function SettingsLanguageScreen() {
               paddingBottom: 8,
             }}
           >
-            当前界面仅提供简体中文。
+            {t('language.description')}
           </Text>
         </View>
       </ScrollView>

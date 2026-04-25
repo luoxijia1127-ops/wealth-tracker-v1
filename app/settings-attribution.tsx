@@ -3,6 +3,7 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { getAssetDailySnapshots } from '@/lib/asset-daily-snapshots';
 import { getAssets } from '@/lib/asset-storage';
 import { rgbaFromHex } from '@/lib/color-utils';
@@ -27,9 +28,8 @@ import {
   type DailyTradeSummary,
   type MarketMoverEntry,
 } from '@/lib/trade-summary';
-import { CATEGORY_LABEL_ZH } from '@/types/asset';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
-import { AppFont } from '@/lib/app-fonts';
+import type { SupportedLocale, Translate, TranslationKey } from '@/lib/language';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams } from 'expo-router';
@@ -89,6 +89,26 @@ function ymd(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+const WEEKDAY_KEYS = [
+  'attribution.weekday.sun',
+  'attribution.weekday.mon',
+  'attribution.weekday.tue',
+  'attribution.weekday.wed',
+  'attribution.weekday.thu',
+  'attribution.weekday.fri',
+  'attribution.weekday.sat',
+] as const;
+
+function formatMonthTitle(locale: SupportedLocale, year: number, month: number): string {
+  if (locale === 'en-US') {
+    return new Date(year, month - 1, 1).toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+  return `${year} 年 ${month} 月`;
+}
+
 /** 当月日历格：null 为占位，数字为日 */
 function monthCells(year: number, month: number): (number | null)[] {
   const first = new Date(year, month - 1, 1);
@@ -137,10 +157,12 @@ const CAL_WEEKDAY_ROW_HEIGHT = 22;
 function renderTradeLine(
   x: DailyTradeLine,
   idx: number,
-  themePrimary: string
+  themePrimary: string,
+  t: Translate
 ): ReactNode {
   if (x.kind === 'trade') {
-    const side = x.side === 'buy' ? '买' : '卖';
+    const side =
+      x.side === 'buy' ? t('attribution.trade.buy') : t('attribution.trade.sell');
     const sColor = x.side === 'buy' ? FINANCE_UP : FINANCE_DOWN;
     return (
       <Text
@@ -157,7 +179,8 @@ function renderTradeLine(
       </Text>
     );
   }
-  const side = x.side === 'in' ? '增' : '减';
+  const side =
+    x.side === 'in' ? t('attribution.trade.cashIn') : t('attribution.trade.cashOut');
   const sColor = x.side === 'in' ? FINANCE_UP : FINANCE_DOWN;
   return (
     <Text
@@ -188,6 +211,7 @@ function AttributionDayDetail({
   internalOpen: boolean;
   setInternalOpen: (v: boolean) => void;
 }) {
+  const { t } = useLanguage();
   const market =
     d.residualMarketExplained !== null ? d.residualMarketExplained : null;
   const heldAtt = d.attributionHeld;
@@ -207,12 +231,12 @@ function AttributionDayDetail({
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             {market !== null ? (
               <Text style={{ fontSize: 13, fontWeight: '700', color: themePrimary }}>
-                逐资产合计{' '}
+                {t('attribution.marketTotal')}{' '}
                 <Text style={{ color: deltaColor(market, muted) }}>{fmtMoney(market)}</Text>
               </Text>
             ) : null}
             <Text style={{ fontSize: 13, fontWeight: '700', color: themePrimary }}>
-              外部净流{' '}
+              {t('attribution.externalNetFlow')}{' '}
               <Text style={{ color: deltaColor(ext, muted) }}>{fmtMoney(ext)}</Text>
             </Text>
           </View>
@@ -225,9 +249,17 @@ function AttributionDayDetail({
                 lineHeight: 16,
               }}
             >
-              {typeof heldAtt === 'number' ? <>持仓涨跌 {fmtMoney(heldAtt)}</> : null}
+              {typeof heldAtt === 'number' ? (
+                <>
+                  {t('attribution.heldChange')} {fmtMoney(heldAtt)}
+                </>
+              ) : null}
               {typeof heldAtt === 'number' && typeof openCloseAtt === 'number' ? ' · ' : null}
-              {typeof openCloseAtt === 'number' ? <>新进/清仓 {fmtMoney(openCloseAtt)}</> : null}
+              {typeof openCloseAtt === 'number' ? (
+                <>
+                  {t('attribution.openClose')} {fmtMoney(openCloseAtt)}
+                </>
+              ) : null}
             </Text>
           ) : null}
           {showUnexplained ? (
@@ -239,12 +271,14 @@ function AttributionDayDetail({
                 lineHeight: 16,
               }}
             >
-              口径差 {fmtMoney(unexplained!)}（历史汇率缺失日回退当前缓存、现金外币流水、舍入等）
+              {t('attribution.unexplained', { amount: fmtMoney(unexplained!) })}
             </Text>
           ) : null}
         </View>
       ) : (
-        <Text style={{ fontSize: 12, fontWeight: '600', color: muted }}>无连续快照，仅展示流水</Text>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: muted }}>
+          {t('attribution.noContinuousSnapshotTradesOnly')}
+        </Text>
       )}
 
       {movers.length > 0 && market !== null ? (
@@ -257,7 +291,7 @@ function AttributionDayDetail({
               letterSpacing: 0.3,
             }}
           >
-            资产影响（市值变动）
+            {t('attribution.assetImpact')}
           </Text>
           {movers.map((m, idx) => (
             <View
@@ -288,7 +322,7 @@ function AttributionDayDetail({
                     marginTop: 2,
                   }}
                 >
-                  {CATEGORY_LABEL_ZH[m.category]}
+                  {t(`asset.category.${m.category}` as TranslationKey)}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
@@ -310,7 +344,7 @@ function AttributionDayDetail({
                       marginTop: 2,
                     }}
                   >
-                    清仓
+                    {t('attribution.liquidated')}
                   </Text>
                 ) : m.dailyReturnPct !== null ? (
                   <Text
@@ -333,7 +367,7 @@ function AttributionDayDetail({
                       marginTop: 2,
                     }}
                   >
-                    新进
+                    {t('attribution.opened')}
                   </Text>
                 ) : (
                   <Text
@@ -363,12 +397,16 @@ function AttributionDayDetail({
               letterSpacing: 0.3,
             }}
           >
-            外部与独立成交
+            {t('attribution.externalStandaloneTrades')}
           </Text>
-          {displayLines.slice(0, 60).map((x, idx) => renderTradeLine(x, idx, themePrimary))}
+          {displayLines
+            .slice(0, 60)
+            .map((x, idx) => renderTradeLine(x, idx, themePrimary, t))}
         </View>
       ) : (
-        <Text style={{ fontSize: 12, fontWeight: '600', color: muted }}>当日无非内部流水</Text>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: muted }}>
+          {t('attribution.noExternalTrades')}
+        </Text>
       )}
 
       {internalLines.length > 0 ? (
@@ -378,13 +416,14 @@ function AttributionDayDetail({
             style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
           >
             <Text style={{ fontSize: 11, fontWeight: '800', color: muted }}>
-              内部划转 {internalLines.length} 笔 · {internalOpen ? '收起' : '展开'}
+              {t('attribution.internalTransfers', { count: internalLines.length })} ·{' '}
+              {internalOpen ? t('attribution.collapse') : t('attribution.expand')}
             </Text>
           </Pressable>
           {internalOpen ? (
             <View style={{ gap: 4, paddingLeft: 4 }}>
               {internalLines.slice(0, 60).map((x, idx) =>
-                renderTradeLine(x, idx, themePrimary)
+                renderTradeLine(x, idx, themePrimary, t)
               )}
             </View>
           ) : null}
@@ -397,6 +436,7 @@ function AttributionDayDetail({
 export default function SettingsAttributionScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const { t, locale } = useLanguage();
   const params = useLocalSearchParams<{ focusDate?: string }>();
   const [tradeSummaries, setTradeSummaries] = useState<DailyTradeSummary[]>([]);
   const [tradeLoading, setTradeLoading] = useState(false);
@@ -552,18 +592,6 @@ export default function SettingsAttributionScreen() {
         >
           <Text style={hubStyles.masthead}>ATTRIBUTION</Text>
           <Text style={hubStyles.kicker}>NET WORTH · DAILY DELTA</Text>
-          <Text
-            style={{
-              fontFamily: AppFont.displayBold,
-              fontSize: 26,
-              letterSpacing: -0.6,
-              lineHeight: 30,
-              color: theme.primary,
-              marginTop: 6,
-            }}
-          >
-            净值变动归因
-          </Text>
         </View>
 
       <View
@@ -586,7 +614,9 @@ export default function SettingsAttributionScreen() {
             }}
             style={chip(viewMode === 'calendar')}
           >
-            <Text style={chipText(viewMode === 'calendar')}>日历</Text>
+            <Text style={chipText(viewMode === 'calendar')}>
+              {t('attribution.calendar')}
+            </Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -596,7 +626,9 @@ export default function SettingsAttributionScreen() {
             }}
             style={chip(viewMode === 'list')}
           >
-            <Text style={chipText(viewMode === 'list')}>列表</Text>
+            <Text style={chipText(viewMode === 'list')}>
+              {t('attribution.list')}
+            </Text>
           </Pressable>
         </View>
         <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -627,7 +659,7 @@ export default function SettingsAttributionScreen() {
           }}
         >
           <Text style={{ color: rgbaFromHex(theme.primary, 0.7), fontWeight: '600' }}>
-            加载中…
+            {t('attribution.loading')}
           </Text>
         </View>
       ) : tradeSummaries.length === 0 ? (
@@ -640,7 +672,7 @@ export default function SettingsAttributionScreen() {
           }}
         >
           <Text style={{ color: rgbaFromHex(theme.primary, 0.7), fontWeight: '600' }}>
-            暂无数据。请先同步行情生成净值快照；有外部现金或独立证券成交后会出现归因。
+            {t('attribution.empty')}
           </Text>
         </View>
       ) : viewMode === 'calendar' ? (
@@ -665,19 +697,19 @@ export default function SettingsAttributionScreen() {
             <Pressable
               onPress={goPrevMonth}
               hitSlop={12}
-              accessibilityLabel="上一月"
+              accessibilityLabel={t('attribution.previousMonth')}
             >
               <Text style={{ fontSize: 20, color: theme.primary, fontWeight: '800' }}>
                 ‹
               </Text>
             </Pressable>
             <Text style={{ fontSize: 16, fontWeight: '800', color: theme.primary }}>
-              {calendarY.y} 年 {calendarY.m} 月
+              {formatMonthTitle(locale, calendarY.y, calendarY.m)}
             </Text>
             <Pressable
               onPress={goNextMonth}
               hitSlop={12}
-              accessibilityLabel="下一月"
+              accessibilityLabel={t('attribution.nextMonth')}
             >
               <Text style={{ fontSize: 20, color: theme.primary, fontWeight: '800' }}>
                 ›
@@ -703,9 +735,9 @@ export default function SettingsAttributionScreen() {
                 alignItems: 'center',
               }}
             >
-              {['日', '一', '二', '三', '四', '五', '六'].map((w, di) => (
+              {WEEKDAY_KEYS.map((weekdayKey, di) => (
                 <View
-                  key={w}
+                  key={weekdayKey}
                   style={[
                     calColumnStyle(calColWidthPx),
                     di > 0 ? { marginLeft: cellGap } : null,
@@ -717,7 +749,7 @@ export default function SettingsAttributionScreen() {
                   ]}
                 >
                   <Text style={{ fontSize: 11, fontWeight: '700', color: muted }}>
-                    {w}
+                    {t(weekdayKey)}
                   </Text>
                 </View>
               ))}
@@ -893,16 +925,16 @@ export default function SettingsAttributionScreen() {
                     </Text>
                     {typeof diff === 'number' ? (
                       <Text style={{ fontSize: 14, fontWeight: '800', color: diffColor }}>
-                        净值 {fmtMoney(diff)}
+                        {t('attribution.netWorthDelta', { amount: fmtMoney(diff) })}
                       </Text>
                     ) : (
                       <Text style={{ fontSize: 12, fontWeight: '600', color: muted }}>
-                        无连续快照
+                        {t('attribution.noContinuousSnapshot')}
                       </Text>
                     )}
                     <View style={{ flex: 1, minWidth: 8 }} />
                     <Text style={{ fontSize: 12, fontWeight: '800', color: theme.primary }}>
-                      {open ? '收起' : '明细'}
+                      {open ? t('attribution.collapse') : t('attribution.detailAction')}
                     </Text>
                   </View>
 
@@ -911,14 +943,14 @@ export default function SettingsAttributionScreen() {
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
                         {market !== null ? (
                           <Text style={{ fontSize: 13, fontWeight: '700', color: theme.primary }}>
-                            逐资产合计{' '}
+                            {t('attribution.marketTotal')}{' '}
                             <Text style={{ color: deltaColor(market, muted) }}>
                               {fmtMoney(market)}
                             </Text>
                           </Text>
                         ) : null}
                         <Text style={{ fontSize: 13, fontWeight: '700', color: theme.primary }}>
-                          外部净流{' '}
+                          {t('attribution.externalNetFlow')}{' '}
                           <Text style={{ color: deltaColor(ext, muted) }}>{fmtMoney(ext)}</Text>
                         </Text>
                       </View>
@@ -932,13 +964,17 @@ export default function SettingsAttributionScreen() {
                           }}
                         >
                           {typeof heldAtt === 'number' ? (
-                            <>持仓涨跌 {fmtMoney(heldAtt)}</>
+                            <>
+                              {t('attribution.heldChange')} {fmtMoney(heldAtt)}
+                            </>
                           ) : null}
                           {typeof heldAtt === 'number' && typeof openCloseAtt === 'number'
                             ? ' · '
                             : null}
                           {typeof openCloseAtt === 'number' ? (
-                            <>新进/清仓 {fmtMoney(openCloseAtt)}</>
+                            <>
+                              {t('attribution.openClose')} {fmtMoney(openCloseAtt)}
+                            </>
                           ) : null}
                         </Text>
                       ) : null}
@@ -951,7 +987,9 @@ export default function SettingsAttributionScreen() {
                             lineHeight: 16,
                           }}
                         >
-                          口径差 {fmtMoney(unexplained!)}（历史汇率缺失日回退当前缓存、现金外币流水、舍入等）
+                          {t('attribution.unexplained', {
+                            amount: fmtMoney(unexplained!),
+                          })}
                         </Text>
                       ) : null}
                     </View>
@@ -1002,11 +1040,11 @@ export default function SettingsAttributionScreen() {
             }}
           >
             <Text style={{ fontSize: 18, fontWeight: '800', color: theme.primary }}>
-              {detailDate ?? ''} 归因明细
+              {t('attribution.detailTitle', { date: detailDate ?? '' })}
             </Text>
             <Pressable onPress={() => setDetailDate(null)} hitSlop={16}>
               <Text style={{ fontSize: 16, fontWeight: '700', color: theme.primary }}>
-                关闭
+                {t('attribution.close')}
               </Text>
             </Pressable>
           </View>
@@ -1026,7 +1064,7 @@ export default function SettingsAttributionScreen() {
                 setInternalOpen={setModalInternalOpen}
               />
             ) : (
-              <Text style={{ color: muted }}>该日暂无汇总数据</Text>
+              <Text style={{ color: muted }}>{t('attribution.noDaySummary')}</Text>
             )}
           </ScrollView>
         </View>

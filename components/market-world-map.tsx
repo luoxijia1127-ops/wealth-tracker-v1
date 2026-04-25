@@ -4,7 +4,9 @@
 
 import { GlassSurface } from '@/components/glass-surface';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { rgbaFromHex } from '@/lib/color-utils';
+import type { TranslationKey } from '@/lib/language';
 import { MARKET_SECTIONS, type MarketQuoteResult } from '@/lib/market-quotes';
 import {
   formatMarketPrice,
@@ -72,7 +74,6 @@ M 176 128 L 188 132 L 192 148 L 184 156 L 174 152 Z
 
 const PINS: {
   id: string;
-  label: string;
   lon: number;
   lat: number;
   /** 在 project360 坐标系内的标注偏移 */
@@ -81,17 +82,17 @@ const PINS: {
   anchor: 'start' | 'middle' | 'end';
 }[] = [
   // 美洲中部：标注在点位正上方居中，避免与美东其他元素挤在一起
-  { id: 'ixic', label: '纳指', lon: -98, lat: 39, tx: 0, ty: -30, anchor: 'middle' },
+  { id: 'ixic', lon: -98, lat: 39, tx: 0, ty: -30, anchor: 'middle' },
   // 欧洲西南（伊比利亚一带）：点位与标注在欧洲区块左下侧，与富时、黄金错开
-  { id: 'btc', label: 'BTC', lon: -7.8, lat: 37.2, tx: -40, ty: 22, anchor: 'end' },
+  { id: 'btc', lon: -7.8, lat: 37.2, tx: -40, ty: 22, anchor: 'end' },
   // 日本：标注放在本州西北侧海面
-  { id: 'n225', label: '日经', lon: 139.75, lat: 35.7, tx: -52, ty: -36, anchor: 'end' },
+  { id: 'n225', lon: 139.75, lat: 35.7, tx: -52, ty: -36, anchor: 'end' },
   // 华东：偏东南，与日经拉开
-  { id: 'sse', label: '上证', lon: 121.5, lat: 31.2, tx: 22, ty: 22, anchor: 'start' },
+  { id: 'sse', lon: 121.5, lat: 31.2, tx: 22, ty: 22, anchor: 'start' },
   // 英国：偏西北
-  { id: 'ftse', label: '富时', lon: -0.1, lat: 51.5, tx: -36, ty: -30, anchor: 'end' },
+  { id: 'ftse', lon: -0.1, lat: 51.5, tx: -36, ty: -30, anchor: 'end' },
   // 中欧：与富时错开（东南向）
-  { id: 'xau', label: '黄金', lon: 8.55, lat: 47.37, tx: 26, ty: 18, anchor: 'start' },
+  { id: 'xau', lon: 8.55, lat: 47.37, tx: 26, ty: 18, anchor: 'start' },
 ];
 
 type Props = {
@@ -112,6 +113,7 @@ export const MarketWorldMapCard = memo(function MarketWorldMapCard({
   fall,
 }: Props) {
   const { appearance, theme } = useAppPalette();
+  const { t } = useLanguage();
   const { width: winW } = useWindowDimensions();
 
   /** 地图圆点填充：与当前主题 surface、玻璃层协调 */
@@ -197,10 +199,10 @@ export const MarketWorldMapCard = memo(function MarketWorldMapCard({
       >
         <View style={{ paddingTop: 12, paddingHorizontal: 14, paddingBottom: 2 }}>
           <Text style={{ fontSize: 15, fontWeight: '800', color: primary }}>
-            全球概览
+            {t('market.overview.title')}
           </Text>
           <Text style={{ fontSize: 11, color: muted, marginTop: 3, lineHeight: 15 }}>
-            主要市场指数与黄金、比特币（等距圆柱投影）
+            {t('market.overview.subtitle')}
           </Text>
         </View>
         <Svg
@@ -249,7 +251,7 @@ export const MarketWorldMapCard = memo(function MarketWorldMapCard({
                     fontWeight="700"
                     fill={primary}
                   >
-                    {pin.label}
+                    {t(`market.pin.${pin.id}` as TranslationKey)}
                   </SvgText>
                   <SvgText
                     x={lx}

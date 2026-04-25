@@ -13,6 +13,7 @@ import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation
 import { TradingDateCalendarModal } from '@/components/trading-date-calendar-modal';
 import { formatYmdChineseLine, YmdDateFields } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import {
     buildCashLikeAsset,
     buildGoldAsset,
@@ -48,6 +49,7 @@ import {
 } from '@/lib/instrument-search';
 import { createAddModalStyles } from '@/lib/modal-styles';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
+import type { TranslationKey } from '@/lib/language';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { assetRepository } from '@/lib/repositories/asset-repository';
 import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
@@ -56,10 +58,8 @@ import {
 } from '@/lib/subscription-constants';
 import {
     ASSET_CATEGORY_ORDER,
-    CATEGORY_LABEL_ZH,
     generateAssetId,
     isListedAssetCategory,
-    PRECIOUS_METAL_LABEL_ZH,
     PRECIOUS_METAL_SPOT_ORDER,
     type AssetCategory,
     type ListingExchange,
@@ -85,6 +85,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function AddModal() {
   const router = useRouter();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const placeholderColor = useMemo(
@@ -136,6 +137,15 @@ export default function AddModal() {
   const [goldSuggestLoading, setGoldSuggestLoading] = useState(false);
   const [goldInstrumentPick, setGoldInstrumentPick] =
     useState<UnifiedSuggestItem | null>(null);
+
+  const categoryLabel = useCallback(
+    (cat: AssetCategory) => t(`asset.category.${cat}` as TranslationKey),
+    [t]
+  );
+  const preciousMetalLabel = useCallback(
+    (spot: PreciousMetalSpot) => t(`asset.precious.${spot}` as TranslationKey),
+    [t]
+  );
 
   const isListedCategory = isListedAssetCategory(category);
   const showGoldForm = category === 'Gold';
@@ -295,12 +305,12 @@ export default function AddModal() {
           setCostPrice(String(r.price));
           setGoldQuoteHint(r.hint);
         } else {
-          setGoldQuoteHint('参考价暂不可用，请手填单价');
+          setGoldQuoteHint(t('asset.form.unitPricePlaceholder'));
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setGoldQuoteHint('参考价获取失败，请手填单价');
+          setGoldQuoteHint(t('asset.form.unitPricePlaceholder'));
         }
       })
       .finally(() => {
@@ -309,7 +319,7 @@ export default function AddModal() {
     return () => {
       cancelled = true;
     };
-  }, [showGoldForm, tradeDate, goldInstrumentPick]);
+  }, [showGoldForm, tradeDate, goldInstrumentPick, t]);
 
   /** 类现金等表单不展示证券/上金参考价 */
   useEffect(() => {
@@ -410,11 +420,11 @@ export default function AddModal() {
       const gate = await canAddAnotherAsset();
       if (!gate.allowed) {
         Alert.alert(
-          '已达免费上限',
-          `免费版最多添加 ${FREE_ASSET_LIMIT} 个资产。订阅后可继续添加。`,
+          t('dashboard.limitTitle'),
+          t('dashboard.limitMessage', { limit: FREE_ASSET_LIMIT }),
           [
-            { text: '取消', style: 'cancel' },
-            { text: '了解订阅', onPress: () => router.push('/paywall') },
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('dashboard.learnSubscription'), onPress: () => router.push('/paywall') },
           ]
         );
         return;
@@ -422,7 +432,7 @@ export default function AddModal() {
 
       const tradeDay = tradeDate.trim();
       if (!/^\d{4}-\d{2}-\d{2}$/.test(tradeDay)) {
-        Alert.alert('无法保存', '请选择有效的交易日期。');
+        Alert.alert(t('asset.form.cannotSave'), t('asset.form.invalidTradeDate'));
         return;
       }
 
@@ -443,11 +453,11 @@ export default function AddModal() {
           purposeTarget,
         });
         if (err) {
-          Alert.alert('无法保存', err);
+          Alert.alert(t('asset.form.cannotSave'), err);
           return;
         }
         if (!goldInstrumentPick?.quoteId) {
-          Alert.alert('无法保存', '请搜索并选择上金现货代码。');
+          Alert.alert(t('asset.form.cannotSave'), t('asset.form.pickSge'));
           return;
         }
         const grams = parseFloat(shares);
@@ -488,7 +498,7 @@ export default function AddModal() {
           intlQuoteSymbol: instrumentPick?.intlQuoteSymbol,
         });
         if (err) {
-          Alert.alert('无法保存', err);
+          Alert.alert(t('asset.form.cannotSave'), err);
           return;
         }
 
@@ -528,7 +538,7 @@ export default function AddModal() {
           purposeTarget,
         });
         if (err) {
-          Alert.alert('无法保存', err);
+          Alert.alert(t('asset.form.cannotSave'), err);
           return;
         }
         assetToSave = buildCashLikeAsset({
@@ -550,12 +560,12 @@ export default function AddModal() {
         const all = await assetRepository.getAll();
         const srcIdx = all.findIndex((a) => a.id === fundingSourceId);
         if (srcIdx < 0) {
-          Alert.alert('无法保存', '资金来源资产不存在，请重新选择。');
+          Alert.alert(t('asset.form.cannotSave'), t('asset.form.fundingMissing'));
           return;
         }
         const src = all[srcIdx]!;
         if (!usesCashAmountLedger(src)) {
-          Alert.alert('无法保存', '所选资金来源不是可扣减余额的类现金资产。');
+          Alert.alert(t('asset.form.cannotSave'), t('asset.form.fundingNotCash'));
           return;
         }
         const rawCost =
@@ -563,13 +573,13 @@ export default function AddModal() {
             ? parseFloat(shares) * parseFloat(costPrice)
             : 0;
         if (!(rawCost > 0)) {
-          Alert.alert('无法保存', '买入金额计算失败，请检查克数/份额与购买单价。');
+          Alert.alert(t('asset.form.cannotSave'), t('asset.form.buyAmountFailed'));
           return;
         }
         const listingCur = normalizeAssetCurrency(assetCurrency);
         const conv = await convertListingCostToCnyCashDebit(rawCost, listingCur);
         if (!conv.ok) {
-          Alert.alert('无法保存', conv.message);
+          Alert.alert(t('asset.form.cannotSave'), conv.message);
           return;
         }
         const amount = conv.cny;
@@ -591,7 +601,10 @@ export default function AddModal() {
             }
           );
         } catch (e) {
-          Alert.alert('无法保存', e instanceof Error ? e.message : '资金来源余额不足。');
+          Alert.alert(
+            t('asset.form.cannotSave'),
+            e instanceof Error ? e.message : t('asset.form.fundingInsufficient')
+          );
           return;
         }
         all[srcIdx] = debited;
@@ -610,7 +623,7 @@ export default function AddModal() {
       router.back();
     } catch (e) {
       console.error(e);
-      Alert.alert('错误', '保存失败，请重试。');
+      Alert.alert(t('common.failed'), t('asset.form.saveRetry'));
     } finally {
       setSaving(false);
     }
@@ -689,7 +702,7 @@ export default function AddModal() {
             </View>
           </View>
           <View style={styles.categoryChipsWrap}>
-            <Text style={styles.formRowLabel}>资产类别</Text>
+            <Text style={styles.formRowLabel}>{t('asset.form.category')}</Text>
             {[0, 1].map((row) => (
               <View
                 key={row}
@@ -717,7 +730,7 @@ export default function AddModal() {
                         adjustsFontSizeToFit
                         minimumFontScale={0.88}
                       >
-                        {CATEGORY_LABEL_ZH[opt]}
+                        {categoryLabel(opt)}
                       </Text>
                     </Pressable>
                   )
@@ -731,7 +744,7 @@ export default function AddModal() {
           styles={styles}
           iconMuted={iconMuted}
           icon="calendar-outline"
-          label="交易时间"
+          label={t('asset.form.tradeDate')}
           right={
             Platform.OS !== 'web' ? (
               <Ionicons name="chevron-forward" size={18} color={iconMuted} />
@@ -751,7 +764,7 @@ export default function AddModal() {
               onPress={openTradeDatePicker}
               style={styles.formRowValuePressable}
               accessibilityRole="button"
-              accessibilityLabel="选择交易日期"
+              accessibilityLabel={t('asset.form.pickTradeDate')}
             >
               <Text style={styles.formRowValue}>
                 {formatYmdChineseLine(tradeDate)}
@@ -766,7 +779,7 @@ export default function AddModal() {
               styles={styles}
               iconMuted={iconMuted}
               icon="diamond-outline"
-              label="贵金属品种"
+              label={t('asset.form.preciousMetalKind')}
             >
               <View style={styles.optionsRow}>
                 {PRECIOUS_METAL_SPOT_ORDER.map((spot) => (
@@ -787,7 +800,7 @@ export default function AddModal() {
                       adjustsFontSizeToFit
                       minimumFontScale={0.82}
                     >
-                      {PRECIOUS_METAL_LABEL_ZH[spot]}
+                      {preciousMetalLabel(spot)}
                     </Text>
                   </Pressable>
                 ))}
@@ -801,9 +814,9 @@ export default function AddModal() {
                 </View>
               </View>
               <View style={styles.categoryChipsWrap}>
-                <Text style={styles.formRowLabel}>上金现货代码</Text>
+                <Text style={styles.formRowLabel}>{t('asset.form.sgeCode')}</Text>
                 <TextInput
-                  placeholder="代码或简称，支持小写、模糊（如 au99、白银）"
+                  placeholder={t('asset.form.sgePlaceholder')}
                   placeholderTextColor={placeholderColor}
                   style={styles.input}
                   value={goldSearchText}
@@ -821,7 +834,7 @@ export default function AddModal() {
             {goldSuggestLoading && (
               <View style={styles.suggestLoadingRow}>
                 <ActivityIndicator size="small" color={theme.primary} />
-                <Text style={styles.suggestLoadingText}>搜索中…</Text>
+                <Text style={styles.suggestLoadingText}>{t('asset.form.searching')}</Text>
               </View>
             )}
             {!goldSuggestLoading && goldSuggestions.length > 0 && (
@@ -855,11 +868,11 @@ export default function AddModal() {
             {!goldSuggestLoading &&
               goldSearchText.trim().length > 0 &&
               goldSuggestions.length === 0 && (
-                <Text style={styles.suggestEmpty}>无匹配结果</Text>
+                <Text style={styles.suggestEmpty}>{t('asset.form.noMatches')}</Text>
               )}
             {goldInstrumentPick?.exchange === 'SGE' && (
               <View style={styles.selectedCard}>
-                <Text style={styles.selectedLabel}>资产名称（行情）</Text>
+                <Text style={styles.selectedLabel}>{t('asset.form.marketName')}</Text>
                 <Text style={styles.selectedMain}>
                   {goldInstrumentPick.name}
                 </Text>
@@ -872,7 +885,7 @@ export default function AddModal() {
                     setGoldSearchText('');
                   }}
                 >
-                  <Text style={styles.changeLink}>清除</Text>
+                  <Text style={styles.changeLink}>{t('asset.form.clear')}</Text>
                 </Pressable>
               </View>
             )}
@@ -880,9 +893,9 @@ export default function AddModal() {
               <FormRow styles={styles} iconMuted={iconMuted} icon="pie-chart-outline">
                 <View style={[styles.listedTwoCol, { alignItems: 'flex-start' }]}>
                   <View style={[styles.listedColFlex, { maxWidth: '36%' }]}>
-                    <Text style={styles.formRowLabel}>数量（克）</Text>
+                    <Text style={styles.formRowLabel}>{t('asset.form.weightGram')}</Text>
                     <TextInput
-                      placeholder="克"
+                      placeholder={t('asset.form.gramPlaceholder')}
                       placeholderTextColor={placeholderColor}
                       style={styles.inputCompact}
                       value={shares}
@@ -891,10 +904,10 @@ export default function AddModal() {
                     />
                   </View>
                   <View style={[styles.listedColFlex, { flex: 1.4, minWidth: 0 }]}>
-                    <Text style={styles.formRowLabel}>单价（CNY/克）</Text>
+                    <Text style={styles.formRowLabel}>{t('asset.form.cnyPerGram')}</Text>
                     <View style={styles.inputCurrencyShell}>
                       <TextInput
-                        placeholder="单价"
+                        placeholder={t('asset.form.unitPricePlaceholder')}
                         placeholderTextColor={placeholderColor}
                         style={styles.inputCurrencyField}
                         value={costPrice}
@@ -924,7 +937,7 @@ export default function AddModal() {
                     </Text>
                   </View>
                 ) : goldQuoteHint && goldInstrumentPick?.quoteId ? (
-                  <Text style={styles.hint}>参考：{goldQuoteHint}</Text>
+                  <Text style={styles.hint}>{t('asset.form.reference', { hint: goldQuoteHint })}</Text>
                 ) : null}
               </FormRow>
             </View>
@@ -936,10 +949,10 @@ export default function AddModal() {
                 </View>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.formRowLabel}>资金来源（选填）</Text>
+                <Text style={styles.formRowLabel}>{t('asset.form.fundingSourceOptional')}</Text>
                 <FundingSourcePicker
-                  label="资金来源（选填）"
-                  emptyOptionLabel="其他外部资金"
+                  label={t('asset.form.fundingSourceOptional')}
+                  emptyOptionLabel={t('asset.form.externalFunding')}
                   valueId={fundingSourceId}
                   onSelectId={setFundingSourceId}
                   fundingOptions={fundingOptions}
@@ -967,9 +980,9 @@ export default function AddModal() {
                 </View>
               </View>
               <View style={styles.categoryChipsWrap}>
-                <Text style={styles.formRowLabel}>搜索证券（代码或简称）</Text>
+                <Text style={styles.formRowLabel}>{t('asset.form.searchSecurity')}</Text>
                 <TextInput
-                  placeholder="如 茅台、012922、AAPL、腾讯、700…"
+                  placeholder={t('asset.form.searchSecurityPlaceholder')}
                   placeholderTextColor={placeholderColor}
                   style={styles.input}
                   value={searchText}
@@ -988,7 +1001,7 @@ export default function AddModal() {
             {suggestLoading && (
               <View style={styles.suggestLoadingRow}>
                 <ActivityIndicator size="small" color={theme.primary} />
-                <Text style={styles.suggestLoadingText}>搜索中…</Text>
+                <Text style={styles.suggestLoadingText}>{t('asset.form.searching')}</Text>
               </View>
             )}
             {!suggestLoading && suggestions.length > 0 && (
@@ -1024,12 +1037,12 @@ export default function AddModal() {
             {!suggestLoading &&
               searchText.trim().length > 0 &&
               suggestions.length === 0 && (
-                <Text style={styles.suggestEmpty}>无匹配结果</Text>
+                <Text style={styles.suggestEmpty}>{t('asset.form.noMatches')}</Text>
               )}
 
             {instrumentPick && (
               <View style={styles.selectedCard}>
-                <Text style={styles.selectedLabel}>已选标的</Text>
+                <Text style={styles.selectedLabel}>{t('asset.form.selectedInstrument')}</Text>
                 <Text style={styles.selectedMain}>
                   {formatExchangeSymbol(
                     instrumentPick.exchange,
@@ -1038,7 +1051,7 @@ export default function AddModal() {
                   · {instrumentPick.name}
                 </Text>
                 <Pressable onPress={clearInstrumentSelection}>
-                  <Text style={styles.changeLinkModify}>修改</Text>
+                  <Text style={styles.changeLinkModify}>{t('asset.form.modify')}</Text>
                 </Pressable>
               </View>
             )}
@@ -1047,9 +1060,9 @@ export default function AddModal() {
               <FormRow styles={styles} iconMuted={iconMuted} icon="pie-chart-outline">
                 <View style={[styles.listedTwoCol, { alignItems: 'flex-start' }]}>
                   <View style={[styles.listedColFlex, { maxWidth: '36%' }]}>
-                    <Text style={styles.formRowLabel}>份额</Text>
+                    <Text style={styles.formRowLabel}>{t('asset.form.shares')}</Text>
                     <TextInput
-                      placeholder="份"
+                      placeholder={t('asset.form.sharesPlaceholder')}
                       placeholderTextColor={placeholderColor}
                       style={styles.inputCompact}
                       value={shares}
@@ -1058,10 +1071,10 @@ export default function AddModal() {
                     />
                   </View>
                   <View style={[styles.listedColFlex, { flex: 1.4, minWidth: 0 }]}>
-                    <Text style={styles.formRowLabel}>单价</Text>
+                    <Text style={styles.formRowLabel}>{t('asset.form.price')}</Text>
                     <View style={styles.inputCurrencyShell}>
                       <TextInput
-                        placeholder="单价"
+                        placeholder={t('asset.form.unitPricePlaceholder')}
                         placeholderTextColor={placeholderColor}
                         style={styles.inputCurrencyField}
                         value={costPrice}
@@ -1086,10 +1099,10 @@ export default function AddModal() {
                 {listedQuoteLoading ? (
                   <View style={styles.suggestLoadingRow}>
                     <ActivityIndicator size="small" color={theme.primary} />
-                    <Text style={styles.suggestLoadingText}>同步参考价…</Text>
+                    <Text style={styles.suggestLoadingText}>{t('asset.form.syncReference')}</Text>
                   </View>
                 ) : listedQuoteHint ? (
-                  <Text style={styles.hint}>参考：{listedQuoteHint}</Text>
+                  <Text style={styles.hint}>{t('asset.form.reference', { hint: listedQuoteHint })}</Text>
                 ) : null}
               </FormRow>
             </View>
@@ -1098,10 +1111,10 @@ export default function AddModal() {
               styles={styles}
               iconMuted={iconMuted}
               icon="calculator-outline"
-              label="金额（份额×单价，改金额反算单价）"
+              label={t('asset.form.amountAuto')}
             >
               <TextInput
-                placeholder="自动计算，可改"
+                placeholder={t('asset.form.amountAutoPlaceholder')}
                 placeholderTextColor={placeholderColor}
                 style={styles.input}
                 value={amountDisplay}
@@ -1118,10 +1131,10 @@ export default function AddModal() {
                 </View>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.formRowLabel}>资金来源（选填）</Text>
+                <Text style={styles.formRowLabel}>{t('asset.form.fundingSourceOptional')}</Text>
                 <FundingSourcePicker
-                  label="资金来源（选填）"
-                  emptyOptionLabel="其他外部资金"
+                  label={t('asset.form.fundingSourceOptional')}
+                  emptyOptionLabel={t('asset.form.externalFunding')}
                   valueId={fundingSourceId}
                   onSelectId={setFundingSourceId}
                   fundingOptions={fundingOptions}
@@ -1145,13 +1158,13 @@ export default function AddModal() {
               styles={styles}
               iconMuted={iconMuted}
               icon="albums-outline"
-              label="资产名称"
+              label={t('asset.form.name')}
             >
               <TextInput
                 placeholder={
                   category === 'Custom'
-                    ? '如：数字货币、期货、保险等'
-                    : '如：招行朝朝宝、余额宝、车贷专户'
+                    ? t('asset.form.namePlaceholderListed')
+                    : t('asset.form.namePlaceholderCash')
                 }
                 placeholderTextColor={placeholderColor}
                 style={styles.input}
@@ -1164,11 +1177,11 @@ export default function AddModal() {
                 styles={styles}
                 iconMuted={iconMuted}
                 icon="cash-outline"
-                label="当前金额"
+                label={t('asset.form.currentAmount')}
               >
                 <View style={styles.inputCurrencyShell}>
                   <TextInput
-                    placeholder="金额"
+                    placeholder={t('asset.form.amount')}
                     placeholderTextColor={placeholderColor}
                     style={styles.inputCurrencyField}
                     value={value}
@@ -1199,7 +1212,7 @@ export default function AddModal() {
             onPress={() => setPurposeExpanded(true)}
             accessibilityRole="button"
           >
-            <Text style={styles.moreOptionsLinkText}>+ 更多选项</Text>
+            <Text style={styles.moreOptionsLinkText}>{t('asset.form.moreOptions')}</Text>
           </Pressable>
         ) : (
           <>
@@ -1209,21 +1222,21 @@ export default function AddModal() {
               accessibilityRole="button"
               accessibilityState={{ expanded: true }}
             >
-              <Text style={styles.purposeSectionTitle}>更多选项</Text>
+              <Text style={styles.purposeSectionTitle}>{t('asset.form.moreOptions')}</Text>
               <Text style={styles.purposeCaret}>▲</Text>
             </Pressable>
             <View style={styles.purposeSectionBody}>
-              <Text style={styles.label}>所在账户（选填）</Text>
+              <Text style={styles.label}>{t('asset.form.accountOptional')}</Text>
               <TextInput
-                placeholder="如：支付宝、招商银行储蓄卡、同花顺…"
+                placeholder={t('asset.form.accountPlaceholder')}
                 placeholderTextColor={placeholderColor}
                 style={styles.input}
                 value={account}
                 onChangeText={setAccount}
               />
-              <Text style={styles.label}>用途说明</Text>
+              <Text style={styles.label}>{t('asset.form.purpose')}</Text>
               <TextInput
-                placeholder="如：旅游基金、应急金"
+                placeholder={t('asset.form.purposePlaceholder')}
                 placeholderTextColor={placeholderColor}
                 style={styles.input}
                 value={purpose}
@@ -1233,7 +1246,7 @@ export default function AddModal() {
                 目标金额（{purposeYuan ? '¥' : assetCurrencySymbol(assetCurrency)}）
               </Text>
               <TextInput
-                placeholder="不填则不显示进度"
+                placeholder={t('asset.form.targetPlaceholder')}
                 placeholderTextColor={placeholderColor}
                 style={styles.input}
                 value={purposeTarget}
@@ -1250,7 +1263,7 @@ export default function AddModal() {
           disabled={saving}
         >
           <Text style={styles.saveButtonPillText}>
-            {saving ? '保存中…' : '添加'}
+            {saving ? t('asset.form.saving') : t('asset.form.add')}
           </Text>
         </Pressable>
         <Pressable
@@ -1258,7 +1271,7 @@ export default function AddModal() {
           onPress={() => router.back()}
           accessibilityRole="button"
         >
-          <Text style={styles.discardButtonText}>放弃</Text>
+          <Text style={styles.discardButtonText}>{t('asset.form.discard')}</Text>
         </Pressable>
         </GlassSurface>
       </ScrollView>

@@ -4,6 +4,7 @@
 
 import { SettingsGridTile } from '@/components/settings-grid-tile';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { usePurchasesEntitlement } from '@/contexts/purchases-context';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
@@ -26,6 +27,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const { ready: purchasesReady, isPro } = usePurchasesEntitlement();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
 
@@ -42,60 +44,60 @@ export default function SettingsScreen() {
   const onShareApp = useCallback(async () => {
     try {
       await Share.share({
-        message: '推荐 Nest：本地资产与净值记账。',
+        message: t('settings.share.message'),
         title: 'Nest',
       });
     } catch {
-      Alert.alert('分享失败', '请重试。');
+      Alert.alert(t('settings.share.failedTitle'), t('settings.share.failedMessage'));
     }
-  }, []);
+  }, [t]);
 
   const toolTiles: Tile[] = useMemo(
     () => [
       {
         id: 'market',
-        label: '市场大盘',
+        label: t('settings.tiles.market'),
         icon: 'show-chart',
         onPress: () => router.push('/market'),
       },
       {
         id: 'attribution',
-        label: '净值归因',
+        label: t('settings.tiles.attribution'),
         icon: 'stacked-line-chart',
         onPress: () => router.push('/settings-attribution'),
       },
       {
         id: 'fx',
-        label: '汇率数据',
+        label: t('settings.tiles.fx'),
         icon: 'currency-exchange',
         onPress: () => router.push('/settings-fx'),
       },
     ],
-    [router]
+    [router, t]
   );
 
   const settingsTiles: Tile[] = useMemo(
     () => [
       {
         id: 'currency',
-        label: '默认货币',
+        label: t('settings.tiles.currency'),
         icon: 'monetization-on',
         onPress: () => router.push('/settings-display-currency'),
       },
       {
         id: 'language',
-        label: '语言设置',
+        label: t('settings.tiles.language'),
         icon: 'language',
         onPress: () => router.push('/settings-language'),
       },
       {
         id: 'palette',
-        label: '应用配色',
+        label: t('settings.tiles.palette'),
         icon: 'invert-colors-on',
         onPress: () => router.push('/settings-palette'),
       },
     ],
-    [router]
+    [router, t]
   );
 
   return (
@@ -133,7 +135,7 @@ export default function SettingsScreen() {
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="分享给朋友"
+              accessibilityLabel={t('settings.share.message')}
               hitSlop={10}
               onPress={() => void onShareApp()}
               style={({ pressed }) => ({
@@ -153,18 +155,18 @@ export default function SettingsScreen() {
               <View style={styles.avatar}>
                 <MaterialIcons name="person" size={32} color={p} />
               </View>
-              <Text style={styles.profileName}>本地账本</Text>
+              <Text style={styles.profileName}>{t('settings.localLedger')}</Text>
               <Text style={styles.profileSub}>
-                本地账户 · 数据仅保存在本机，不上传服务器。
+                {t('settings.localLedgerHint')}
                 {purchasesReady
                   ? isPro
-                    ? '\n\n会员：主列表资产数量不限。'
-                    : `\n\n免费版：主列表最多 ${FREE_ASSET_LIMIT} 条资产；订阅后可无限添加。`
+                    ? `\n\n${t('settings.pro.unlimitedHint')}`
+                    : `\n\n${t('settings.pro.freeAssetHint', { limit: FREE_ASSET_LIMIT })}`
                   : ''}
               </Text>
             </View>
             <View style={styles.profileCta}>
-              <Text style={styles.profileCtaText}>会员</Text>
+              <Text style={styles.profileCtaText}>{t('settings.member')}</Text>
             </View>
           </Pressable>
 
@@ -190,7 +192,7 @@ export default function SettingsScreen() {
             <View style={styles.secondaryBlock}>
               <View style={styles.secondaryGrid}>
                 <SettingsGridTile
-                  label="数据"
+                  label={t('settings.tiles.data')}
                   icon="description"
                   theme={theme}
                   onPress={() => router.push('/settings-data-hub')}
@@ -199,7 +201,7 @@ export default function SettingsScreen() {
                   textColor={pickTextOnAccent(secondarySwatch)}
                 />
                 <SettingsGridTile
-                  label="支持"
+                  label={t('settings.tiles.support')}
                   icon="lightbulb-outline"
                   theme={theme}
                   onPress={() => router.push('/settings-support-hub')}

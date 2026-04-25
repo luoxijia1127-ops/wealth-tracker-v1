@@ -2,6 +2,7 @@
  * 支持页面
  */
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
@@ -14,15 +15,16 @@ export default function SettingsSupportHubScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
 
   const onFeedback = () => router.push('/settings-help');
-  const onRate = () => Alert.alert('好评鼓励', '若喜欢 Nest，可在 App Store 搜索应用名并留下评价，感谢支持。');
+  const onRate = () => Alert.alert(t('settings.support.rate'), t('settings.support.rateMessage'));
   const supportTiles = [
-    { id: 'privacy', label: '隐私政策', icon: 'privacy-tip' as const, onPress: () => router.push('/settings-privacy') },
-    { id: 'terms', label: '用户协议', icon: 'description' as const, onPress: () => router.push('/settings-terms') },
-    { id: 'feedback', label: '意见反馈', icon: 'feedback' as const, onPress: onFeedback },
-    { id: 'rate', label: '好评鼓励', icon: 'star-outline' as const, onPress: onRate },
+    { id: 'privacy', label: t('settings.tiles.privacy'), icon: 'privacy-tip' as const, onPress: () => router.push('/settings-privacy') },
+    { id: 'terms', label: t('settings.tiles.terms'), icon: 'description' as const, onPress: () => router.push('/settings-terms') },
+    { id: 'feedback', label: t('settings.support.feedback'), icon: 'feedback' as const, onPress: onFeedback },
+    { id: 'rate', label: t('settings.support.rate'), icon: 'star-outline' as const, onPress: onRate },
   ];
 
   return (

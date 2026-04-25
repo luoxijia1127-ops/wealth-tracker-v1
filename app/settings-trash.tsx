@@ -6,6 +6,7 @@ import { RecycleRecordsTable } from '@/components/recycle-records-table';
 import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import {
   formatRecycleTransactionSummary,
   getTrashRecords,
@@ -22,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function SettingsTrashScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const p = theme.primary;
   const muted = rgbaFromHex(p, 0.55);
@@ -47,12 +49,12 @@ export default function SettingsTrashScreen() {
   const onRestore = (rec: AssetRecycleRecord) => {
     const detail = formatRecycleTransactionSummary(rec.asset);
     Alert.alert(
-      '恢复资产',
-      `将「${rec.asset.name}」恢复到主列表；若 id 冲突将分配新编号。\n\n恢复后，自删除日当日起的历史净值快照与逐资产日快照将按快照市值回补（今日会再同步行情）。\n\n${detail}`,
+      t('trash.restoreTitle'),
+      t('trash.restoreMessage', { name: rec.asset.name, detail }),
       [
-        { text: '取消', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: '恢复',
+          text: t('trash.restore'),
           onPress: () => {
             setBusyId(rec.recordId);
             void (async () => {
@@ -61,8 +63,8 @@ export default function SettingsTrashScreen() {
                 await load();
               } catch (e) {
                 Alert.alert(
-                  '失败',
-                  e instanceof Error ? e.message : '无法恢复'
+                  t('common.failed'),
+                  e instanceof Error ? e.message : t('trash.restoreFailed')
                 );
               } finally {
                 setBusyId(null);
@@ -93,19 +95,19 @@ export default function SettingsTrashScreen() {
         />
         <View style={{ paddingHorizontal: 16 }}>
       <Text style={{ fontSize: 14, lineHeight: 21, color: muted, marginBottom: 16 }}>
-        在总览删除的资产暂存于此。点「恢复」回到主列表。
+        {t('trash.description')}
       </Text>
       {loading ? (
         <ActivityIndicator color={p} style={{ marginTop: 24 }} />
       ) : rows.length === 0 ? (
-        <Text style={{ fontSize: 15, color: muted, marginTop: 12 }}>暂无删除记录</Text>
+        <Text style={{ fontSize: 15, color: muted, marginTop: 12 }}>{t('trash.empty')}</Text>
       ) : (
         <RecycleRecordsTable
           variant="restore"
           rows={rows}
           busyId={busyId}
-          nameHeader="资产"
-          dateHeader="删除日期"
+          nameHeader={t('trash.asset')}
+          dateHeader={t('trash.date')}
           onRestore={onRestore}
         />
       )}

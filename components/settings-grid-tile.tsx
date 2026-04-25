@@ -72,7 +72,9 @@ export function SettingsGridTile({
         <MaterialIcons name={icon} size={isSecondary ? 24 : 28} color={textColor ?? p} />
       </View>
       <Text
-        numberOfLines={2}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
         style={[
           styles.compactLabel,
           { color: textColor ?? p },

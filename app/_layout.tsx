@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import { FontRoot } from '@/components/font-root';
 import { SettingsHubBackButton } from '@/components/settings-hub-back-navigation';
 import { AppPaletteProvider } from '@/contexts/app-palette-context';
+import { LanguageProvider, useLanguage } from '@/contexts/language-context';
 import { PurchasesProvider } from '@/contexts/purchases-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppFont } from '@/lib/app-fonts';
@@ -31,13 +32,27 @@ export default function RootLayout() {
 
   return (
     <AppPaletteProvider>
+      <LanguageProvider>
       <PurchasesProvider>
       <FontRoot>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <AppStack />
+        <StatusBar style="auto" />
+      </ThemeProvider>
+      </FontRoot>
+      </PurchasesProvider>
+      </LanguageProvider>
+    </AppPaletteProvider>
+  );
+}
+
+function AppStack() {
+  const { t } = useLanguage();
+
+  return (
         <Stack
           screenOptions={{
             headerShown: false,
-            headerBackTitleVisible: false,
             headerLeft: () => <SettingsHubBackButton />,
             headerTitleStyle: {
               fontFamily: AppFont.bold,
@@ -57,7 +72,7 @@ export default function RootLayout() {
             options={{
               headerShown: false,
               presentation: 'modal',
-              title: '添加资产',
+              title: t('routes.addAsset'),
               gestureEnabled: true,
               headerShadowVisible: false,
             }}
@@ -92,7 +107,7 @@ export default function RootLayout() {
             name="settings-palette"
             options={{
               headerShown: false,
-              title: '应用配色',
+              title: t('routes.palette'),
               headerShadowVisible: false,
             }}
           />
@@ -100,7 +115,7 @@ export default function RootLayout() {
             name="settings-attribution"
             options={{
               headerShown: false,
-              title: '净值变动归因',
+              title: t('routes.attribution'),
               headerShadowVisible: false,
             }}
           />
@@ -108,7 +123,7 @@ export default function RootLayout() {
             name="settings-fx"
             options={{
               headerShown: false,
-              title: '汇率信息',
+              title: t('routes.fx'),
               headerShadowVisible: false,
             }}
           />
@@ -116,7 +131,7 @@ export default function RootLayout() {
             name="settings-export"
             options={{
               headerShown: false,
-              title: '数据与导出',
+              title: t('routes.export'),
               headerShadowVisible: false,
             }}
           />
@@ -124,7 +139,7 @@ export default function RootLayout() {
             name="settings-import"
             options={{
               headerShown: false,
-              title: '导入备份',
+              title: t('routes.import'),
               headerShadowVisible: false,
             }}
           />
@@ -132,7 +147,7 @@ export default function RootLayout() {
             name="settings-help"
             options={{
               headerShown: false,
-              title: '帮助与反馈',
+              title: t('routes.help'),
               headerShadowVisible: false,
             }}
           />
@@ -140,7 +155,7 @@ export default function RootLayout() {
             name="settings-about"
             options={{
               headerShown: false,
-              title: '关于应用',
+              title: t('routes.about'),
               headerShadowVisible: false,
             }}
           />
@@ -148,7 +163,7 @@ export default function RootLayout() {
             name="settings-privacy"
             options={{
               headerShown: false,
-              title: '隐私政策',
+              title: t('routes.privacy'),
               headerShadowVisible: false,
             }}
           />
@@ -156,7 +171,7 @@ export default function RootLayout() {
             name="settings-terms"
             options={{
               headerShown: false,
-              title: '用户协议',
+              title: t('routes.terms'),
               headerShadowVisible: false,
             }}
           />
@@ -164,7 +179,7 @@ export default function RootLayout() {
             name="settings-display-currency"
             options={{
               headerShown: false,
-              title: '默认货币',
+              title: t('routes.displayCurrency'),
               headerShadowVisible: false,
             }}
           />
@@ -172,7 +187,7 @@ export default function RootLayout() {
             name="settings-language"
             options={{
               headerShown: false,
-              title: '语言设置',
+              title: t('routes.language'),
               headerShadowVisible: false,
             }}
           />
@@ -180,7 +195,7 @@ export default function RootLayout() {
             name="settings-cashflow-colors"
             options={{
               headerShown: false,
-              title: '应用配色',
+              title: t('routes.cashflowColors'),
               headerShadowVisible: false,
             }}
           />
@@ -188,7 +203,7 @@ export default function RootLayout() {
             name="settings-archived"
             options={{
               headerShown: false,
-              title: '已归档',
+              title: t('routes.archived'),
               headerShadowVisible: false,
             }}
           />
@@ -196,7 +211,7 @@ export default function RootLayout() {
             name="settings-trash"
             options={{
               headerShown: false,
-              title: '最近删除',
+              title: t('routes.trash'),
               headerShadowVisible: false,
             }}
           />
@@ -204,7 +219,7 @@ export default function RootLayout() {
             name="market"
             options={{
               headerShown: false,
-              title: '市场',
+              title: t('market.title'),
               headerShadowVisible: false,
             }}
           />
@@ -212,15 +227,10 @@ export default function RootLayout() {
             name="paywall"
             options={{
               headerShown: true,
-              title: '订阅',
+              title: t('paywall.title'),
               headerShadowVisible: false,
             }}
           />
         </Stack>
-        <StatusBar style="auto" />
-      </ThemeProvider>
-      </FontRoot>
-      </PurchasesProvider>
-    </AppPaletteProvider>
   );
 }

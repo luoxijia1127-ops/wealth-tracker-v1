@@ -8,14 +8,16 @@ import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 
 export function SettingsHubBackButton() {
   const router = useRouter();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="返回上一级"
+      accessibilityLabel={t('common.back')}
       onPress={() => router.back()}
       style={{ width: 44, height: 44, justifyContent: 'center' }}
     >

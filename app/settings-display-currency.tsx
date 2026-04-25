@@ -3,6 +3,7 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { AppFont } from '@/lib/app-fonts';
 import { ASSET_CURRENCY_OPTIONS } from '@/lib/asset-currency';
 import { rgbaFromHex } from '@/lib/color-utils';
@@ -36,6 +37,7 @@ const LIST_ROW = {
 export default function SettingsDisplayCurrencyScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const [code, setCode] = useState<string>('CNY');
   const [loading, setLoading] = useState(true);
@@ -94,7 +96,7 @@ export default function SettingsDisplayCurrencyScreen() {
               marginBottom: 8,
             }}
           >
-            用于总览与洞察中的净值汇总与分布分析；各资产仍以各自币种记录，多持仓按中间价折为该货币。
+            {t('settings.currency.description')}
           </Text>
           {loading ? (
             <View style={{ paddingVertical: 24, alignItems: 'center' }}>

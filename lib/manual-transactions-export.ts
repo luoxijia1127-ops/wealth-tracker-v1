@@ -4,6 +4,7 @@
 
 import { getAssetCurrency } from '@/lib/asset-value';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
+import type { SupportedLocale } from '@/lib/language';
 import {
   CATEGORY_LABEL_ZH,
   type AssetCategory,
@@ -165,21 +166,40 @@ function csvEscape(s: string): string {
 }
 
 /** CSV，首列为 UTF-8 BOM，便于 Excel 打开中文 */
-export function manualTransactionsToCsv(rows: ManualTransactionExportRow[]): string {
-  const header = [
-    '日期',
-    '明细类型',
-    '资产名称',
-    '资产类别',
-    '方向',
-    '金额',
-    '币种',
-    '份额',
-    '单价',
-    '关联信息',
-    '备注',
-    '内部划转',
-  ];
+export function manualTransactionsToCsv(
+  rows: ManualTransactionExportRow[],
+  locale: SupportedLocale = 'zh-CN'
+): string {
+  const header =
+    locale === 'en-US'
+      ? [
+          'Date',
+          'Detail Type',
+          'Asset Name',
+          'Category',
+          'Direction',
+          'Amount',
+          'Currency',
+          'Shares',
+          'Unit Price',
+          'Related',
+          'Note',
+          'Internal Transfer',
+        ]
+      : [
+          '日期',
+          '明细类型',
+          '资产名称',
+          '资产类别',
+          '方向',
+          '金额',
+          '币种',
+          '份额',
+          '单价',
+          '关联信息',
+          '备注',
+          '内部划转',
+        ];
   const lines = [
     header.map(csvEscape).join(','),
     ...rows.map((r) =>
@@ -195,7 +215,13 @@ export function manualTransactionsToCsv(rows: ManualTransactionExportRow[]): str
         r.unitPrice,
         r.related,
         r.note,
-        r.internalTransfer ? '是' : '否',
+        r.internalTransfer
+          ? locale === 'en-US'
+            ? 'Yes'
+            : '是'
+          : locale === 'en-US'
+            ? 'No'
+            : '否',
       ]
         .map((x) => csvEscape(String(x)))
         .join(',')

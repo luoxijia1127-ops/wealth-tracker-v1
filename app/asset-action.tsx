@@ -15,6 +15,7 @@ import {
   YmdDateFields,
 } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { buildPurposeFields } from '@/lib/add-asset-form';
 import {
   fetchAddAssetReferencePrice,
@@ -50,6 +51,7 @@ import {
 import { FINANCE_DOWN, FINANCE_UP } from '@/lib/finance-colors';
 import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
 import type { UnifiedSuggestItem } from '@/lib/instrument-search';
+import type { TranslationKey } from '@/lib/language';
 import { tryApplyListedAdjustTrade } from '@/lib/listed-adjust-trade';
 import { createAddModalStyles } from '@/lib/modal-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
@@ -60,9 +62,7 @@ import {
 } from '@/lib/trade-ledger';
 import {
   ASSET_CATEGORY_ORDER,
-  CATEGORY_LABEL_ZH,
   isListedAssetCategory,
-  PRECIOUS_METAL_LABEL_ZH,
   PRECIOUS_METAL_SPOT_ORDER,
   type AssetCategory,
   type CashLedgerEntry,
@@ -90,14 +90,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type ListedPanel = 'adjust' | 'edit';
 type CashPanel = 'balance' | 'edit';
 
-const LISTED_TABS: { id: ListedPanel; label: string }[] = [
-  { id: 'adjust', label: '加减仓' },
-  { id: 'edit', label: '编辑信息' },
-];
-
-/** 加减仓与编辑信息：资金账户行标题一致 */
-const FUNDING_ACCOUNT_ROW_LABEL =
-  '资金账户（选填，加仓为扣款来源，减仓为入账去向）';
+const LISTED_TABS: { id: ListedPanel }[] = [{ id: 'adjust' }, { id: 'edit' }];
 
 /** 编辑信息头：单价与资产币种一致，固定 2 位小数 */
 function formatListedUnitForDisplay(amount: number, currency: string): string {
@@ -114,10 +107,7 @@ function formatListedUnitForDisplay(amount: number, currency: string): string {
   }
 }
 
-const CASH_TABS: { id: CashPanel; label: string }[] = [
-  { id: 'balance', label: '加减余额' },
-  { id: 'edit', label: '编辑信息' },
-];
+const CASH_TABS: { id: CashPanel }[] = [{ id: 'balance' }, { id: 'edit' }];
 
 /**
  * 写入「首笔买入」流水上的资金来源（baseline 行或日期最早的一笔买入），
@@ -210,6 +200,7 @@ export default function AssetActionScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useGlobalSearchParams<{ id?: string }>();
   const { theme, appearance } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
   const placeholderColor = useMemo(
     () => rgbaFromHex(theme.primary, 0.42),
@@ -678,20 +669,20 @@ export default function AssetActionScreen() {
         return true;
       } catch (e) {
         Alert.alert(
-          '失败',
-          e instanceof Error ? e.message : '无法归档清仓记录'
+          t('common.failed'),
+          e instanceof Error ? e.message : t('common.failed')
         );
         return false;
       }
     },
-    [router]
+    [router, t]
   );
 
   const onSaveListedAdjust = async () => {
     if (!asset || !isHeldChineseAsset(asset)) return;
     const td = adjustTradeDate.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(td)) {
-      Alert.alert('无法保存', '请选择有效的交易日期。');
+      Alert.alert(t('asset.form.cannotSave'), t('asset.form.invalidTradeDate'));
       return;
     }
     const signed = parseSignedCashDelta(tradeShares);
@@ -719,7 +710,7 @@ export default function AssetActionScreen() {
         transferId,
       });
       if (!r.ok) {
-        Alert.alert('无法保存', r.message);
+        Alert.alert(t('asset.form.cannotSave'), r.message);
         return;
       }
       const rawAmount =
@@ -731,7 +722,7 @@ export default function AssetActionScreen() {
         const srcIdx = all.findIndex((a) => a.id === linkId);
         const curIdx = all.findIndex((a) => a.id === asset.id);
         if (srcIdx < 0 || curIdx < 0) {
-          Alert.alert('无法保存', '资产数据已变化，请返回重试。');
+          Alert.alert(t('asset.form.cannotSave'), t('trade.edit.assetChanged'));
           return;
         }
         const src = all[srcIdx]!;
@@ -741,7 +732,7 @@ export default function AssetActionScreen() {
           listingCur
         );
         if (!conv.ok) {
-          Alert.alert('无法保存', conv.message);
+          Alert.alert(t('asset.form.cannotSave'), conv.message);
           return;
         }
         const amount = conv.cny;
@@ -765,8 +756,8 @@ export default function AssetActionScreen() {
           );
         } catch (e) {
           Alert.alert(
-            '无法保存',
-            e instanceof Error ? e.message : '资金账户余额不足。'
+            t('asset.form.cannotSave'),
+            e instanceof Error ? e.message : t('asset.form.fundingInsufficient')
           );
           return;
         }
@@ -778,7 +769,7 @@ export default function AssetActionScreen() {
         const dstIdx = all.findIndex((a) => a.id === linkId);
         const curIdx = all.findIndex((a) => a.id === asset.id);
         if (dstIdx < 0 || curIdx < 0) {
-          Alert.alert('无法保存', '资产数据已变化，请返回重试。');
+          Alert.alert(t('asset.form.cannotSave'), t('trade.edit.assetChanged'));
           return;
         }
         const dst = all[dstIdx]!;
@@ -788,7 +779,7 @@ export default function AssetActionScreen() {
           listingCur
         );
         if (!conv.ok) {
-          Alert.alert('无法保存', conv.message);
+          Alert.alert(t('asset.form.cannotSave'), conv.message);
           return;
         }
         const amount = conv.cny;
@@ -830,11 +821,11 @@ export default function AssetActionScreen() {
     if (!asset || !isHeldChineseAsset(asset)) return;
     if (asset.category === 'Gold') {
       if (listedMetaCategory !== 'Gold') {
-        Alert.alert('无法保存', '行情型贵金属类别须为「贵金属」。');
+        Alert.alert(t('asset.form.cannotSave'), t('asset.form.pickSge'));
         return;
       }
     } else if (!isListedAssetCategory(listedMetaCategory)) {
-      Alert.alert('无法保存', '场内资产类别须为股票、基金或 ETF。');
+      Alert.alert(t('asset.form.cannotSave'), t('asset.form.category'));
       return;
     }
     setListedMetaSaving(true);
@@ -878,7 +869,7 @@ export default function AssetActionScreen() {
       } catch {
         /* 忽略 */
       }
-      Alert.alert('已保存');
+      Alert.alert(t('common.success'));
     } finally {
       setListedMetaSaving(false);
     }
@@ -893,11 +884,11 @@ export default function AssetActionScreen() {
       cashAdjustNewBalance
     );
     if (error) {
-      Alert.alert('无法保存', error);
+      Alert.alert(t('asset.form.cannotSave'), error);
       return;
     }
     if (delta === 0) {
-      Alert.alert('无法保存', '变动金额为 0，无需保存。');
+      Alert.alert(t('asset.form.cannotSave'), t('asset.detail.deltaPlaceholder'));
       return;
     }
     setCashAdjustSaving(true);
@@ -917,8 +908,8 @@ export default function AssetActionScreen() {
       await load();
     } catch (e) {
       Alert.alert(
-        '无法保存',
-        e instanceof Error ? e.message : '余额与流水不一致。'
+        t('asset.form.cannotSave'),
+        e instanceof Error ? e.message : t('trade.edit.positionMismatch')
       );
     } finally {
       setCashAdjustSaving(false);
@@ -928,7 +919,7 @@ export default function AssetActionScreen() {
   const onSaveCashMeta = async () => {
     if (!asset || !usesCashAmountLedger(asset)) return;
     if (!cashName.trim()) {
-      Alert.alert('无法保存', '请填写资产名称。');
+      Alert.alert(t('asset.form.cannotSave'), t('asset.form.name'));
       return;
     }
     setCashSaving(true);
@@ -949,7 +940,7 @@ export default function AssetActionScreen() {
       await updateAsset(next);
       if (await archiveIfHiddenAndGo(next)) return;
       await load();
-      Alert.alert('已保存');
+      Alert.alert(t('common.success'));
     } finally {
       setCashSaving(false);
     }
@@ -961,11 +952,11 @@ export default function AssetActionScreen() {
     }
     const v = parseFloat(fbValue);
     if (Number.isNaN(v) || v < 0) {
-      Alert.alert('无法保存', '请输入有效的当前金额。');
+      Alert.alert(t('asset.form.cannotSave'), t('asset.form.currentAmount'));
       return;
     }
     if (!fbName.trim()) {
-      Alert.alert('无法保存', '请填写资产名称。');
+      Alert.alert(t('asset.form.cannotSave'), t('asset.form.name'));
       return;
     }
     setFbSaving(true);
@@ -987,7 +978,7 @@ export default function AssetActionScreen() {
       await updateAsset(next);
       if (await archiveIfHiddenAndGo(next)) return;
       await load();
-      Alert.alert('已保存');
+      Alert.alert(t('common.success'));
     } finally {
       setFbSaving(false);
     }
@@ -1000,7 +991,7 @@ export default function AssetActionScreen() {
       <View style={styles.keyboardRoot}>
         <SettingsHubBackTopBar />
         <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
-          <Text style={styles.headerName}>缺少资产 ID</Text>
+          <Text style={styles.headerName}>{t('asset.detail.missingId')}</Text>
         </View>
       </View>
     );
@@ -1029,7 +1020,7 @@ export default function AssetActionScreen() {
       <View style={styles.keyboardRoot}>
         <SettingsHubBackTopBar />
         <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
-          <Text style={styles.headerName}>未找到该资产</Text>
+          <Text style={styles.headerName}>{t('asset.detail.notFound')}</Text>
         </View>
       </View>
     );
@@ -1072,7 +1063,7 @@ export default function AssetActionScreen() {
           {headerTitle}
         </Text>
         <Text style={[styles.headerMeta, { marginBottom: 16 }]}>
-          市值{' '}
+          {t('asset.detail.marketValue')}{' '}
           {formatMoney(getAssetDisplayValue(asset), getAssetCurrency(asset))}
         </Text>
 
@@ -1096,7 +1087,9 @@ export default function AssetActionScreen() {
                       listedPanel === tab.id && styles.tabChipTextActive,
                     ]}
                   >
-                    {tab.label}
+                    {tab.id === 'adjust'
+                      ? t('asset.detail.adjustPosition')
+                      : t('asset.detail.editInfo')}
                   </Text>
                 </Pressable>
               ))}
@@ -1114,7 +1107,7 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="calendar-outline"
-                    label="交易时间"
+                    label={t('asset.form.tradeDate')}
                     right={
                       Platform.OS !== 'web' ? (
                         <Ionicons
@@ -1138,7 +1131,7 @@ export default function AssetActionScreen() {
                         onPress={openAdjustTradeDatePicker}
                         style={styles.formRowValuePressable}
                         accessibilityRole="button"
-                        accessibilityLabel="选择交易日期"
+                        accessibilityLabel={t('asset.form.pickTradeDate')}
                       >
                         <Text style={styles.formRowValue}>
                           {formatYmdChineseLine(adjustTradeDate)}
@@ -1150,10 +1143,18 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon={useGram ? 'fitness-outline' : 'pie-chart-outline'}
-                    label={useGram ? '克数变动' : '份额变动'}
+                    label={
+                      useGram
+                        ? t('asset.detail.weightChange')
+                        : t('asset.detail.sharesChange')
+                    }
                   >
                     <TextInput
-                      placeholder={useGram ? '如 +10 或 -5 克' : '如 +100 或 -50 份'}
+                      placeholder={
+                        useGram
+                          ? t('asset.detail.weightChangePlaceholder')
+                          : t('asset.detail.sharesChangePlaceholder')
+                      }
                       placeholderTextColor={placeholderColor}
                       style={styles.input}
                       value={tradeShares}
@@ -1169,13 +1170,18 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="pricetag-outline"
-                    label={`成交单价（${getAssetCurrency(asset)}${
-                      useGram ? '/克' : '/份'
-                    }）`}
+                    label={t('asset.detail.tradeUnitPrice', {
+                      currency: getAssetCurrency(asset),
+                      unit: useGram ? t('dashboard.gramUnit') : t('dashboard.shareUnit'),
+                    })}
                   >
                     <TextInput
                       placeholder={
-                        useGram ? '本笔成交单价/克' : '本笔成交单价/份'
+                        t('asset.detail.tradeUnitPricePlaceholder', {
+                          unit: useGram
+                            ? t('dashboard.gramUnit')
+                            : t('dashboard.shareUnit'),
+                        })
                       }
                       placeholderTextColor={placeholderColor}
                       style={styles.input}
@@ -1191,20 +1197,22 @@ export default function AssetActionScreen() {
                         color={theme.primary}
                       />
                       <Text style={styles.suggestLoadingText}>
-                        同步参考价…
+                        {t('asset.form.syncReference')}
                       </Text>
                     </View>
                   ) : adjustQuoteHint ? (
-                    <Text style={styles.hint}>参考：{adjustQuoteHint}</Text>
+                    <Text style={styles.hint}>
+                      {t('asset.form.reference', { hint: adjustQuoteHint })}
+                    </Text>
                   ) : null}
                   <FormRow
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="calculator-outline"
-                    label={`成交金额`}
+                    label={t('asset.detail.tradeAmount')}
                   >
                     <TextInput
-                      placeholder="可通过填写金额交叉推算份额"
+                      placeholder={t('asset.detail.tradeAmountPlaceholder')}
                       placeholderTextColor={placeholderColor}
                       style={styles.input}
                       value={tradeAmount}
@@ -1225,11 +1233,11 @@ export default function AssetActionScreen() {
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.formRowLabel}>
-                        {FUNDING_ACCOUNT_ROW_LABEL}
+                        {t('asset.detail.fundingAccount')}
                       </Text>
                       <FundingSourcePicker
-                        label={FUNDING_ACCOUNT_ROW_LABEL}
-                        emptyOptionLabel="不关联现金账户"
+                        label={t('asset.detail.fundingAccount')}
+                        emptyOptionLabel={t('asset.detail.noCashLink')}
                         valueId={tradeLinkedCashId}
                         onSelectId={setTradeLinkedCashId}
                         fundingOptions={tradeFundingOptions}
@@ -1253,7 +1261,7 @@ export default function AssetActionScreen() {
                     disabled={adjustSaving}
                   >
                     <Text style={styles.saveButtonText}>
-                      {adjustSaving ? '保存中…' : '保存本笔加减仓'}
+                      {adjustSaving ? t('asset.form.saving') : t('asset.detail.saveAdjust')}
                     </Text>
                   </Pressable>
 
@@ -1261,7 +1269,9 @@ export default function AssetActionScreen() {
                     style={[styles.tradeDetailSection, { marginTop: 22 }]}
                   >
                     <View style={styles.tradeDetailTitleRow}>
-                      <Text style={styles.tradeDetailTitle}>交易明细</Text>
+                      <Text style={styles.tradeDetailTitle}>
+                        {t('asset.detail.tradeDetails')}
+                      </Text>
                       <View style={styles.tradeDetailTitleActions}>
                         <Ionicons
                           name="reorder-three-outline"
@@ -1277,7 +1287,7 @@ export default function AssetActionScreen() {
                     </View>
                     {trades.length === 0 ? (
                       <Text style={[styles.hintMuted, { marginTop: 10 }]}>
-                        暂无记录
+                        {t('asset.detail.noRecords')}
                       </Text>
                     ) : (
                       <>
@@ -1290,13 +1300,13 @@ export default function AssetActionScreen() {
                           <View style={styles.tradeTableInner}>
                             <View style={styles.tradeTableHeader}>
                               <View style={styles.tradeTypeCol}>
-                                <Text style={styles.tradeTh}>类型</Text>
+                                <Text style={styles.tradeTh}>{t('asset.detail.type')}</Text>
                               </View>
                               <View style={styles.tradeQtyCol}>
-                                <Text style={styles.tradeTh}>数量</Text>
+                                <Text style={styles.tradeTh}>{t('asset.detail.quantity')}</Text>
                               </View>
                               <View style={styles.tradePriceCol}>
-                                <Text style={styles.tradeTh}>价格</Text>
+                                <Text style={styles.tradeTh}>{t('asset.detail.price')}</Text>
                               </View>
                               <View
                                 style={[
@@ -1304,23 +1314,23 @@ export default function AssetActionScreen() {
                                   { alignItems: 'flex-end' },
                                 ]}
                               >
-                                <Text style={styles.tradeTh}>资金来源</Text>
+                                <Text style={styles.tradeTh}>{t('asset.detail.fundingSource')}</Text>
                               </View>
                               <View style={styles.tradePnlCol}>
-                                <Text style={styles.tradeTh}>已实现盈亏</Text>
+                                <Text style={styles.tradeTh}>{t('asset.detail.realizedPnl')}</Text>
                               </View>
                             </View>
-                            {trades.map((t, rowIdx) => {
-                              const isBuy = t.side === 'buy';
+                            {trades.map((tradeRow, rowIdx) => {
+                              const isBuy = tradeRow.side === 'buy';
                               const fundLabel = isBuy
-                                ? t.fundingSourceAssetName?.trim() || '—'
-                                : t.cashDestinationAssetName?.trim() || '—';
+                                ? tradeRow.fundingSourceAssetName?.trim() || '—'
+                                : tradeRow.cashDestinationAssetName?.trim() || '—';
                               const pl =
-                                t.side === 'sell'
-                                  ? sellRealizedById.get(t.id)
+                                tradeRow.side === 'sell'
+                                  ? sellRealizedById.get(tradeRow.id)
                                   : undefined;
                               const showPnl =
-                                t.side === 'sell' &&
+                                tradeRow.side === 'sell' &&
                                 pl !== undefined &&
                                 Number.isFinite(pl);
                               const plColor = showPnl
@@ -1335,7 +1345,7 @@ export default function AssetActionScreen() {
                                 : '—';
                               return (
                                 <Pressable
-                                  key={t.id}
+                                  key={tradeRow.id}
                                   style={({ pressed }) => [
                                     styles.tradeTableRow,
                                     rowIdx % 2 === 1 && styles.tradeTableRowAlt,
@@ -1351,7 +1361,7 @@ export default function AssetActionScreen() {
                                       pathname: '/trade-edit',
                                       params: {
                                         assetId: asset.id,
-                                        tradeId: t.id,
+                                        tradeId: tradeRow.id,
                                       },
                                     });
                                   }}
@@ -1378,13 +1388,13 @@ export default function AssetActionScreen() {
                                         ]}
                                         numberOfLines={1}
                                       >
-                                        {isBuy ? '买入' : '卖出'}
+                                        {isBuy ? t('asset.detail.buy') : t('asset.detail.sell')}
                                       </Text>
                                       <Text
                                         style={styles.tradeTypeDate}
                                         numberOfLines={1}
                                       >
-                                        {t.tradeDate}
+                                        {tradeRow.tradeDate}
                                       </Text>
                                     </View>
                                   </View>
@@ -1395,7 +1405,7 @@ export default function AssetActionScreen() {
                                       adjustsFontSizeToFit
                                       minimumFontScale={0.55}
                                     >
-                                      {String(t.shares)}
+                                      {String(tradeRow.shares)}
                                     </Text>
                                   </View>
                                   <View style={styles.tradePriceCol}>
@@ -1406,7 +1416,7 @@ export default function AssetActionScreen() {
                                       minimumFontScale={0.55}
                                     >
                                       {formatMoney(
-                                        t.unitPriceCny,
+                                        tradeRow.unitPriceCny,
                                         quoteCurrency
                                       )}
                                     </Text>
@@ -1440,7 +1450,9 @@ export default function AssetActionScreen() {
                           </View>
                         </ScrollView>
                         {!tradesAreSynthetic ? (
-                          <Text style={styles.tradeEditHint}>点按行可编辑</Text>
+                          <Text style={styles.tradeEditHint}>
+                            {t('asset.detail.tapRowEdit')}
+                          </Text>
                         ) : null}
                       </>
                     )}
@@ -1457,10 +1469,12 @@ export default function AssetActionScreen() {
                   <View style={[styles.headerCard, { marginBottom: 16 }]}>
                     <Text style={styles.headerName}>{asset.name}</Text>
                     <Text style={[styles.headerMeta, { marginTop: 6 }]}>
-                      持仓 {asset.shares ?? 0} {useGram ? '克' : '份'} · 平均成本{' '}
-                      {avgDisp}
-                      {useGram ? '/克' : '/份'} · 最新收盘价 {closeDisp}
-                      {useGram ? '/克' : '/份'}
+                      {t('asset.detail.currentHolding', {
+                        qty: asset.shares ?? 0,
+                        unit: useGram ? t('dashboard.gramUnit') : t('dashboard.shareUnit'),
+                        avgCost: avgDisp,
+                        close: closeDisp,
+                      })}
                     </Text>
                   </View>
 
@@ -1476,7 +1490,7 @@ export default function AssetActionScreen() {
                       </View>
                     </View>
                     <View style={styles.categoryChipsWrap}>
-                      <Text style={styles.formRowLabel}>资产类别</Text>
+                      <Text style={styles.formRowLabel}>{t('asset.form.category')}</Text>
                       <View style={styles.categoryRowOneLine}>
                         {(useGram ? (['Gold'] as const) : LISTED_EDIT_CATEGORIES).map(
                           (opt) => (
@@ -1499,7 +1513,7 @@ export default function AssetActionScreen() {
                                 adjustsFontSizeToFit
                                 minimumFontScale={0.88}
                               >
-                                {CATEGORY_LABEL_ZH[opt]}
+                                {t(`asset.category.${opt}` as TranslationKey)}
                               </Text>
                             </Pressable>
                           )
@@ -1521,7 +1535,7 @@ export default function AssetActionScreen() {
                         </View>
                       </View>
                       <View style={styles.categoryChipsWrap}>
-                        <Text style={styles.formRowLabel}>贵金属品种</Text>
+                        <Text style={styles.formRowLabel}>{t('asset.form.preciousMetalKind')}</Text>
                         <View style={[styles.categoryRowOneLine, { flexWrap: 'wrap' }]}>
                           {PRECIOUS_METAL_SPOT_ORDER.map((spot) => (
                             <Pressable
@@ -1543,7 +1557,7 @@ export default function AssetActionScreen() {
                                 adjustsFontSizeToFit
                                 minimumFontScale={0.75}
                               >
-                                {PRECIOUS_METAL_LABEL_ZH[spot]}
+                                {t(`asset.precious.${spot}` as TranslationKey)}
                               </Text>
                             </Pressable>
                           ))}
@@ -1567,10 +1581,10 @@ export default function AssetActionScreen() {
                         </View>
                         <View style={styles.categoryChipsWrap}>
                           <Text style={styles.formRowLabel}>
-                            上金现货代码（选填）
+                            {t('asset.form.sgeCode')}
                           </Text>
                           <TextInput
-                            placeholder="代码或简称，支持小写、模糊"
+                            placeholder={t('asset.form.sgePlaceholder')}
                             placeholderTextColor={placeholderColor}
                             style={styles.input}
                             value={goldSearchText}
@@ -1592,7 +1606,7 @@ export default function AssetActionScreen() {
                             color={theme.primary}
                           />
                           <Text style={styles.suggestLoadingText}>
-                            搜索中…
+                            {t('asset.form.searching')}
                           </Text>
                         </View>
                       )}
@@ -1629,12 +1643,14 @@ export default function AssetActionScreen() {
                       {!goldSuggestLoading &&
                         goldSearchText.trim().length > 0 &&
                         goldSuggestions.length === 0 && (
-                          <Text style={styles.suggestEmpty}>无匹配结果</Text>
+                          <Text style={styles.suggestEmpty}>
+                            {t('asset.form.noMatches')}
+                          </Text>
                         )}
                       {goldInstrumentPick?.exchange === 'SGE' && (
                         <View style={styles.selectedCard}>
                           <Text style={styles.selectedLabel}>
-                            已选行情代码
+                            {t('asset.form.selectedInstrument')}
                           </Text>
                           <Text style={styles.selectedMain}>
                             {formatExchangeSymbol(
@@ -1649,7 +1665,7 @@ export default function AssetActionScreen() {
                               setGoldSearchText('');
                             }}
                           >
-                            <Text style={styles.changeLink}>清除</Text>
+                            <Text style={styles.changeLink}>{t('asset.form.clear')}</Text>
                           </Pressable>
                         </View>
                       )}
@@ -1660,10 +1676,10 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="folder-outline"
-                    label="所在账户（选填）"
+                    label={t('asset.form.accountOptional')}
                   >
                     <TextInput
-                      placeholder="如：同花顺、东方财富…"
+                      placeholder={t('asset.form.accountPlaceholder')}
                       placeholderTextColor={placeholderColor}
                       style={styles.input}
                       value={listedMetaAccount}
@@ -1684,11 +1700,11 @@ export default function AssetActionScreen() {
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.formRowLabel}>
-                        {FUNDING_ACCOUNT_ROW_LABEL}
+                        {t('asset.detail.fundingAccount')}
                       </Text>
                       <FundingSourcePicker
-                        label={FUNDING_ACCOUNT_ROW_LABEL}
-                        emptyOptionLabel="不关联现金账户"
+                        label={t('asset.detail.fundingAccount')}
+                        emptyOptionLabel={t('asset.detail.noCashLink')}
                         valueId={listedMetaFundingCashId}
                         onSelectId={setListedMetaFundingCashId}
                         fundingOptions={tradeFundingOptions}
@@ -1711,7 +1727,7 @@ export default function AssetActionScreen() {
                     }
                   >
                     <Text style={styles.purposeSectionTitle}>
-                      用途与目标（选填）
+                      {t('asset.form.moreOptions')}
                     </Text>
                     <Text style={styles.purposeCaret}>
                       {listedMetaPurposeExpanded ? '▲' : '▼'}
@@ -1723,10 +1739,10 @@ export default function AssetActionScreen() {
                         styles={styles}
                         iconMuted={iconMuted}
                         icon="document-text-outline"
-                        label="用途说明"
+                        label={t('asset.form.purpose')}
                       >
                         <TextInput
-                          placeholder="如：旅游基金"
+                          placeholder={t('asset.form.purposePlaceholder')}
                           placeholderTextColor={placeholderColor}
                           style={styles.input}
                           value={listedMetaPurpose}
@@ -1737,10 +1753,10 @@ export default function AssetActionScreen() {
                         styles={styles}
                         iconMuted={iconMuted}
                         icon="flag-outline"
-                        label="目标金额（¥）"
+                        label={t('asset.form.targetPlaceholder')}
                       >
                         <TextInput
-                          placeholder="不填则不显示进度"
+                          placeholder={t('asset.form.targetPlaceholder')}
                           placeholderTextColor={placeholderColor}
                           style={styles.input}
                           value={listedMetaPurposeTarget}
@@ -1760,7 +1776,7 @@ export default function AssetActionScreen() {
                     disabled={listedMetaSaving}
                   >
                     <Text style={styles.saveButtonText}>
-                      {listedMetaSaving ? '保存中…' : '保存编辑信息'}
+                      {listedMetaSaving ? t('asset.form.saving') : t('asset.detail.saveEdit')}
                     </Text>
                   </Pressable>
             </GlassSurface>
@@ -1786,7 +1802,9 @@ export default function AssetActionScreen() {
                       cashPanel === tab.id && styles.tabChipTextActive,
                     ]}
                   >
-                    {tab.label}
+                    {tab.id === 'balance'
+                      ? t('asset.detail.adjustBalance')
+                      : t('asset.detail.editInfo')}
                   </Text>
                 </Pressable>
               ))}
@@ -1804,7 +1822,7 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="wallet-outline"
-                    label="当前余额"
+                    label={t('asset.detail.currentBalance')}
                   >
                     <Text
                       style={{
@@ -1820,7 +1838,9 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="trending-up-outline"
-                    label={`变动金额（${assetCurrencySymbol(cashCurrency)}）`}
+                    label={t('asset.detail.deltaAmount', {
+                      symbol: assetCurrencySymbol(cashCurrency),
+                    })}
                   >
                     <TextInput
                       style={styles.input}
@@ -1832,14 +1852,16 @@ export default function AssetActionScreen() {
                           : 'default'
                       }
                       placeholderTextColor={placeholderColor}
-                      placeholder="如 +1000 或 -500"
+                      placeholder={t('asset.detail.deltaPlaceholder')}
                     />
                   </FormRow>
                   <FormRow
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="calculator-outline"
-                    label={`更新后余额（${assetCurrencySymbol(cashCurrency)}）`}
+                    label={t('asset.detail.updatedBalance', {
+                      symbol: assetCurrencySymbol(cashCurrency),
+                    })}
                   >
                     <TextInput
                       style={styles.input}
@@ -1847,7 +1869,7 @@ export default function AssetActionScreen() {
                       onChangeText={onCashNewBalanceChange}
                       keyboardType="decimal-pad"
                       placeholderTextColor={placeholderColor}
-                      placeholder="可直接填写余额，倒算变动金额"
+                      placeholder={t('asset.detail.updatedBalancePlaceholder')}
                     />
                   </FormRow>
                   <Pressable
@@ -1859,13 +1881,15 @@ export default function AssetActionScreen() {
                     disabled={cashAdjustSaving}
                   >
                     <Text style={styles.saveButtonText}>
-                      {cashAdjustSaving ? '保存中…' : '保存本笔变动'}
+                      {cashAdjustSaving ? t('asset.form.saving') : t('asset.detail.saveBalance')}
                     </Text>
                   </Pressable>
 
                   <View style={[styles.tradeDetailSection, { marginTop: 18 }]}>
                     <View style={styles.tradeDetailTitleRow}>
-                      <Text style={styles.tradeDetailTitle}>余额流水</Text>
+                      <Text style={styles.tradeDetailTitle}>
+                        {t('asset.detail.balanceLedger')}
+                      </Text>
                       <View style={styles.tradeDetailTitleActions}>
                         <Ionicons
                           name="reorder-three-outline"
@@ -1881,7 +1905,7 @@ export default function AssetActionScreen() {
                     </View>
                     {cashRows.length === 0 ? (
                       <Text style={[styles.hintMuted, { marginTop: 10 }]}>
-                        暂无记录
+                        {t('asset.detail.noRecords')}
                       </Text>
                     ) : (
                       <>
@@ -1892,14 +1916,14 @@ export default function AssetActionScreen() {
                                 <Text
                                   style={[styles.tradeTh, styles.cashLedgerThCenter]}
                                 >
-                                  类型
+                                  {t('asset.detail.type')}
                                 </Text>
                               </View>
                               <View style={styles.cashLedgerAmountCol}>
                                 <Text
                                   style={[styles.tradeTh, styles.cashLedgerThCenter]}
                                 >
-                                  变动金额
+                                  {t('asset.detail.deltaAmount', { symbol: assetCurrencySymbol(cashCurrency) })}
                                 </Text>
                               </View>
                               <View style={styles.cashLedgerRelatedCol}>
@@ -1907,7 +1931,7 @@ export default function AssetActionScreen() {
                                   style={[styles.tradeTh, styles.cashLedgerThCenter]}
                                   numberOfLines={1}
                                 >
-                                  关联
+                                  {t('asset.detail.fundingSource')}
                                 </Text>
                               </View>
                             </View>
@@ -1965,7 +1989,7 @@ export default function AssetActionScreen() {
                                         ]}
                                         numberOfLines={1}
                                       >
-                                        {isIn ? '增加' : '减少'}
+                                        {isIn ? t('asset.detail.increase') : t('asset.detail.decrease')}
                                       </Text>
                                       <Text
                                         style={[
@@ -2005,7 +2029,9 @@ export default function AssetActionScreen() {
                           </View>
                         </View>
                         {!cashRowsSynthetic ? (
-                          <Text style={styles.tradeEditHint}>点按行可编辑</Text>
+                          <Text style={styles.tradeEditHint}>
+                            {t('asset.detail.tapRowEdit')}
+                          </Text>
                         ) : null}
                       </>
                     )}
@@ -2023,7 +2049,7 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="albums-outline"
-                    label="资产名称"
+                    label={t('asset.form.name')}
                   >
                     <TextInput
                       style={styles.input}
@@ -2031,8 +2057,8 @@ export default function AssetActionScreen() {
                       onChangeText={setCashName}
                       placeholder={
                         cashCategory === 'Custom'
-                          ? '如：数字货币、期货、保险等'
-                          : '如：招行朝朝宝、余额宝、车贷专户'
+                          ? t('asset.form.namePlaceholderListed')
+                          : t('asset.form.namePlaceholderCash')
                       }
                       placeholderTextColor={placeholderColor}
                     />
@@ -2041,7 +2067,7 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="cash-outline"
-                    label="币种"
+                    label={t('asset.form.currency')}
                   >
                     <Pressable
                       style={[styles.currencyChip, { alignSelf: 'flex-start' }]}
@@ -2065,7 +2091,7 @@ export default function AssetActionScreen() {
                       </View>
                     </View>
                     <View style={styles.categoryChipsWrap}>
-                      <Text style={styles.formRowLabel}>资产类别</Text>
+                      <Text style={styles.formRowLabel}>{t('asset.form.category')}</Text>
                       {[0, 1].map((row) => (
                         <View
                           key={row}
@@ -2094,7 +2120,7 @@ export default function AssetActionScreen() {
                                   adjustsFontSizeToFit
                                   minimumFontScale={0.88}
                                 >
-                                  {CATEGORY_LABEL_ZH[opt]}
+                                  {t(`asset.category.${opt}` as TranslationKey)}
                                 </Text>
                               </Pressable>
                             )
@@ -2107,7 +2133,7 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="folder-outline"
-                    label="所在账户（选填）"
+                    label={t('asset.form.accountOptional')}
                   >
                     <TextInput
                       style={styles.input}
@@ -2121,7 +2147,7 @@ export default function AssetActionScreen() {
                     onPress={() => setCashPurposeExpanded((e) => !e)}
                   >
                     <Text style={styles.purposeSectionTitle}>
-                      用途与目标（选填）
+                      {t('asset.form.moreOptions')}
                     </Text>
                     <Text style={styles.purposeCaret}>
                       {cashPurposeExpanded ? '▲' : '▼'}
@@ -2133,7 +2159,7 @@ export default function AssetActionScreen() {
                         styles={styles}
                         iconMuted={iconMuted}
                         icon="document-text-outline"
-                        label="用途说明"
+                        label={t('asset.form.purpose')}
                       >
                         <TextInput
                           style={styles.input}
@@ -2167,7 +2193,7 @@ export default function AssetActionScreen() {
                     disabled={cashSaving}
                   >
                     <Text style={styles.saveButtonText}>
-                      {cashSaving ? '保存中…' : '保存编辑信息'}
+                      {cashSaving ? t('asset.form.saving') : t('asset.detail.saveEdit')}
                     </Text>
                   </Pressable>
             </GlassSurface>
@@ -2185,7 +2211,7 @@ export default function AssetActionScreen() {
                 styles={styles}
                 iconMuted={iconMuted}
                 icon="albums-outline"
-                label="资产名称"
+                label={t('asset.form.name')}
               >
                 <TextInput
                   style={styles.input}
@@ -2193,8 +2219,8 @@ export default function AssetActionScreen() {
                   onChangeText={setFbName}
                   placeholder={
                     fbCategory === 'Custom'
-                      ? '如：数字货币、期货、保险等'
-                      : '如：招行朝朝宝、余额宝、车贷专户'
+                      ? t('asset.form.namePlaceholderListed')
+                      : t('asset.form.namePlaceholderCash')
                   }
                   placeholderTextColor={placeholderColor}
                 />
@@ -2203,7 +2229,7 @@ export default function AssetActionScreen() {
                 styles={styles}
                 iconMuted={iconMuted}
                 icon="cash-outline"
-                label="当前金额"
+                label={t('asset.form.currentAmount')}
               >
                 <View style={styles.amountRow}>
                   <Pressable
@@ -2232,7 +2258,7 @@ export default function AssetActionScreen() {
                   </View>
                 </View>
                 <View style={styles.categoryChipsWrap}>
-                  <Text style={styles.formRowLabel}>资产类别</Text>
+                  <Text style={styles.formRowLabel}>{t('asset.form.category')}</Text>
                   {[0, 1].map((row) => (
                     <View
                       key={row}
@@ -2260,7 +2286,7 @@ export default function AssetActionScreen() {
                               adjustsFontSizeToFit
                               minimumFontScale={0.88}
                             >
-                              {CATEGORY_LABEL_ZH[opt]}
+                              {t(`asset.category.${opt}` as TranslationKey)}
                             </Text>
                           </Pressable>
                         )
@@ -2273,7 +2299,7 @@ export default function AssetActionScreen() {
                 styles={styles}
                 iconMuted={iconMuted}
                 icon="folder-outline"
-                label="所在账户（选填）"
+                label={t('asset.form.accountOptional')}
               >
                 <TextInput
                   style={styles.input}
@@ -2286,7 +2312,7 @@ export default function AssetActionScreen() {
                 style={styles.purposeSectionHeader}
                 onPress={() => setFbPurposeExpanded((e) => !e)}
               >
-                <Text style={styles.purposeSectionTitle}>用途与目标（选填）</Text>
+                <Text style={styles.purposeSectionTitle}>{t('asset.form.moreOptions')}</Text>
                 <Text style={styles.purposeCaret}>
                   {fbPurposeExpanded ? '▲' : '▼'}
                 </Text>
@@ -2297,7 +2323,7 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="document-text-outline"
-                    label="用途说明"
+                    label={t('asset.form.purpose')}
                   >
                     <TextInput
                       style={styles.input}
@@ -2310,7 +2336,7 @@ export default function AssetActionScreen() {
                     styles={styles}
                     iconMuted={iconMuted}
                     icon="flag-outline"
-                    label="目标金额"
+                    label={t('asset.form.targetPlaceholder')}
                   >
                     <TextInput
                       style={styles.input}
@@ -2331,7 +2357,7 @@ export default function AssetActionScreen() {
                 disabled={fbSaving}
               >
                 <Text style={styles.saveButtonText}>
-                  {fbSaving ? '保存中…' : '保存'}
+                  {fbSaving ? t('asset.form.saving') : t('common.save')}
                 </Text>
               </Pressable>
           </GlassSurface>
@@ -2351,7 +2377,7 @@ export default function AssetActionScreen() {
             onPress={() => setCashCurrencyModalVisible(false)}
           />
           <View style={styles.currencyModalCard}>
-            <Text style={styles.currencyModalTitle}>选择币种</Text>
+            <Text style={styles.currencyModalTitle}>{t('asset.form.currency')}</Text>
             {ASSET_CURRENCY_OPTIONS.map((o) => (
               <Pressable
                 key={o.code}
@@ -2374,7 +2400,7 @@ export default function AssetActionScreen() {
               style={styles.currencyModalCancel}
               onPress={() => setCashCurrencyModalVisible(false)}
             >
-              <Text style={styles.currencyModalCancelText}>取消</Text>
+              <Text style={styles.currencyModalCancelText}>{t('common.cancel')}</Text>
             </Pressable>
           </View>
         </View>
@@ -2392,7 +2418,7 @@ export default function AssetActionScreen() {
             onPress={() => setFbCurrencyModal(false)}
           />
           <View style={styles.currencyModalCard}>
-            <Text style={styles.currencyModalTitle}>选择币种</Text>
+            <Text style={styles.currencyModalTitle}>{t('asset.form.currency')}</Text>
             {ASSET_CURRENCY_OPTIONS.map((o) => (
               <Pressable
                 key={o.code}
@@ -2415,7 +2441,7 @@ export default function AssetActionScreen() {
               style={styles.currencyModalCancel}
               onPress={() => setFbCurrencyModal(false)}
             >
-              <Text style={styles.currencyModalCancelText}>取消</Text>
+              <Text style={styles.currencyModalCancelText}>{t('common.cancel')}</Text>
             </Pressable>
           </View>
         </View>

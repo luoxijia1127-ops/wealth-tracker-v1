@@ -8,6 +8,7 @@ import { GlassSurface } from '@/components/glass-surface';
 import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { YmdDateFields } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { normalizeAssetCurrency } from '@/lib/asset-currency';
 import { getAssetCurrency } from '@/lib/asset-value';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
@@ -63,9 +64,6 @@ function recalcValue(a: SimpleAsset): SimpleAsset {
   }
   return a;
 }
-
-const FUNDING_ACCOUNT_ROW_LABEL =
-  '资金账户（选填，加仓为扣款来源，减仓为入账去向）';
 
 /** 从所有类现金资产中移除指定 transferId 的一条流水（用于重绑资金账户前清理旧联动）。 */
 function stripCashEntryByTransferId(
@@ -125,6 +123,7 @@ export default function TradeEditScreen() {
     tradeId?: string;
   }>();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const placeholderColor = useMemo(
@@ -200,16 +199,21 @@ export default function TradeEditScreen() {
     const q = parseFloat(shares);
     const p = parseFloat(unitPrice);
     if (Number.isNaN(q) || q <= 0) {
-      Alert.alert('无法保存', asset.category === 'Gold' ? '克数须为正数。' : '份额须为正数。');
+      Alert.alert(
+        t('asset.form.cannotSave'),
+        asset.category === 'Gold'
+          ? t('trade.edit.quantityPositiveGram')
+          : t('trade.edit.quantityPositiveShares')
+      );
       return;
     }
     if (Number.isNaN(p) || p < 0) {
-      Alert.alert('无法保存', '单价须为非负数。');
+      Alert.alert(t('asset.form.cannotSave'), t('trade.edit.priceNonNegative'));
       return;
     }
     const d = tradeDate.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-      Alert.alert('无法保存', '日期请使用 YYYY-MM-DD。');
+      Alert.alert(t('asset.form.cannotSave'), t('trade.edit.dateInvalid'));
       return;
     }
     const linkId = linkedCashId.trim();
@@ -221,7 +225,7 @@ export default function TradeEditScreen() {
       }
       const curIdx = all.findIndex((x) => x.id === asset.id);
       if (curIdx < 0) {
-        Alert.alert('无法保存', '资产数据已变化，请返回重试。');
+        Alert.alert(t('asset.form.cannotSave'), t('trade.edit.assetChanged'));
         return;
       }
       const cur = all[curIdx]!;
@@ -245,19 +249,19 @@ export default function TradeEditScreen() {
       if (linkId) {
         const peerIdx = all.findIndex((x) => x.id === linkId);
         if (peerIdx < 0) {
-          Alert.alert('无法保存', '所选资金账户不存在或已删除。');
+          Alert.alert(t('asset.form.cannotSave'), t('trade.edit.fundingMissing'));
           return;
         }
         const tid = fundingPatch.transferId;
         if (!tid) {
-          Alert.alert('无法保存', '联动信息无效，请重试。');
+          Alert.alert(t('asset.form.cannotSave'), t('trade.edit.linkInvalid'));
           return;
         }
         const listingCur = getAssetCurrency(next);
         const rawAmount = q * p;
         const conv = await convertListingCostToCnyCashDebit(rawAmount, listingCur);
         if (!conv.ok) {
-          Alert.alert('无法保存', conv.message);
+          Alert.alert(t('asset.form.cannotSave'), conv.message);
           return;
         }
         const amount = conv.cny;
@@ -288,8 +292,8 @@ export default function TradeEditScreen() {
           }
         } catch (e) {
           Alert.alert(
-            '无法保存',
-            e instanceof Error ? e.message : '资金账户余额或流水校验失败。'
+            t('asset.form.cannotSave'),
+            e instanceof Error ? e.message : t('trade.edit.fundingValidationFailed')
           );
           return;
         }
@@ -299,8 +303,8 @@ export default function TradeEditScreen() {
       router.back();
     } catch (e) {
       Alert.alert(
-        '无法保存',
-        e instanceof Error ? e.message : '流水与持仓不一致，请检查数值。'
+        t('asset.form.cannotSave'),
+        e instanceof Error ? e.message : t('trade.edit.positionMismatch')
       );
     } finally {
       setSaving(false);
@@ -309,10 +313,10 @@ export default function TradeEditScreen() {
 
   const onDelete = () => {
     if (!asset || !trade) return;
-    Alert.alert('删除流水', '确定删除？将按剩余流水重算持仓。', [
-      { text: '取消', style: 'cancel' },
+    Alert.alert(t('trade.edit.deleteTitle'), t('trade.edit.deleteConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: '删除',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           setSaving(true);
@@ -340,8 +344,8 @@ export default function TradeEditScreen() {
             router.back();
           } catch (e) {
             Alert.alert(
-              '失败',
-              e instanceof Error ? e.message : '无法删除'
+              t('common.failed'),
+              e instanceof Error ? e.message : t('trade.edit.deleteFailed')
             );
           } finally {
             setSaving(false);
@@ -370,7 +374,7 @@ export default function TradeEditScreen() {
             kicker="LOT OR GRAM ENTRY"
           />
           <View style={{ paddingHorizontal: 24 }}>
-            <Text style={styles.headerName}>参数无效</Text>
+            <Text style={styles.headerName}>{t('trade.edit.invalidParams')}</Text>
           </View>
         </ScrollView>
       </View>
@@ -432,7 +436,7 @@ export default function TradeEditScreen() {
             kicker="LOT OR GRAM ENTRY"
           />
           <View style={{ paddingHorizontal: 24 }}>
-            <Text style={styles.headerName}>未找到该流水</Text>
+            <Text style={styles.headerName}>{t('trade.edit.notFound')}</Text>
           </View>
         </ScrollView>
       </View>
@@ -471,7 +475,7 @@ export default function TradeEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon="swap-horizontal-outline"
-            label="方向"
+            label={t('trade.edit.direction')}
           >
             <View style={styles.optionsRow}>
               <Pressable
@@ -484,7 +488,7 @@ export default function TradeEditScreen() {
                     side === 'buy' && styles.optionTextSelected,
                   ]}
                 >
-                  买入
+                  {t('asset.detail.buy')}
                 </Text>
               </Pressable>
               <Pressable
@@ -497,7 +501,7 @@ export default function TradeEditScreen() {
                     side === 'sell' && styles.optionTextSelected,
                   ]}
                 >
-                  卖出
+                  {t('asset.detail.sell')}
                 </Text>
               </Pressable>
             </View>
@@ -507,7 +511,7 @@ export default function TradeEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon="calendar-outline"
-            label="成交日期（年 · 月 · 日）"
+            label={t('trade.edit.tradeDate')}
           >
             <YmdDateFields
               value={tradeDate}
@@ -522,7 +526,7 @@ export default function TradeEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon={useGram ? 'fitness-outline' : 'pie-chart-outline'}
-            label={useGram ? '克数' : '份额'}
+            label={useGram ? t('dashboard.gramUnit') : t('asset.form.shares')}
           >
             <TextInput
               style={styles.input}
@@ -537,7 +541,7 @@ export default function TradeEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon="pricetag-outline"
-            label="成交单价"
+            label={t('asset.detail.price')}
           >
             <TextInput
               style={styles.input}
@@ -552,11 +556,11 @@ export default function TradeEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon="wallet-outline"
-            label={FUNDING_ACCOUNT_ROW_LABEL}
+            label={t('asset.detail.fundingAccount')}
           >
             <FundingSourcePicker
-              label={FUNDING_ACCOUNT_ROW_LABEL}
-              emptyOptionLabel="不关联现金账户"
+              label={t('asset.detail.fundingAccount')}
+              emptyOptionLabel={t('asset.detail.noCashLink')}
               valueId={linkedCashId}
               onSelectId={setLinkedCashId}
               fundingOptions={tradeFundingOptions}
@@ -574,7 +578,7 @@ export default function TradeEditScreen() {
             disabled={saving}
           >
             <Text style={styles.saveButtonText}>
-              {saving ? '保存中…' : '保存'}
+              {saving ? t('asset.form.saving') : t('common.save')}
             </Text>
           </Pressable>
 
@@ -587,7 +591,7 @@ export default function TradeEditScreen() {
             onPress={onDelete}
             disabled={saving}
           >
-            <Text style={styles.saveButtonText}>删除此流水</Text>
+            <Text style={styles.saveButtonText}>{t('trade.edit.deleteThis')}</Text>
           </Pressable>
         </GlassSurface>
         </View>

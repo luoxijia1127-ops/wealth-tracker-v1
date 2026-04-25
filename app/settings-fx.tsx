@@ -8,6 +8,7 @@ import {
 } from '@/components/fx-multi-trend-chart';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import type { AppPaletteTheme } from '@/lib/app-palette';
 import { ASSET_CURRENCY_OPTIONS } from '@/lib/asset-currency';
 import { rgbaFromHex } from '@/lib/color-utils';
@@ -16,7 +17,6 @@ import { loadDisplayCurrency } from '@/lib/display-currency-preference';
 import {
   basePerOneTarget,
   effectiveChartBase,
-  FX_CODE_LABEL_ZH,
   pickFxMonthlyChartTargets,
 } from '@/lib/fx-cross-rate';
 import {
@@ -25,13 +25,13 @@ import {
   getFxUsdRatesHistory,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
-import { AppFont } from '@/lib/app-fonts';
 import { addCalendarDaysYmd } from '@/lib/insights-model';
-import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
+import type { TranslationKey } from '@/lib/language';
 import {
   formatRateOrSmallNumberOneLine,
   numberSingleLineTextProps,
 } from '@/lib/numeric-display-one-line';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -69,6 +69,7 @@ export default function SettingsFxScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowW } = useWindowDimensions();
   const { theme, appearance } = useAppPalette();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [fx, setFx] = useState<FxUsdMidRates | null>(null);
   const [fxHistory, setFxHistory] = useState<FxUsdMidRates[]>([]);
@@ -200,6 +201,10 @@ export default function SettingsFxScreen() {
     /^[A-Z]{3}$/.test(displayCurrency);
 
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
+  const currencyLabel = useCallback(
+    (code: string) => t(`currency.${code}` as TranslationKey),
+    [t]
+  );
 
   return (
     <View style={hubStyles.screen}>
@@ -223,18 +228,6 @@ export default function SettingsFxScreen() {
         >
           <Text style={hubStyles.masthead}>FX</Text>
           <Text style={hubStyles.kicker}>FRANKFURTER · DISPLAY BASE</Text>
-          <Text
-            style={{
-              fontFamily: AppFont.displayBold,
-              fontSize: 26,
-              letterSpacing: -0.6,
-              lineHeight: 30,
-              color: theme.primary,
-              marginTop: 6,
-            }}
-          >
-            汇率信息
-          </Text>
         </View>
 
       {loading ? (
@@ -266,7 +259,7 @@ export default function SettingsFxScreen() {
                 marginBottom: 8,
               }}
             >
-              汇率走势（近一月）
+              {t('fx.trendTitle')}
             </Text>
             {fxHistory.length > 0 ? (
               <View
@@ -285,7 +278,9 @@ export default function SettingsFxScreen() {
                     return (
                       <Pressable
                         key={card.code}
-                        accessibilityLabel={`${FX_CODE_LABEL_ZH[card.code] ?? card.code} 走势`}
+                        accessibilityLabel={t('fx.trendAccessibility', {
+                          currency: currencyLabel(card.code),
+                        })}
                         onPress={() => setSelectedFxCode(card.code)}
                         style={{
                           flex: 1,
@@ -335,16 +330,18 @@ export default function SettingsFxScreen() {
               </View>
             ) : null}
             <Text style={{ fontSize: 12, color: muted, marginBottom: 10 }}>
-              基准：{FX_CODE_LABEL_ZH[chartBase] ?? chartBase}（{chartBase}）
+              {t('fx.base', {
+                currency: currencyLabel(chartBase),
+                code: chartBase,
+              })}
               {chartBase !== displayCurrency.trim().toUpperCase()
-                ? ` · 设置中的默认展示货币为 ${displayCurrency}`
+                ? t('fx.displayCurrencyNote', { currency: displayCurrency })
                 : ''}
-              。主五币对称：默认币在其中时可选其余 4
-              种走势；在其外时可选主五币。点图标切换币种，同一时间只显示一条曲线；纵轴为该币相对基准。若个别历史日缺该币种报价，只用有数据的交易日连线。
+              {t('')}
             </Text>
             {fxHistory.length === 0 ? (
               <Text style={{ fontSize: 14, color: muted }}>
-                尚未累积按日历史。打开总览后会自动尝试回填近 30 日序列；亦可下拉同步行情。
+                {t('fx.noHistory')}
               </Text>
             ) : (
               <>
@@ -358,9 +355,12 @@ export default function SettingsFxScreen() {
                         marginBottom: 4,
                       }}
                     >
-                      {FX_CODE_LABEL_ZH[activeFxSeries.code] ?? activeFxSeries.code}{' '}
+                      {currencyLabel(activeFxSeries.code)}{' '}
                       <Text style={{ fontSize: 12, fontWeight: '500', color: muted }}>
-                        纵轴：多少 {chartBase} = 1 {activeFxSeries.code}
+                        {t('fx.axis', {
+                          base: chartBase,
+                          target: activeFxSeries.code,
+                        })}
                       </Text>
                     </Text>
                     {activeFxSeries.pointCount >= 2 &&
@@ -387,15 +387,15 @@ export default function SettingsFxScreen() {
                             marginTop: 6,
                           }}
                         >
-                          当前币种有效交易日 {activeFxSeries.pointCount} 天
+                          {t('fx.validDays', { count: activeFxSeries.pointCount })}
                         </Text>
                       </>
                     ) : (
                       <Text style={{ fontSize: 14, color: muted }}>
-                        「{activeFxSeries.code}
-                        」近一月可计算的有效交易日不足 2 天（当前{' '}
-                        {activeFxSeries.pointCount}{' '}
-                        天）。请联网同步或换选其它图标；旧版历史可能暂缺英镑等字段。
+                        {t('fx.insufficientDays', {
+                          code: activeFxSeries.code,
+                          count: activeFxSeries.pointCount,
+                        })}
                       </Text>
                     )}
                   </>
@@ -427,25 +427,24 @@ export default function SettingsFxScreen() {
                 marginBottom: 8,
               }}
             >
-              当前缓存中间价
+              {t('fx.cachedMidTitle')}
             </Text>
             {!fx ? (
               <Text style={{ fontSize: 14, color: muted }}>
-                暂无当日汇率快照。请在总览下拉同步行情或触发一次净值折算，成功后可显示主五币走势及下方各币种对默认货币的交叉价。
+                {t('fx.noSnapshot')}
               </Text>
             ) : (
               <>
                 {showBaseFallbackNote ? (
                   <Text style={{ fontSize: 12, color: muted, marginBottom: 10 }}>
-                    当前缓存中暂无 {displayCurrency}{' '}
-                    的串联报价，下列仍按 1 USD = 各币种（与接口一致）。
+                    {t('fx.baseFallback', { currency: displayCurrency })}
                   </Text>
                 ) : null}
                 <Text style={{ fontSize: 13, color: muted, marginBottom: 12 }}>
-                  缓存日{fx.shanghaiDate}
+                  {t('fx.cacheDate', { date: fx.shanghaiDate })}
                   {showBaseFallbackNote
                     ? ''
-                    : ` · 多少 ${tableBase} = 1 单位标价币种`}
+                    : t('fx.tableUnit', { base: tableBase })}
                 </Text>
                 {ASSET_CURRENCY_OPTIONS.filter((o) => o.code !== tableBase).map(
                   (o) => {
@@ -454,7 +453,7 @@ export default function SettingsFxScreen() {
                       tableBase,
                       o.code
                     );
-                    const label = o.label;
+                    const label = currencyLabel(o.code);
                     const line =
                       cross != null
                         ? `${label}（${o.code}）: ${formatTableValue(cross, o.code)}`

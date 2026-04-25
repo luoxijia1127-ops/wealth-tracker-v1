@@ -6,6 +6,7 @@
 import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import {
   applyBackupPayload,
@@ -39,6 +40,7 @@ type PickedFile = {
 export default function SettingsImportScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const muted = rgbaFromHex(theme.primary, 0.55);
   const chipBg = rgbaFromHex(theme.primary, 0.08);
@@ -87,21 +89,21 @@ export default function SettingsImportScreen() {
         setParsing(false);
       }
     } catch (e) {
-      setError('文件选择失败：' + (e as Error).message);
+      setError(t('import.pickFailed', { message: (e as Error).message }));
     }
-  }, []);
+  }, [t]);
 
   const confirmApply = (mode: ApplyMode) => {
     if (!payload) return;
-    const title = mode === 'replace' ? '覆盖恢复' : '合并导入';
+    const title = mode === 'replace' ? t('import.replace') : t('import.merge');
     const body =
       mode === 'replace'
-        ? '这将用备份里的资产、每日净值、归档与最近删除完全替换当前数据。\n\n当前数据会在执行前自动打包保留（可用于回滚），但资产页、洞察页会立刻切换到备份的数据。\n\n确定继续吗？'
-        : '合并策略：按 id 合并资产、按日期合并每日净值。同 id 数据以备份里的为准。\n\n确定继续吗？';
+        ? t('import.replaceConfirm')
+        : t('import.mergeConfirm');
     Alert.alert(title, body, [
-      { text: '取消', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: mode === 'replace' ? '覆盖恢复' : '合并导入',
+        text: title,
         style: mode === 'replace' ? 'destructive' : 'default',
         onPress: () => {
           void doApply(mode);
@@ -127,12 +129,12 @@ export default function SettingsImportScreen() {
   const onRollback = () => {
     if (!summary?.rollbackFileUri) return;
     Alert.alert(
-      '回滚到导入前',
-      '将用本次导入前保存的备份 zip 覆盖当前所有数据。确定继续吗？',
+      t('import.rollbackTitle'),
+      t('import.rollbackConfirm'),
       [
-        { text: '取消', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: '回滚',
+          text: t('import.rollback'),
           style: 'destructive',
           onPress: () => {
             void (async () => {
@@ -140,7 +142,7 @@ export default function SettingsImportScreen() {
               try {
                 const s = await restoreFromRollbackZipFile(summary.rollbackFileUri);
                 setSummary(s);
-                Alert.alert('已回滚', '当前数据已恢复到本次导入前的状态。');
+                Alert.alert(t('import.rollbackDoneTitle'), t('import.rollbackDoneMessage'));
               } catch (e) {
                 setError((e as Error).message);
               } finally {
@@ -172,8 +174,7 @@ export default function SettingsImportScreen() {
         />
         <View style={{ paddingHorizontal: 20 }}>
       <Text style={{ fontSize: 13, color: muted, lineHeight: 20, marginBottom: 16 }}>
-        从上一台设备导出的 .zip 备份中恢复数据。支持「覆盖恢复」（推荐换机场景）与「合并导入」。
-        备份为明文 JSON，请妥善保管文件。
+        {t('import.description')}
       </Text>
 
       <Pressable
@@ -190,7 +191,7 @@ export default function SettingsImportScreen() {
         }}
       >
         <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff', textAlign: 'center' }}>
-          {picked ? '重新选择备份文件' : '选择备份文件（.zip 或 .json）'}
+          {picked ? t('import.repickFile') : t('import.pickFileZip')}
         </Text>
       </Pressable>
 
@@ -218,7 +219,7 @@ export default function SettingsImportScreen() {
       {parsing && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <ActivityIndicator color={theme.primary} />
-          <Text style={{ color: muted, fontSize: 13 }}>正在解析备份…</Text>
+          <Text style={{ color: muted, fontSize: 13 }}>{t('import.parsing')}</Text>
         </View>
       )}
 
@@ -249,7 +250,7 @@ export default function SettingsImportScreen() {
               marginTop: 6,
             }}
           >
-            备份概览
+            {t('import.preview')}
           </Text>
           <PreviewCard preview={preview} theme={theme} muted={muted} chipBg={chipBg} />
 
@@ -279,7 +280,7 @@ export default function SettingsImportScreen() {
               }}
             >
               <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff', textAlign: 'center' }}>
-                覆盖恢复（推荐）
+                {t('import.replace')}
               </Text>
             </Pressable>
             <Pressable
@@ -302,7 +303,7 @@ export default function SettingsImportScreen() {
                   textAlign: 'center',
                 }}
               >
-                合并导入
+                {t('import.merge')}
               </Text>
             </Pressable>
           </View>
@@ -317,7 +318,7 @@ export default function SettingsImportScreen() {
               }}
             >
               <ActivityIndicator color={theme.primary} />
-              <Text style={{ color: muted, fontSize: 13 }}>正在写入本地数据…</Text>
+              <Text style={{ color: muted, fontSize: 13 }}>{t('import.applying')}</Text>
             </View>
           )}
         </View>
@@ -333,7 +334,7 @@ export default function SettingsImportScreen() {
               marginBottom: 10,
             }}
           >
-            {summary.mode === 'replace' ? '覆盖恢复完成' : '合并导入完成'}
+            {summary.mode === 'replace' ? t('import.replaceDone') : t('import.mergeDone')}
           </Text>
           <SummaryCard
             summary={summary}
@@ -352,7 +353,7 @@ export default function SettingsImportScreen() {
               }}
             >
               <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff', textAlign: 'center' }}>
-                再次导入
+                {t('import.importAgain')}
               </Text>
             </Pressable>
             <Pressable
@@ -375,7 +376,7 @@ export default function SettingsImportScreen() {
                   textAlign: 'center',
                 }}
               >
-                回滚到导入前
+                {t('import.rollbackTitle')}
               </Text>
             </Pressable>
           </View>

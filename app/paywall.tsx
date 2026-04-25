@@ -3,6 +3,7 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { usePurchasesEntitlement } from '@/contexts/purchases-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { isRevenueCatConfigured } from '@/lib/revenuecat';
@@ -24,6 +25,7 @@ export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const { refresh } = usePurchasesEntitlement();
   const secondary = rgbaFromHex(theme.primary, 0.68);
   const muted = rgbaFromHex(theme.primary, 0.52);
@@ -35,14 +37,14 @@ export default function PaywallScreen() {
 
   const load = useCallback(async () => {
     if (Platform.OS === 'web') {
-      setHint('订阅需在 iOS 或 Android 应用内完成。');
+      setHint(t('paywall.nativeOnly'));
       setPackages([]);
       setLoading(false);
       return;
     }
     if (!isRevenueCatConfigured()) {
       setHint(
-        '未配置 RevenueCat（缺少 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY）。请在 .env 中填写并在 RevenueCat / App Store Connect 中配置商品后重试。'
+        t('paywall.notConfigured')
       );
       setPackages([]);
       setLoading(false);
@@ -55,16 +57,16 @@ export default function PaywallScreen() {
       setPackages(current?.availablePackages ?? []);
       if (!current?.availablePackages?.length) {
         setHint(
-          '暂无可用订阅套餐。请在 RevenueCat 控制台将 Offering 关联 App Store 订阅商品。'
+          t('paywall.noPackages')
         );
       }
     } catch (e) {
-      setHint(e instanceof Error ? e.message : '加载订阅信息失败');
+      setHint(e instanceof Error ? e.message : t('paywall.loadFailed'));
       setPackages([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -76,13 +78,13 @@ export default function PaywallScreen() {
     try {
       await Purchases.purchasePackage(pkg);
       await refresh();
-      Alert.alert('订阅成功', '已解锁全部资产数量。', [
-        { text: '好的', onPress: () => router.back() },
+      Alert.alert(t('paywall.successTitle'), t('paywall.successMessage'), [
+        { text: t('paywall.ok'), onPress: () => router.back() },
       ]);
     } catch (e: unknown) {
       const err = e as { userCancelled?: boolean; message?: string };
       if (err.userCancelled) return;
-      Alert.alert('购买未完成', err.message ?? '请稍后重试');
+      Alert.alert(t('paywall.cancelledTitle'), err.message ?? t('paywall.tryLater'));
     } finally {
       setPurchasingId(null);
     }
@@ -94,9 +96,9 @@ export default function PaywallScreen() {
     try {
       await Purchases.restorePurchases();
       await refresh();
-      Alert.alert('已恢复购买', '若您曾订阅，权益应已生效。');
+      Alert.alert(t('paywall.restoreSuccessTitle'), t('paywall.restoreSuccessMessage'));
     } catch (e) {
-      Alert.alert('恢复失败', e instanceof Error ? e.message : '请稍后重试');
+      Alert.alert(t('paywall.restoreFailedTitle'), e instanceof Error ? e.message : t('paywall.tryLater'));
     } finally {
       setLoading(false);
     }
@@ -119,11 +121,10 @@ export default function PaywallScreen() {
           marginBottom: 8,
         }}
       >
-        Nest 会员
+        {t('paywall.member')}
       </Text>
       <Text style={{ fontSize: 15, lineHeight: 22, color: secondary, marginBottom: 20 }}>
-        免费版可在主列表添加最多 {FREE_ASSET_LIMIT}{' '}
-        个资产；订阅后不限数量。行情、洞察等功能对所有用户开放。
+        {t('paywall.description', { limit: FREE_ASSET_LIMIT })}
       </Text>
 
       {loading ? (
@@ -151,11 +152,11 @@ export default function PaywallScreen() {
           })}
         >
           <Text style={{ fontSize: 17, fontWeight: '700', color: theme.primary }}>
-            {pkg.storeProduct.title}
+            {pkg.product.title}
           </Text>
           <Text style={{ fontSize: 15, color: secondary, marginTop: 4 }}>
-            {pkg.storeProduct.priceString}
-            {' · 自动续订'}
+            {pkg.product.priceString}
+            {` · ${t('paywall.autoRenew')}`}
           </Text>
           {purchasingId === pkg.identifier ? (
             <ActivityIndicator style={{ marginTop: 8 }} color={theme.primary} />
@@ -176,12 +177,12 @@ export default function PaywallScreen() {
             fontWeight: '600',
           }}
         >
-          恢复购买
+          {t('paywall.restore')}
         </Text>
       </Pressable>
 
       <Text style={{ fontSize: 12, lineHeight: 18, color: muted, marginTop: 20 }}>
-        订阅将通过 Apple ID 计费，可在系统设置中管理或取消。购买前请阅读 App Store 上的产品说明。
+        {t('paywall.footer')}
       </Text>
     </ScrollView>
   );
