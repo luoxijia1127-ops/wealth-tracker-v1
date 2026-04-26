@@ -6,18 +6,23 @@ import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
 import { usePurchasesEntitlement } from '@/contexts/purchases-context';
 import { rgbaFromHex } from '@/lib/color-utils';
+import { getPrivacyPolicyUrlForLocale } from '@/lib/privacy-policy-url';
 import { isRevenueCatConfigured } from '@/lib/revenuecat';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
+import { getTermsOfServiceUrlForLocale } from '@/lib/terms-of-service-url';
+import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Purchases, { type PurchasesPackage } from 'react-native-purchases';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
   Text,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,10 +30,31 @@ export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme } = useAppPalette();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { refresh } = usePurchasesEntitlement();
   const secondary = rgbaFromHex(theme.primary, 0.68);
   const muted = rgbaFromHex(theme.primary, 0.52);
+  const privacyUrl = useMemo(() => getPrivacyPolicyUrlForLocale(locale), [locale]);
+  const termsUrl = useMemo(() => getTermsOfServiceUrlForLocale(locale), [locale]);
+
+  const openLegal = useCallback(
+    async (url: string | null, fallbackHint: string) => {
+      if (!url) {
+        Alert.alert(fallbackHint);
+        return;
+      }
+      try {
+        await WebBrowser.openBrowserAsync(url);
+      } catch {
+        try {
+          await Linking.openURL(url);
+        } catch {
+          Alert.alert(fallbackHint);
+        }
+      }
+    },
+    []
+  );
 
   const [loading, setLoading] = useState(true);
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
@@ -184,6 +210,50 @@ export default function PaywallScreen() {
       <Text style={{ fontSize: 12, lineHeight: 18, color: muted, marginTop: 20 }}>
         {t('paywall.footer')}
       </Text>
+
+      <View
+        style={{
+          marginTop: 12,
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: 14,
+        }}
+      >
+        <Pressable
+          onPress={() =>
+            void openLegal(privacyUrl, t('paywall.linkUnavailable'))
+          }
+          hitSlop={8}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              color: theme.primary,
+              textDecorationLine: 'underline',
+              fontWeight: '600',
+            }}
+          >
+            {t('paywall.privacy')}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() =>
+            void openLegal(termsUrl, t('paywall.linkUnavailable'))
+          }
+          hitSlop={8}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              color: theme.primary,
+              textDecorationLine: 'underline',
+              fontWeight: '600',
+            }}
+          >
+            {t('paywall.serviceAgreement')}
+          </Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }

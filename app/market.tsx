@@ -25,7 +25,7 @@ import { AppFont } from '@/lib/app-fonts';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import type { TranslationKey } from '@/lib/language';
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -66,14 +66,32 @@ export default function MarketScreen() {
     return m;
   }, [quotes]);
 
+  /** 组件卸载或发起新请求时主动取消上一次未完成的抓取，避免卸载后 setState */
+  const refreshAbortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+
   const refreshFromNetwork = useCallback(async () => {
+    refreshAbortRef.current?.abort();
+    const ac = new AbortController();
+    refreshAbortRef.current = ac;
     setRefreshing(true);
     try {
-      const res = await fetchAllMarketQuotes((partial) => setQuotes([...partial]));
-      setQuotes(res);
-      await saveMarketQuotesCache(res);
+      const res = await fetchAllMarketQuotes((partial) => {
+        if (!ac.signal.aborted && mountedRef.current) {
+          setQuotes([...partial]);
+        }
+      }, ac.signal);
+      if (!ac.signal.aborted && mountedRef.current) {
+        setQuotes(res);
+        await saveMarketQuotesCache(res);
+      }
     } finally {
-      setRefreshing(false);
+      if (!ac.signal.aborted && mountedRef.current) {
+        setRefreshing(false);
+      }
+      if (refreshAbortRef.current === ac) {
+        refreshAbortRef.current = null;
+      }
     }
   }, []);
 
@@ -88,6 +106,8 @@ export default function MarketScreen() {
     })();
     return () => {
       cancelled = true;
+      mountedRef.current = false;
+      refreshAbortRef.current?.abort();
     };
   }, []);
 

@@ -30,7 +30,7 @@ import {
     normalizeAssetCurrency,
 } from '@/lib/asset-currency';
 import { canAddAnotherAsset } from '@/lib/asset-limit';
-import { saveAssets } from '@/lib/asset-storage';
+import { getAssets, saveAssets } from '@/lib/asset-storage';
 import { appendCashMovement, usesCashAmountLedger } from '@/lib/cash-ledger';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
@@ -51,7 +51,6 @@ import { createAddModalStyles } from '@/lib/modal-styles';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import type { TranslationKey } from '@/lib/language';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
-import { assetRepository } from '@/lib/repositories/asset-repository';
 import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
 import {
     FREE_ASSET_LIMIT,
@@ -162,7 +161,7 @@ export default function AddModal() {
     let cancelled = false;
     (async () => {
       try {
-        const list = await assetRepository.getAll();
+        const list = await getAssets();
         if (cancelled) return;
         setFundingOptions(
           list.filter(
@@ -557,7 +556,7 @@ export default function AddModal() {
       }
 
       if (canChooseFundingSource && fundingSourceId.trim().length > 0) {
-        const all = await assetRepository.getAll();
+        const all = await getAssets();
         const srcIdx = all.findIndex((a) => a.id === fundingSourceId);
         if (srcIdx < 0) {
           Alert.alert(t('asset.form.cannotSave'), t('asset.form.fundingMissing'));
@@ -611,7 +610,7 @@ export default function AddModal() {
         all.push(assetToSave);
         await saveAssets(all);
       } else {
-        const all = await assetRepository.getAll();
+        const all = await getAssets();
         all.push(assetToSave);
         await saveAssets(all);
       }
@@ -622,7 +621,9 @@ export default function AddModal() {
       }
       router.back();
     } catch (e) {
-      console.error(e);
+      if (__DEV__) {
+        console.warn('[nest] 保存资产失败', e);
+      }
       Alert.alert(t('common.failed'), t('asset.form.saveRetry'));
     } finally {
       setSaving(false);

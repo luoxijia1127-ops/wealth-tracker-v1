@@ -5,6 +5,7 @@
 import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useMemo } from 'react';
@@ -16,6 +17,7 @@ export default function SettingsCashflowColorsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const p = theme.primary;
   const muted = rgbaFromHex(p, 0.6);
@@ -39,7 +41,7 @@ export default function SettingsCashflowColorsScreen() {
         />
         <View style={{ paddingHorizontal: 20 }}>
       <Text style={{ fontSize: 15, lineHeight: 22, color: muted, marginBottom: 16 }}>
-        收支与涨跌颜色会随「应用配色」主题略有变化。若需完全自定义绿/红与强调色，可在应用配色中选择不同 ins 风主题。
+        {t('settings.cashflowColors.description')}
       </Text>
       <Pressable
         onPress={() => router.push('/settings-palette')}
@@ -52,7 +54,9 @@ export default function SettingsCashflowColorsScreen() {
           borderColor: 'rgba(0,0,0,0.08)',
         }}
       >
-        <Text style={{ fontSize: 16, fontWeight: '700', color: p }}>前往应用配色</Text>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: p }}>
+          {t('settings.cashflowColors.goToPalette')}
+        </Text>
       </Pressable>
         </View>
       </ScrollView>

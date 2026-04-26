@@ -241,7 +241,7 @@ export async function fetchMarketQuote(
   }
 }
 
-/** 并行拉取所有条目（分块减轻服务端压力） */
+/** 并行拉取所有条目（分块减轻服务端压力）；支持外部 AbortSignal 提前结束。 */
 export async function fetchAllMarketQuotes(
   onChunk?: (partial: MarketQuoteResult[]) => void,
   signal?: AbortSignal
@@ -250,11 +250,13 @@ export async function fetchAllMarketQuotes(
   const chunkSize = 5;
   const out: MarketQuoteResult[] = [];
   for (let i = 0; i < flat.length; i += chunkSize) {
+    if (signal?.aborted) break;
     const chunk = flat.slice(i, i + chunkSize);
     const part = await Promise.all(
       chunk.map((def) => fetchMarketQuote(def, signal))
     );
     out.push(...part);
+    if (signal?.aborted) break;
     onChunk?.([...out]);
   }
   return out;

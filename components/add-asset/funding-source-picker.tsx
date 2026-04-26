@@ -3,6 +3,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '@/contexts/language-context';
 import type { AddModalStyles } from '@/lib/modal-styles';
 import type { SimpleAsset } from '@/types/asset';
 import { useState } from 'react';
@@ -37,6 +38,7 @@ export function FundingSourcePicker({
   primaryColor?: string;
   mutedColor?: string;
 }) {
+  const { t } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
   const selectedLabel =
     valueId === ''
@@ -198,7 +200,9 @@ export function FundingSourcePicker({
               style={styles.currencyModalCancel}
               onPress={() => setModalOpen(false)}
             >
-              <Text style={styles.currencyModalCancelText}>取消</Text>
+              <Text style={styles.currencyModalCancelText}>
+                {t('common.cancel')}
+              </Text>
             </Pressable>
           </View>
         </View>

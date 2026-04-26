@@ -100,7 +100,7 @@ export default function SettingsPrivacyScreen() {
               setLoading(false);
               setLoadError(true);
             }}
-            originWhitelist={['http://', 'https://']}
+            originWhitelist={['https://']}
             setSupportMultipleWindows={false}
           />
         )}

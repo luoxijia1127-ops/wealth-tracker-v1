@@ -18,6 +18,8 @@ import {
   type BackupPayload,
   type BackupPreview,
 } from '@/lib/backup-bundle';
+import { getIsProEntitlementActive } from '@/lib/revenuecat';
+import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import * as DocumentPicker from 'expo-document-picker';
 import { useCallback, useMemo, useState } from 'react';
@@ -119,6 +121,18 @@ export default function SettingsImportScreen() {
     try {
       const s = await applyBackupPayload(payload, mode);
       setSummary(s);
+      if (s.assetsAfter > FREE_ASSET_LIMIT) {
+        const pro = await getIsProEntitlementActive();
+        if (!pro) {
+          Alert.alert(
+            t('import.overFreeLimitTitle'),
+            t('import.overFreeLimitMessage', {
+              limit: FREE_ASSET_LIMIT,
+              count: s.assetsAfter,
+            })
+          );
+        }
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -341,6 +355,7 @@ export default function SettingsImportScreen() {
             theme={theme}
             muted={muted}
             chipBg={chipBg}
+            t={t}
           />
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
             <Pressable
@@ -474,22 +489,40 @@ function SummaryCard({
   theme,
   muted,
   chipBg,
+  t,
 }: {
   summary: ApplySummary;
   theme: Theme;
   muted: string;
   chipBg: string;
+  t: ReturnType<typeof useLanguage>['t'];
 }) {
   const rows: { label: string; before: number; after: number }[] = [
-    { label: '资产', before: summary.assetsBefore, after: summary.assetsAfter },
-    { label: '每日总净值', before: summary.snapshotsBefore, after: summary.snapshotsAfter },
     {
-      label: '每日逐资产',
+      label: t('settings.import.rowAssets'),
+      before: summary.assetsBefore,
+      after: summary.assetsAfter,
+    },
+    {
+      label: t('settings.import.rowSnapshots'),
+      before: summary.snapshotsBefore,
+      after: summary.snapshotsAfter,
+    },
+    {
+      label: t('settings.import.rowDailyAssets'),
       before: summary.dailyAssetsBefore,
       after: summary.dailyAssetsAfter,
     },
-    { label: '归档', before: summary.archivedBefore, after: summary.archivedAfter },
-    { label: '回收站', before: summary.trashBefore, after: summary.trashAfter },
+    {
+      label: t('settings.import.rowArchived'),
+      before: summary.archivedBefore,
+      after: summary.archivedAfter,
+    },
+    {
+      label: t('settings.import.rowTrash'),
+      before: summary.trashBefore,
+      after: summary.trashAfter,
+    },
   ];
   return (
     <View
@@ -508,12 +541,14 @@ function SummaryCard({
           borderBottomColor: rgbaFromHex(theme.primary, 0.08),
         }}
       >
-        <Text style={{ flex: 1, fontSize: 12, color: muted }}>项目</Text>
-        <Text style={{ width: 70, textAlign: 'right', fontSize: 12, color: muted }}>
-          之前
+        <Text style={{ flex: 1, fontSize: 12, color: muted }}>
+          {t('settings.import.summaryItem')}
         </Text>
         <Text style={{ width: 70, textAlign: 'right', fontSize: 12, color: muted }}>
-          之后
+          {t('settings.import.summaryBefore')}
+        </Text>
+        <Text style={{ width: 70, textAlign: 'right', fontSize: 12, color: muted }}>
+          {t('settings.import.summaryAfter')}
         </Text>
       </View>
       {rows.map((r) => (

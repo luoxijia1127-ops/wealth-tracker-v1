@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import { ErrorBoundary as AppErrorBoundary } from '@/components/app-error-boundary';
 import { FontRoot } from '@/components/font-root';
 import { SettingsHubBackButton } from '@/components/settings-hub-back-navigation';
 import { AppPaletteProvider } from '@/contexts/app-palette-context';
@@ -19,6 +20,12 @@ import { migrateNestStorageFromWealthTrackerOnce } from '@/lib/nest-storage-migr
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+
+/**
+ * Expo Router 自动识别 named export `ErrorBoundary`，
+ * 在根 layout 内的任一层抛出未捕获错误时渲染。
+ */
+export { AppErrorBoundary as ErrorBoundary };
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

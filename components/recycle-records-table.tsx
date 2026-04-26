@@ -4,6 +4,7 @@
  */
 
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import {
   formatRecycleTransactionSummaryShort,
   type ArchivedDisplayRow,
@@ -45,6 +46,7 @@ type Props = PropsArchived | PropsRestore;
 
 export function RecycleRecordsTable(props: Props) {
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
 
   if (props.rows.length === 0) {
@@ -67,17 +69,17 @@ export function RecycleRecordsTable(props: Props) {
           </View>
           <View style={styles.recycleValueCol}>
             <Text style={styles.tradeTh} numberOfLines={1}>
-              市值
+              {t('recycle.col.marketValue')}
             </Text>
           </View>
           <View style={styles.recycleLedgerCol}>
             <Text style={styles.tradeTh} numberOfLines={1}>
-              流水
+              {t('recycle.col.ledger')}
             </Text>
           </View>
           <View style={styles.recyclePnlCol}>
             <Text style={styles.tradeTh} numberOfLines={1}>
-              已实现盈亏
+              {t('recycle.col.realizedPnl')}
             </Text>
           </View>
         </View>
@@ -172,17 +174,17 @@ export function RecycleRecordsTable(props: Props) {
         </View>
         <View style={styles.recycleValueCol}>
           <Text style={styles.tradeTh} numberOfLines={1}>
-            市值
+            {t('recycle.col.marketValue')}
           </Text>
         </View>
         <View style={styles.recycleLedgerCol}>
           <Text style={styles.tradeTh} numberOfLines={1}>
-            流水
+            {t('recycle.col.ledger')}
           </Text>
         </View>
         <View style={styles.recycleRestoreCol}>
           <Text style={styles.tradeTh} numberOfLines={1}>
-            恢复
+            {t('recycle.col.restore')}
           </Text>
         </View>
       </View>
@@ -244,7 +246,9 @@ export function RecycleRecordsTable(props: Props) {
                 {busy ? (
                   <ActivityIndicator size="small" color={theme.primary} />
                 ) : (
-                  <Text style={styles.recycleRestoreBtn}>恢复</Text>
+                  <Text style={styles.recycleRestoreBtn}>
+                    {t('common.restore')}
+                  </Text>
                 )}
               </Pressable>
             </View>

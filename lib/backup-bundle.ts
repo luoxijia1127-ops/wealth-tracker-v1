@@ -28,6 +28,10 @@ import {
   saveAssets,
 } from '@/lib/asset-storage';
 import {
+  applyCashLedgerReplay,
+  usesCashAmountLedger,
+} from '@/lib/cash-ledger';
+import {
   SNAPSHOTS_STORAGE_KEY,
   getSnapshots,
   saveSnapshotsList,
@@ -622,6 +626,16 @@ function mergeAsset(current: SimpleAsset, incoming: SimpleAsset): SimpleAsset {
   if (cl) merged.cashLedger = cl;
   const hist = mergeHistory(current.history, incoming.history);
   if (hist) merged.history = hist;
+  // 余额流水类资产：合并后 incoming.value 可能与合并后的流水并不一致，
+  // 回放一次以保证 value 与 cashLedger 保持一致。非余额流水类（股票/基金等）保持 incoming.value。
+  if (usesCashAmountLedger(merged) && merged.cashLedger && merged.cashLedger.length > 0) {
+    try {
+      return applyCashLedgerReplay(merged, merged.cashLedger);
+    } catch {
+      // 合并出现不一致（如支出超余额）时，保留未回放版本不阻塞导入；用户可在应用内再修正。
+      return merged;
+    }
+  }
   return merged;
 }
 

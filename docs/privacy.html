@@ -146,15 +146,35 @@
           为实现行情、汇率、标的联想/映射等功能，本应用需要从您的设备向互联网上的第三方服务发起请求。此类请求通常由第三方根据其服务条款与隐私政策进行处理，并可能涉及例如：IP
           地址、请求时间、以及您为搜索或查询而输入的代码、名称或关键词等。我们不会将您的完整本地账本内容上传至我们的服务器用于上述基础功能（在我们未提供云同步或账号体系的前提下）。
         </p>
-        <p>我们可能依赖的第三方数据来源类型包括但不限于：</p>
+        <p>我们当前实际调用的第三方接口与用途如下（将随版本迭代更新）：</p>
         <ul>
-          <li>用于证券/基金等行情、K 线、联想搜索、基金净值等公开市场数据的接口服务；</li>
-          <li>用于汇率等信息的公开接口服务（我们可能允许通过配置使用替代地址）；</li>
-          <li>用于部分国际市场标的搜索/映射的服务；</li>
-          <li>用于部分行情或历史价格的公开数据源；</li>
+          <li>
+            <strong>东方财富（eastmoney.com）</strong>：A 股 / 港股 / 基金即时行情、历史日 K、标的联想，以及基金净值查询；
+          </li>
+          <li>
+            <strong>Stooq（stooq.com）</strong>：国际上市标的（美/欧/亚）日级行情与外汇参考报价；
+          </li>
+          <li>
+            <strong>Frankfurter（api.frankfurter.app）</strong>：欧洲央行美元/主要货币汇率（可通过 EXPO_PUBLIC_FX_URL 配置替代地址）；
+          </li>
+          <li>
+            <strong>OpenFIGI（api.openfigi.com）</strong>：国际证券代码 / 交易所映射搜索；
+          </li>
+          <li>
+            <strong>招商银行黄金报价页（cmb-mobile-web.paas.cmbchina.com）</strong>：公开页面抓取人民币金价参考；
+          </li>
+          <li>
+            <strong>RevenueCat（api.revenuecat.com）</strong>：仅当您在应用内发起订阅、恢复购买或查询会员权益时调用；RevenueCat 会生成一个匿名订阅标识并处理 Apple App Store 的订单状态同步，详见其
+            <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">隐私政策</a>；
+          </li>
+          <li>
+            <strong>Google Fonts（fonts.gstatic.com，由 Expo 构建流程内联）</strong>：字体资源在打包阶段内置，运行时不再发起请求；
+          </li>
           <li>其他为实现功能所必需的公开网页或接口（以应用实际版本为准）。</li>
         </ul>
-        <p>我们不控制第三方的隐私实践。我们建议您阅读相关第三方的官方政策以了解更多信息。</p>
+        <p>
+          上述第三方对您的请求独立负责其隐私实践；我们不控制也不代表这些服务。我们建议您阅读它们各自的官方政策。
+        </p>
 
         <h2>6. 分析与广告追踪</h2>
         <p>
@@ -173,8 +193,14 @@
         </p>
 
         <h2>9. 数据保留、删除与卸载</h2>
+        <p>在您使用本应用期间，本地数据将保留在您的设备上。您可通过以下任一方式删除数据：</p>
+        <ul>
+          <li>在「数据 › 回收站」中清空已删除的资产与交易（回收站默认保留 30 天后自动永久删除）；</li>
+          <li>在「数据 › 归档」中彻底删除归档资产；</li>
+          <li>直接从设备中卸载本应用，这将清除本应用的全部本地数据，且无法恢复。</li>
+        </ul>
         <p>
-          在您使用本应用期间，本地数据将保留在您的设备上，直至您在本应用内删除相关数据，或卸载本应用。卸载应用可能导致本地数据被系统清除且无法恢复。若未来我们提供账号或云同步功能，我们将在本政策中补充相关说明。
+          如您已订阅 Nest Pro，订阅状态由 Apple App Store 与 RevenueCat 记录；您可通过「设置 › Apple ID › 订阅」随时取消订阅。卸载应用不会自动取消订阅。
         </p>
 
         <h2>10. 安全</h2>
@@ -253,12 +279,30 @@
           upload your full local ledger to our servers for these basic features (as long as we do not offer
           cloud sync or an account system).
         </p>
-        <p>Categories of third-party sources may include, without limitation:</p>
+        <p>The third parties we currently call (subject to change across versions) include:</p>
         <ul>
-          <li>Market data services for quotes, candlesticks, search suggestions, fund NAVs, and related public market information;</li>
-          <li>FX information services (including configurable endpoints);</li>
-          <li>Search/mapping services for certain international instruments;</li>
-          <li>Public market data sources for quotes or historical prices;</li>
+          <li>
+            <strong>Eastmoney (eastmoney.com)</strong> for A-share / HK / fund quotes, candlesticks, search suggestions, and fund NAVs;
+          </li>
+          <li>
+            <strong>Stooq (stooq.com)</strong> for international instruments (US / EU / Asia) daily quotes and FX snapshots;
+          </li>
+          <li>
+            <strong>Frankfurter (api.frankfurter.app)</strong> for ECB reference FX rates (the endpoint can be overridden via EXPO_PUBLIC_FX_URL);
+          </li>
+          <li>
+            <strong>OpenFIGI (api.openfigi.com)</strong> for international ticker / exchange mapping;
+          </li>
+          <li>
+            <strong>China Merchants Bank public gold rate page (cmb-mobile-web.paas.cmbchina.com)</strong> for CNY gold reference prices;
+          </li>
+          <li>
+            <strong>RevenueCat (api.revenuecat.com)</strong>, which is only contacted when you initiate a subscription, restore a purchase, or query entitlement status. RevenueCat assigns an anonymous subscriber ID and reconciles Apple App Store receipts; see
+            <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">their Privacy Policy</a>;
+          </li>
+          <li>
+            <strong>Google Fonts (fonts.gstatic.com, bundled at build time by Expo)</strong>: font assets are inlined into the app and not fetched at runtime;
+          </li>
           <li>Other public pages or APIs required for functionality (as implemented in each App version).</li>
         </ul>
         <p>We do not control third-party privacy practices. We encourage you to review their official policies.</p>
@@ -285,10 +329,16 @@
         </p>
 
         <h2>9. Retention, deletion, and uninstall</h2>
+        <p>Local data remains on your device until you delete it. You can remove data in the following ways:</p>
+        <ul>
+          <li>Empty the trash under “Data › Trash” (items in the trash are automatically purged after 30 days);</li>
+          <li>Permanently delete archived assets under “Data › Archived”;</li>
+          <li>Uninstall the App to remove all local data; this action cannot be undone.</li>
+        </ul>
         <p>
-          Local data remains on your device until you delete it within the App or uninstall the App.
-          Uninstalling may permanently remove local data. If we introduce accounts or cloud sync, we will update
-          this Policy accordingly.
+          If you subscribe to Nest Pro, your subscription is managed by the Apple App Store and recorded by
+          RevenueCat. You can cancel at any time under Settings › Apple ID › Subscriptions. Uninstalling the App
+          does not cancel an active subscription.
         </p>
 
         <h2>10. Security</h2>

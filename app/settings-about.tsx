@@ -5,6 +5,7 @@
 import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import Constants from 'expo-constants';
@@ -15,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function SettingsAboutScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const secondary = rgbaFromHex(theme.primary, 0.65);
 
@@ -41,7 +43,9 @@ export default function SettingsAboutScreen() {
       <Text style={{ fontSize: 22, fontWeight: '800', color: theme.primary, marginBottom: 8 }}>
         Nest
       </Text>
-      <Text style={{ fontSize: 14, color: secondary, marginBottom: 20 }}>个人资产与净值记录</Text>
+      <Text style={{ fontSize: 14, color: secondary, marginBottom: 20 }}>
+        {t('settings.about.tagline')}
+      </Text>
       <View
         style={{
           borderRadius: 20,
@@ -51,9 +55,11 @@ export default function SettingsAboutScreen() {
           borderColor: 'rgba(255,255,255,0.95)',
         }}
       >
-        <Text style={{ fontSize: 15, fontWeight: '600', color: theme.primary }}>版本 {version}</Text>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: theme.primary }}>
+          {t('settings.about.versionLabel', { version })}
+        </Text>
         <Text style={{ fontSize: 14, lineHeight: 21, color: secondary, marginTop: 12 }}>
-          基于 Expo / React Native 构建。本应用仅供个人记账与复盘，不构成投资建议。
+          {t('settings.about.description')}
         </Text>
       </View>
         </View>

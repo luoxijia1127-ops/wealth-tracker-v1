@@ -45,7 +45,7 @@ import {
 import { computeAllReturnMetrics, isPlottableMetric } from '@/lib/investment-return-metrics';
 import { createInsightsStyles } from '@/lib/insights-styles';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
-import { assetRepository } from '@/lib/repositories/asset-repository';
+import { getAssets } from '@/lib/asset-storage';
 import { getSnapshots, type Snapshot } from '@/lib/snapshots';
 import type { AssetCategory, SimpleAsset } from '@/types/asset';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -189,7 +189,7 @@ export default function Insights() {
   const reloadInsightsData = useCallback(async () => {
     const [snaps, ass, cachedFx, dc] = await Promise.all([
       getSnapshots(),
-      assetRepository.getAll(),
+      getAssets(),
       getCachedFxUsdRates(),
       loadDisplayCurrency(),
     ]);
@@ -220,7 +220,7 @@ export default function Insights() {
         try {
           const [localSnaps, localAssets, cachedFx, dc] = await Promise.all([
             getSnapshots(),
-            assetRepository.getAll(),
+            getAssets(),
             getCachedFxUsdRates(),
             loadDisplayCurrency(),
           ]);

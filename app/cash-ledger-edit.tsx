@@ -5,6 +5,7 @@
 import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
+import { useLanguage } from '@/contexts/language-context';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
 import {
   formatMoney,
@@ -49,6 +50,7 @@ export default function CashLedgerEditScreen() {
     entryId?: string;
   }>();
   const { theme } = useAppPalette();
+  const { t } = useLanguage();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const labelMuted = useMemo(
@@ -130,12 +132,18 @@ export default function CashLedgerEditScreen() {
     if (!asset || !entry) return;
     const q = parseFloat(amount);
     if (Number.isNaN(q) || q <= 0) {
-      Alert.alert('无法保存', '金额须为正数。');
+      Alert.alert(
+        t('cashLedger.edit.saveFailed'),
+        t('cashLedger.edit.amountMustBePositive')
+      );
       return;
     }
     const d = entryDate.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-      Alert.alert('无法保存', '日期请使用 YYYY-MM-DD。');
+      Alert.alert(
+        t('cashLedger.edit.saveFailed'),
+        t('cashLedger.edit.invalidDate')
+      );
       return;
     }
     const linkedTradeAssetId = entry.relatedAssetId;
@@ -145,7 +153,10 @@ export default function CashLedgerEditScreen() {
       // （买入对应 out；卖出对应 in）
       // 这里不做强推断，仅禁止改变原 side
       if (side !== entry.side) {
-        Alert.alert('无法保存', '该流水为联动转账记录，类型不可修改（增加/减少）。');
+        Alert.alert(
+          t('cashLedger.edit.saveFailed'),
+          t('cashLedger.edit.linkedTypeLocked')
+        );
         return;
       }
     }
@@ -182,7 +193,10 @@ export default function CashLedgerEditScreen() {
           );
           if (linkedTrade) {
             if (!(linkedTrade.shares > 0)) {
-              Alert.alert('无法保存', '关联交易份额无效，无法按金额回算单价。');
+              Alert.alert(
+                t('cashLedger.edit.saveFailed'),
+                t('cashLedger.edit.invalidShares')
+              );
               return;
             }
             const patchedTrade = updateListedTradeEntry(tradeAsset, linkedTrade.id, {
@@ -204,8 +218,8 @@ export default function CashLedgerEditScreen() {
       router.back();
     } catch (e) {
       Alert.alert(
-        '无法保存',
-        e instanceof Error ? e.message : '流水与余额不一致。'
+        t('cashLedger.edit.saveFailed'),
+        e instanceof Error ? e.message : t('cashLedger.edit.inconsistent')
       );
     } finally {
       setSaving(false);
@@ -214,10 +228,13 @@ export default function CashLedgerEditScreen() {
 
   const onDelete = () => {
     if (!asset || !entry) return;
-    Alert.alert('删除流水', '确定删除？将按剩余流水重算余额。', [
-      { text: '取消', style: 'cancel' },
+    Alert.alert(
+      t('cashLedger.edit.deleteTitle'),
+      t('cashLedger.edit.deleteBody'),
+      [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: '删除',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           setSaving(true);
@@ -251,15 +268,16 @@ export default function CashLedgerEditScreen() {
             router.back();
           } catch (e) {
             Alert.alert(
-              '失败',
-              e instanceof Error ? e.message : '无法删除'
+              t('cashLedger.edit.failedTitle'),
+              e instanceof Error ? e.message : t('cashLedger.edit.failedDelete')
             );
           } finally {
             setSaving(false);
           }
         },
       },
-    ]);
+      ]
+    );
   };
 
   if (!assetId || !entryId) {
@@ -281,7 +299,7 @@ export default function CashLedgerEditScreen() {
             kicker="BALANCE · IN OR OUT"
           />
           <View style={{ paddingHorizontal: 24 }}>
-            <Text style={styles.headerName}>参数无效</Text>
+            <Text style={styles.headerName}>{t('cashLedger.edit.invalidParams')}</Text>
           </View>
         </ScrollView>
       </View>
@@ -343,7 +361,7 @@ export default function CashLedgerEditScreen() {
             kicker="BALANCE · IN OR OUT"
           />
           <View style={{ paddingHorizontal: 24 }}>
-            <Text style={styles.headerName}>未找到该流水</Text>
+            <Text style={styles.headerName}>{t('cashLedger.edit.notFound')}</Text>
           </View>
         </ScrollView>
       </View>
@@ -380,7 +398,7 @@ export default function CashLedgerEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon="swap-vertical-outline"
-            label="类型"
+            label={t('cashLedger.edit.typeLabel')}
           >
             <View style={styles.optionsRow}>
               <Pressable
@@ -393,7 +411,7 @@ export default function CashLedgerEditScreen() {
                     side === 'in' && styles.optionTextSelected,
                   ]}
                 >
-                  增加
+                  {t('cashLedger.edit.typeIn')}
                 </Text>
               </Pressable>
               <Pressable
@@ -406,7 +424,7 @@ export default function CashLedgerEditScreen() {
                     side === 'out' && styles.optionTextSelected,
                   ]}
                 >
-                  减少
+                  {t('cashLedger.edit.typeOut')}
                 </Text>
               </Pressable>
             </View>
@@ -416,7 +434,7 @@ export default function CashLedgerEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon="calendar-outline"
-            label="日期（年 · 月 · 日）"
+            label={t('cashLedger.edit.dateLabel')}
           >
             <YmdDateFields
               value={entryDate}
@@ -431,7 +449,7 @@ export default function CashLedgerEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon="cash-outline"
-            label={`金额（${cur}）`}
+            label={t('cashLedger.edit.amountLabel', { currency: cur })}
           >
             <TextInput
               style={styles.input}
@@ -445,7 +463,7 @@ export default function CashLedgerEditScreen() {
           {entry.transferId && entry.relatedAssetId ? (
             <View style={{ marginTop: 10 }}>
               <Text style={[styles.hintMuted, { lineHeight: 20 }]}>
-                本笔与场内成交联动，扣款/入账资金账户请在对应证券的「编辑加减仓流水」中修改。
+                {t('cashLedger.edit.linkedNote')}
               </Text>
               {linkedTradeEditId ? (
                 <Pressable
@@ -460,7 +478,9 @@ export default function CashLedgerEditScreen() {
                     })
                   }
                 >
-                  <Text style={styles.saveButtonText}>打开场内流水与资金账户</Text>
+                  <Text style={styles.saveButtonText}>
+                    {t('cashLedger.edit.openVenueAndSource')}
+                  </Text>
                 </Pressable>
               ) : null}
             </View>
@@ -469,11 +489,11 @@ export default function CashLedgerEditScreen() {
               styles={styles}
               iconMuted={iconMuted}
               icon="link-outline"
-              label="关联证券（选填）"
+              label={t('cashLedger.edit.relatedLabel')}
             >
               <FundingSourcePicker
-                label="关联证券（选填）"
-                emptyOptionLabel="不关联"
+                label={t('cashLedger.edit.relatedLabel')}
+                emptyOptionLabel={t('cashLedger.edit.notLinked')}
                 valueId={relatedListedId}
                 onSelectId={setRelatedListedId}
                 fundingOptions={listedRelatedOptions}
@@ -490,21 +510,25 @@ export default function CashLedgerEditScreen() {
             styles={styles}
             iconMuted={iconMuted}
             icon="document-text-outline"
-            label="备注"
+            label={t('cashLedger.edit.noteLabel')}
           >
             <TextInput
               style={[styles.input, { minHeight: 72, textAlignVertical: 'top' }]}
               value={note}
               onChangeText={setNote}
-              placeholder="用途、账户说明等"
+              placeholder={t('cashLedger.edit.notePlaceholder')}
               placeholderTextColor={placeholderColor}
               multiline
             />
           </FormRow>
 
           <Text style={[styles.hintMuted, { marginTop: 8 }]}>
-            当前余额参考：{' '}
-            {formatMoney(getAssetDisplayValue(asset), getAssetCurrency(asset))}
+            {t('cashLedger.edit.currentBalance', {
+              balance: formatMoney(
+                getAssetDisplayValue(asset),
+                getAssetCurrency(asset)
+              ),
+            })}
           </Text>
 
           <Pressable
@@ -513,7 +537,7 @@ export default function CashLedgerEditScreen() {
             disabled={saving}
           >
             <Text style={styles.saveButtonText}>
-              {saving ? '保存中…' : '保存'}
+              {saving ? t('common.saving') : t('common.save')}
             </Text>
           </Pressable>
 
@@ -526,7 +550,9 @@ export default function CashLedgerEditScreen() {
             onPress={onDelete}
             disabled={saving}
           >
-            <Text style={styles.saveButtonText}>删除此流水</Text>
+            <Text style={styles.saveButtonText}>
+              {t('cashLedger.edit.deleteThisEntry')}
+            </Text>
           </Pressable>
         </GlassSurface>
         </View>

@@ -144,7 +144,7 @@ export default function SettingsTermsScreen() {
               setLoading(false);
               setLoadError(true);
             }}
-            originWhitelist={['http://', 'https://']}
+            originWhitelist={['https://']}
             setSupportMultipleWindows={false}
           />
         )}

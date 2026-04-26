@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ENDPOINTS } from '@/lib/config/endpoints';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { upsertFxUsdRatesHistory } from '@/lib/fx-rates-history';
+import { fetchWithTimeout } from '@/lib/net/fetch-with-timeout';
 
 const STORAGE_KEY = 'fx_usd_mid_rates_v1';
 
@@ -130,8 +131,9 @@ export async function ensureFxUsdRatesForToday(): Promise<{
     return { rates: cached, source: 'cache' };
   }
   try {
-    const res = await fetch(fxUrl(), {
+    const res = await fetchWithTimeout(fxUrl(), {
       headers: { Accept: 'application/json' },
+      timeoutMs: 8000,
     });
     if (!res.ok) throw new Error(String(res.status));
     const j = (await res.json()) as {
