@@ -220,14 +220,9 @@ export default function SettingsFxScreen() {
           },
         ]}
       >
-        <View
-          style={[
-            hubStyles.mastheadBlock,
-            { paddingTop: 16, paddingHorizontal: 4 },
-          ]}
-        >
-          <Text style={hubStyles.masthead}>FX</Text>
-          <Text style={hubStyles.kicker}>FRANKFURTER · DISPLAY BASE</Text>
+        <View style={hubStyles.mastheadBlockHubNarrow}>
+          <Text style={hubStyles.masthead}>{t('masthead.fx')}</Text>
+          <Text style={hubStyles.kicker}>{t('masthead.fxKicker')}</Text>
         </View>
 
       {loading ? (
@@ -329,16 +324,6 @@ export default function SettingsFxScreen() {
                 })}
               </View>
             ) : null}
-            <Text style={{ fontSize: 12, color: muted, marginBottom: 10 }}>
-              {t('fx.base', {
-                currency: currencyLabel(chartBase),
-                code: chartBase,
-              })}
-              {chartBase !== displayCurrency.trim().toUpperCase()
-                ? t('fx.displayCurrencyNote', { currency: displayCurrency })
-                : ''}
-              {t('')}
-            </Text>
             {fxHistory.length === 0 ? (
               <Text style={{ fontSize: 14, color: muted }}>
                 {t('fx.noHistory')}
@@ -355,13 +340,7 @@ export default function SettingsFxScreen() {
                         marginBottom: 4,
                       }}
                     >
-                      {currencyLabel(activeFxSeries.code)}{' '}
-                      <Text style={{ fontSize: 12, fontWeight: '500', color: muted }}>
-                        {t('fx.axis', {
-                          base: chartBase,
-                          target: activeFxSeries.code,
-                        })}
-                      </Text>
+                      {currencyLabel(activeFxSeries.code)}
                     </Text>
                     {activeFxSeries.pointCount >= 2 &&
                     activeFxSeries.dates.length >= 2 ? (
@@ -442,9 +421,6 @@ export default function SettingsFxScreen() {
                 ) : null}
                 <Text style={{ fontSize: 13, color: muted, marginBottom: 12 }}>
                   {t('fx.cacheDate', { date: fx.shanghaiDate })}
-                  {showBaseFallbackNote
-                    ? ''
-                    : t('fx.tableUnit', { base: tableBase })}
                 </Text>
                 {ASSET_CURRENCY_OPTIONS.filter((o) => o.code !== tableBase).map(
                   (o) => {

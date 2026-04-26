@@ -2,8 +2,10 @@
  * 交易日期：全屏日历选择（与系统滚轮区分，七列网格对齐）
  */
 
+import { useLanguage } from '@/contexts/language-context';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
+import type { SupportedLocale, TranslationKey } from '@/lib/language';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -19,21 +21,23 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CELL_GAP = 4;
-const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'] as const;
-const MONTH_ZH = [
-  '一月',
-  '二月',
-  '三月',
-  '四月',
-  '五月',
-  '六月',
-  '七月',
-  '八月',
-  '九月',
-  '十月',
-  '十一月',
-  '十二月',
-] as const;
+
+const CAL_WEEKDAY_KEYS = [
+  'attribution.weekday.sun',
+  'attribution.weekday.mon',
+  'attribution.weekday.tue',
+  'attribution.weekday.wed',
+  'attribution.weekday.thu',
+  'attribution.weekday.fri',
+  'attribution.weekday.sat',
+] as const satisfies readonly TranslationKey[];
+
+function formatMonthTitle(locale: SupportedLocale, year: number, month: number): string {
+  return new Date(year, month - 1, 1).toLocaleDateString(
+    locale === 'en-US' ? 'en-US' : 'zh-CN',
+    { month: 'long' }
+  );
+}
 
 const CAL_COL_BASE: ViewStyle = {
   flex: 1,
@@ -107,6 +111,7 @@ export function TradingDateCalendarModal({
   minDate: minDateProp,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { t, locale } = useLanguage();
   const maxDate = maxDateProp ?? getShanghaiDateString();
   const minDate = minDateProp ?? DEFAULT_MIN;
 
@@ -177,17 +182,17 @@ export function TradingDateCalendarModal({
             <Pressable
               onPress={onClose}
               hitSlop={12}
-              accessibilityLabel="关闭"
+              accessibilityLabel={t('common.close')}
             >
               <Ionicons name="close" size={26} color="#111" />
             </Pressable>
           </View>
-          <Text style={styles.headerTitle}>交易日期</Text>
+          <Text style={styles.headerTitle}>{t('dateCalendar.title')}</Text>
           <View style={styles.headerSide}>
             <Pressable
               onPress={() => setYearPickerOpen(true)}
               style={styles.yearPill}
-              accessibilityLabel="选择年份"
+              accessibilityLabel={t('dateCalendar.pickYear')}
             >
               <Text style={styles.yearPillText}>{visibleYear}</Text>
             </Pressable>
@@ -203,9 +208,9 @@ export function TradingDateCalendarModal({
           }}
         >
           <View style={styles.weekRow}>
-            {WEEKDAY_LABELS.map((w, di) => (
+            {CAL_WEEKDAY_KEYS.map((weekdayKey, di) => (
               <View
-                key={w}
+                key={weekdayKey}
                 style={[
                   calColumnStyle(colPx),
                   di > 0 ? { marginLeft: CELL_GAP } : null,
@@ -215,7 +220,7 @@ export function TradingDateCalendarModal({
                 <Text
                   style={[styles.weekLabel, { color: rgbaFromHex(themePrimary, 0.45) }]}
                 >
-                  {w}
+                  {t(weekdayKey)}
                 </Text>
               </View>
             ))}
@@ -224,7 +229,7 @@ export function TradingDateCalendarModal({
           <FlatList
             style={{ flex: 1 }}
             removeClippedSubviews={false}
-            data={MONTH_ZH.map((_, i) => i + 1)}
+            data={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}
             keyExtractor={(m) => `m-${visibleYear}-${m}`}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
@@ -235,7 +240,7 @@ export function TradingDateCalendarModal({
               <MonthBlock
                 year={visibleYear}
                 month={month}
-                monthLabel={MONTH_ZH[month - 1]}
+                locale={locale}
                 colPx={colPx}
                 selectedYmd={value}
                 minDate={minDate}
@@ -266,7 +271,7 @@ export function TradingDateCalendarModal({
               },
             ]}
           >
-            <Text style={styles.yearSheetTitle}>选择年份</Text>
+            <Text style={styles.yearSheetTitle}>{t('dateCalendar.pickYear')}</Text>
             <FlatList
               data={yearOptions}
               keyExtractor={(y) => `y-${y}`}
@@ -301,7 +306,7 @@ export function TradingDateCalendarModal({
 function MonthBlock({
   year,
   month,
-  monthLabel,
+  locale,
   colPx,
   selectedYmd,
   minDate,
@@ -312,7 +317,7 @@ function MonthBlock({
 }: {
   year: number;
   month: number;
-  monthLabel: string;
+  locale: SupportedLocale;
   colPx: number | null;
   selectedYmd: string;
   minDate: string;
@@ -326,11 +331,16 @@ function MonthBlock({
     return chunkCalendarWeeks(cells);
   }, [year, month]);
 
+  const monthTitle = useMemo(
+    () => formatMonthTitle(locale, year, month),
+    [locale, year, month]
+  );
+
   const DAY_H = 44;
 
   return (
     <View style={styles.monthBlock}>
-      <Text style={styles.monthTitle}>{monthLabel}</Text>
+      <Text style={styles.monthTitle}>{monthTitle}</Text>
       {weeks.map((week, wi) => (
         <View
           key={`w-${wi}`}

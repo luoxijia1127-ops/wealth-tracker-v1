@@ -65,6 +65,31 @@ export const zhCN = {
   'settings.sections.preferences': '偏好',
   'settings.sections.data': '数据',
   'settings.sections.support': '支持',
+
+  'masthead.addAsset': '添加资产',
+  'masthead.editTrade': '编辑流水',
+  'masthead.editTradeKickerLot': '手数或克重录入',
+  'masthead.editTradeKickerGram': '克重 · 日期与价格',
+  'masthead.editTradeKickerShares': '份额 · 日期与价格',
+  'masthead.tools': '工具',
+  'masthead.preferences': '偏好',
+  'masthead.market': '市场',
+  'masthead.marketKicker': '指数与汇率',
+  'masthead.attribution': '资产变动归因',
+  'masthead.attributionKicker': '净值 · 每日涨跌',
+  'masthead.fx': '汇率',
+  'masthead.fxKicker': 'Frankfurter · 展示本位',
+  'masthead.data': '数据',
+  'masthead.dataKicker': '本地资产数据',
+  'masthead.support': '支持',
+  'masthead.supportKicker': '帮助与法律信息',
+  'masthead.currency': '默认货币',
+  'masthead.currencyKicker': '展示与洞察',
+  'masthead.language': '语言',
+  'masthead.languageKicker': '界面',
+  'masthead.palette': '主题配色',
+  'masthead.paletteKicker': '主题与强调色',
+
   'currency.CNY': '人民币',
   'currency.USD': '美元',
   'currency.HKD': '港币',
@@ -100,7 +125,6 @@ export const zhCN = {
   'language.option.en': 'English',
   'language.status.system': '跟随系统：{locale}',
   'language.status.selected': '已启用',
-  'language.description': '界面语言会立即更新；装饰性英文标题会保持原样。',
   'language.resolved.zh': '简体中文',
   'language.resolved.en': 'English',
 
@@ -176,6 +200,7 @@ export const zhCN = {
   'asset.form.purpose': '用途说明',
   'asset.form.purposePlaceholder': '如：旅游基金、应急金',
   'asset.form.targetPlaceholder': '不填则不显示进度',
+  'asset.form.targetAmount': '目标金额（{symbol}）',
   'asset.form.saving': '保存中…',
   'asset.form.add': '添加',
   'asset.form.discard': '放弃',
@@ -234,6 +259,14 @@ export const zhCN = {
   'trade.edit.deleteFailed': '无法删除',
   'trade.edit.invalidParams': '参数无效',
   'trade.edit.notFound': '未找到该流水',
+  'dateCalendar.title': '交易日期',
+  'dateCalendar.pickYear': '选择年份',
+  'dateField.sep1': '年',
+  'dateField.sep2': '月',
+  'dateField.sep3': '日',
+  'dateField.phY': '年',
+  'dateField.phM': '月',
+  'dateField.phD': '日',
   'asset.category.Stock': '股票STOCK',
   'asset.category.Fund': '基金FUND',
   'asset.category.ETF': '指数ETF',
@@ -276,6 +309,12 @@ export const zhCN = {
   'returns.cumulative': '累计 {pct}',
   'returns.annualized': '年化(参考) {pct}',
   'returns.emptyValid': '暂无有效累计回报数据（需有买入与持仓）',
+  'returns.axisCumulative': '累计回报（%）',
+  'returns.axisHolding': '持有期（天）',
+  'returns.listHolding': '持有：{days} 天',
+  'returns.listCumulativeLabel': '累计回报',
+  'returns.hideInvalid': '隐藏无效项',
+  'returns.footerExcluded': '{count} 项因指标无效或筛选未显示',
 
   'trend.customRange': '自定义区间',
   'trend.startDate': '开始日期',
@@ -397,11 +436,8 @@ export const zhCN = {
 
   'fx.trendTitle': '汇率走势（近一月）',
   'fx.trendAccessibility': '{currency} 走势',
-  'fx.base': '基准：{currency}（{code}）',
-  'fx.displayCurrencyNote': ' · 设置中的默认展示货币为 {currency}',
   'fx.noHistory':
     '尚未累积按日历史。打开总览后会自动尝试回填近 30 日序列；亦可下拉同步行情。',
-  'fx.axis': '纵轴：多少 {base} = 1 {target}',
   'fx.validDays': '当前币种有效交易日 {count} 天',
   'fx.insufficientDays':
     '「{code}」近一月可计算的有效交易日不足 2 天（当前 {count} 天）。请联网同步或换选其它图标；旧版历史可能暂缺英镑等字段。',
@@ -411,7 +447,60 @@ export const zhCN = {
   'fx.baseFallback':
     '当前缓存中暂无 {currency} 的串联报价，下列仍按 1 USD = 各币种（与接口一致）。',
   'fx.cacheDate': '缓存日 {date}',
-  'fx.tableUnit': ' · 多少 {base} = 1 单位标价币种',
+
+  'legal.web.loadingPrivacy': '正在加载隐私政策…',
+  'legal.web.loadingTerms': '正在加载用户协议…',
+  'legal.web.errorTitle': '无法加载页面',
+  'legal.web.errorHintPrivacy':
+    '请检查网络后重试。若问题持续，请确认已正确部署隐私政策链接。',
+  'legal.web.errorHintTerms': '请检查网络后重试。',
+
+  'legal.privacy.fallbackTitle': '隐私与数据',
+  'legal.privacy.fallbackBody':
+    '默认情况下，您的资产与流水数据仅存储于当前设备。同步行情与汇率时会向公开接口请求市场数据，不会上传您的账本内容。请妥善保管设备与系统备份。',
+  'legal.privacy.fallbackHint':
+    '完整隐私政策：请在构建时设置环境变量 EXPO_PUBLIC_PRIVACY_POLICY_URL 为你的托管页面地址（https），将在应用内通过 WebView 展示。英文界面可额外设置 EXPO_PUBLIC_PRIVACY_POLICY_URL_EN 指向英文版页面。',
+
+  'legal.terms.docTitle': 'Nest 用户协议',
+  'legal.terms.meta':
+    '生效日期：2026年4月5日\n最后更新：2026年4月5日\n运营者：本应用由个人开发者提供。\n联系邮箱：nest_feedback@163.com',
+  'legal.terms.s1Title': '一、协议的接受与修订',
+  'legal.terms.s1Body':
+    '欢迎使用 Nest（以下简称「本应用」）。当您下载、安装或使用本应用，即表示您已阅读并同意本用户协议（以下简称「本协议」）。若您不同意，请停止使用本应用。\n\n我们可能不时更新本协议；更新后将在应用内或配套页面公示，并可能修订「生效日期」。您在更新后继续使用，即视为接受修订后的协议。',
+  'legal.terms.s2Title': '二、服务说明',
+  'legal.terms.s2Body':
+    'Nest 为个人资产记录、净值展示及与市场公开信息相关的辅助工具。本应用按「现状」提供，我们会尽力维护稳定性与数据展示的合理性，但不保证服务持续可用、无中断、无错误，也不保证行情、汇率等第三方数据的实时性、完整性与准确性。',
+  'legal.terms.s3Title': '三、非投资建议',
+  'legal.terms.s3Body':
+    '本应用不构成任何证券、基金、保险或其他投资产品的购买、出售或持有建议，亦不构成财务、税务或法律意见。您应自行判断并承担基于本应用信息所作决策的全部风险与后果。',
+  'legal.terms.s4Title': '四、账号与使用资格',
+  'legal.terms.s4Body':
+    '在适用版本不要求注册的前提下，您无需向我们提供账号即可使用核心功能。若未来提供注册或登录功能，我们将另行说明规则，并可能要求您遵守适用平台（如 Apple）关于登录方式的相关规定。\n\n您应保证使用本应用不违反法律法规，不侵害他人合法权益。',
+  'legal.terms.s5Title': '五、数据与设备',
+  'legal.terms.s5Body':
+    '在默认情况下，您的账本数据主要存储于当前设备本地。请您自行保管设备与系统安全，并注意备份；因设备丢失、损坏、系统清理或卸载应用等导致的数据丢失，在适用法律允许的范围内，我们不承担恢复或赔偿责任。关于我们如何对待个人信息与网络请求，请参阅《隐私政策》。',
+  'legal.terms.s6Title': '六、订阅与付费（如适用）',
+  'legal.terms.s6Body':
+    '若本应用提供付费或订阅功能，相关价格、周期与权益以 App Store 展示及购买确认页面为准。订阅可能自动续费，您可通过 Apple ID 账户设置管理或取消订阅。因平台规则导致的支付、退款与发票问题，请遵循 Apple 相关政策；我们可在法律允许范围内提供必要协助。',
+  'legal.terms.s7Title': '七、知识产权',
+  'legal.terms.s7Body':
+    '本应用的界面设计、文案、标识及受法律保护的内容，归运营者或权利人所有。未经许可，您不得复制、修改、传播或用于商业目的（法律另有规定或我们明确授权的除外）。',
+  'legal.terms.s8Title': '八、第三方服务与行情信息',
+  'legal.terms.s8Body':
+    '为实现行情、汇率、标的联想等功能，本应用可能访问第三方公开接口或服务。该等服务由其提供方独立运营，受其条款约束；我们不对第三方服务的可用性、准确性或合法性作担保。',
+  'legal.terms.s9Title': '九、责任限制',
+  'legal.terms.s9Body':
+    '在适用法律允许的最大范围内，对于因使用或无法使用本应用而产生的任何直接、间接、偶然、特殊或后果性损害（包括但不限于利润、商誉、数据丢失），除法律强制规定外，我们不承担责任。\n\n本条款不影响法律规定的不得排除的消费者权利。',
+  'legal.terms.s10Title': '十、协议终止',
+  'legal.terms.s10Body':
+    '您可随时停止使用并卸载本应用。我们亦可能在遵守适用法律的前提下，因维护、合规或业务调整等原因变更或终止部分功能；如涉及重大权益变化，我们将尽量以合理方式提示。',
+  'legal.terms.s11Title': '十一、适用法律与争议',
+  'legal.terms.s11Body':
+    '本协议的订立、效力与解释，以中华人民共和国大陆地区法律为基准（仅为法律适用选择，不视为我们对任何管辖法院的承诺）。若发生争议，双方应友好协商；协商不成的，您可向有管辖权的人民法院提起诉讼。',
+  'legal.terms.s12Title': '十二、联系我们',
+  'legal.terms.s12Body': '若对本协议有疑问，请发送邮件至：nest_feedback@163.com。',
+  'legal.terms.footerNote':
+    '提示：以上为便于理解的草案，正式上架前建议结合产品与司法辖区由专业人士审阅。',
 
   'attribution.title': '净值变动归因',
   'attribution.calendar': '日历',

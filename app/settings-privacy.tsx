@@ -5,7 +5,8 @@
 import { SettingsEditorialMasthead } from '@/components/settings-editorial-masthead';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
-import { getPrivacyPolicyUrl } from '@/lib/privacy-policy-url';
+import { useLanguage } from '@/contexts/language-context';
+import { getPrivacyPolicyUrlForLocale } from '@/lib/privacy-policy-url';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useMemo, useState } from 'react';
@@ -23,11 +24,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function SettingsPrivacyScreen() {
   const insets = useSafeAreaInsets();
   const { theme, appearance } = useAppPalette();
+  const { t, locale } = useLanguage();
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const secondary = rgbaFromHex(theme.primary, 0.65);
   const muted = rgbaFromHex(theme.primary, 0.5);
 
-  const policyUrl = useMemo(() => getPrivacyPolicyUrl(), []);
+  const policyUrl = useMemo(() => getPrivacyPolicyUrlForLocale(locale), [locale]);
   const [loading, setLoading] = useState(!!policyUrl);
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
@@ -50,17 +52,17 @@ export default function SettingsPrivacyScreen() {
           <View style={[styles.loadingOverlay, { backgroundColor: loadingOverlayBg }]} pointerEvents="none">
             <ActivityIndicator size="large" color={theme.primary} />
             <Text style={[styles.loadingHint, { color: muted }]}>
-              正在加载隐私政策…
+              {t('legal.web.loadingPrivacy')}
             </Text>
           </View>
         )}
         {loadError && (
           <View style={[styles.errorBox, { paddingTop: 12 }]}>
             <Text style={{ fontSize: 15, color: theme.primary, fontWeight: '700' }}>
-              无法加载页面
+              {t('legal.web.errorTitle')}
             </Text>
             <Text style={{ fontSize: 14, lineHeight: 21, color: secondary, marginTop: 8 }}>
-              请检查网络后重试。若问题持续，请确认已正确部署隐私政策链接。
+              {t('legal.web.errorHintPrivacy')}
             </Text>
             <Pressable
               onPress={() => {
@@ -76,13 +78,13 @@ export default function SettingsPrivacyScreen() {
                 },
               ]}
             >
-              <Text style={styles.retryBtnText}>重试</Text>
+              <Text style={styles.retryBtnText}>{t('common.retry')}</Text>
             </Pressable>
           </View>
         )}
         {!loadError && (
           <WebView
-            key={retryKey}
+            key={`${retryKey}-${locale}-${policyUrl}`}
             source={{ uri: policyUrl }}
             style={[styles.webview, { backgroundColor: theme.pageBg }]}
             onLoadStart={() => {
@@ -126,10 +128,10 @@ export default function SettingsPrivacyScreen() {
         />
         <View style={{ paddingHorizontal: 20 }}>
       <Text style={{ fontSize: 17, fontWeight: '800', color: theme.primary, marginBottom: 12 }}>
-        隐私与数据
+        {t('legal.privacy.fallbackTitle')}
       </Text>
       <Text style={{ fontSize: 15, lineHeight: 22, color: secondary }}>
-        默认情况下，您的资产与流水数据仅存储于当前设备。同步行情与汇率时会向公开接口请求市场数据，不会上传您的账本内容。请妥善保管设备与系统备份。
+        {t('legal.privacy.fallbackBody')}
       </Text>
       <Text
         style={{
@@ -139,8 +141,7 @@ export default function SettingsPrivacyScreen() {
           marginTop: 20,
         }}
       >
-        完整隐私政策：请在构建时设置环境变量 EXPO_PUBLIC_PRIVACY_POLICY_URL
-        为你的托管页面地址（https），将在应用内通过 WebView 展示。
+        {t('legal.privacy.fallbackHint')}
       </Text>
         </View>
       </ScrollView>

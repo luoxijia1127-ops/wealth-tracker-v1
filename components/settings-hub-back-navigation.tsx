@@ -33,7 +33,7 @@ type SettingsHubBackTopBarProps = {
 
 /** 含安全区顶距与左右 16，与 settings-data-hub / settings-support-hub 顶栏一致 */
 export function SettingsHubBackTopBar({
-  paddingBottom = 16,
+  paddingBottom = 22,
 }: SettingsHubBackTopBarProps) {
   const insets = useSafeAreaInsets();
   return (

@@ -11,7 +11,7 @@ import { GlassSurface } from '@/components/glass-surface';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { TradingDateCalendarModal } from '@/components/trading-date-calendar-modal';
 import {
-  formatYmdChineseLine,
+  formatYmdForLocale,
   YmdDateFields,
 } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
@@ -200,7 +200,7 @@ export default function AssetActionScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useGlobalSearchParams<{ id?: string }>();
   const { theme, appearance } = useAppPalette();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
   const placeholderColor = useMemo(
     () => rgbaFromHex(theme.primary, 0.42),
@@ -1134,7 +1134,7 @@ export default function AssetActionScreen() {
                         accessibilityLabel={t('asset.form.pickTradeDate')}
                       >
                         <Text style={styles.formRowValue}>
-                          {formatYmdChineseLine(adjustTradeDate)}
+                          {formatYmdForLocale(adjustTradeDate, locale)}
                         </Text>
                       </Pressable>
                     )}
@@ -2172,7 +2172,9 @@ export default function AssetActionScreen() {
                         styles={styles}
                         iconMuted={iconMuted}
                         icon="flag-outline"
-                        label={`目标金额（${assetCurrencySymbol(cashCurrency)}）`}
+                        label={t('asset.form.targetAmount', {
+                          symbol: assetCurrencySymbol(cashCurrency),
+                        })}
                       >
                         <TextInput
                           style={styles.input}

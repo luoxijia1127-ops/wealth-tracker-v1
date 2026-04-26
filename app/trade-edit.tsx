@@ -370,8 +370,8 @@ export default function TradeEditScreen() {
         >
           <SettingsEditorialMasthead
             styles={hubStyles}
-            title="EDIT TRADE"
-            kicker="LOT OR GRAM ENTRY"
+            title={t('masthead.editTrade')}
+            kicker={t('masthead.editTradeKickerLot')}
           />
           <View style={{ paddingHorizontal: 24 }}>
             <Text style={styles.headerName}>{t('trade.edit.invalidParams')}</Text>
@@ -399,8 +399,8 @@ export default function TradeEditScreen() {
         >
           <SettingsEditorialMasthead
             styles={hubStyles}
-            title="EDIT TRADE"
-            kicker="LOT OR GRAM ENTRY"
+            title={t('masthead.editTrade')}
+            kicker={t('masthead.editTradeKickerLot')}
           />
           <View
             style={{
@@ -432,8 +432,8 @@ export default function TradeEditScreen() {
         >
           <SettingsEditorialMasthead
             styles={hubStyles}
-            title="EDIT TRADE"
-            kicker="LOT OR GRAM ENTRY"
+            title={t('masthead.editTrade')}
+            kicker={t('masthead.editTradeKickerLot')}
           />
           <View style={{ paddingHorizontal: 24 }}>
             <Text style={styles.headerName}>{t('trade.edit.notFound')}</Text>
@@ -463,9 +463,11 @@ export default function TradeEditScreen() {
       >
         <SettingsEditorialMasthead
           styles={hubStyles}
-          title="EDIT TRADE"
+          title={t('masthead.editTrade')}
           kicker={
-            useGram ? 'GRAM · DATE & PRICE' : 'SHARES · DATE & PRICE'
+            useGram
+              ? t('masthead.editTradeKickerGram')
+              : t('masthead.editTradeKickerShares')
           }
         />
         <View style={{ paddingHorizontal: 14 }}>

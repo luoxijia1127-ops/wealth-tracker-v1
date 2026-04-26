@@ -11,7 +11,7 @@ import { InlineSelect } from '@/components/add-asset/inline-select';
 import { GlassSurface } from '@/components/glass-surface';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { TradingDateCalendarModal } from '@/components/trading-date-calendar-modal';
-import { formatYmdChineseLine, YmdDateFields } from '@/components/ymd-date-fields';
+import { formatYmdForLocale, YmdDateFields } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
 import {
@@ -85,7 +85,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function AddModal() {
   const router = useRouter();
   const { theme } = useAppPalette();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const styles = useMemo(() => createAddModalStyles(theme), [theme]);
   const hubStyles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
   const placeholderColor = useMemo(
@@ -658,7 +658,7 @@ export default function AddModal() {
       keyboardVerticalOffset={keyboardOffset}
     >
       <View style={styles.modalAmbient} pointerEvents="none" />
-      <SettingsHubBackTopBar paddingBottom={6} />
+      <SettingsHubBackTopBar paddingBottom={14} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{
@@ -675,16 +675,15 @@ export default function AddModal() {
       >
         <View
           style={[
-            hubStyles.mastheadBlock,
+            hubStyles.mastheadBlockHub,
             {
-              paddingTop: 0,
               paddingBottom: 0,
               paddingHorizontal: 0,
               marginBottom: 6,
             },
           ]}
         >
-          <Text style={hubStyles.masthead}>ADD ASSET</Text>
+          <Text style={hubStyles.masthead}>{t('masthead.addAsset')}</Text>
         </View>
 
         <GlassSurface
@@ -767,7 +766,7 @@ export default function AddModal() {
               accessibilityLabel={t('asset.form.pickTradeDate')}
             >
               <Text style={styles.formRowValue}>
-                {formatYmdChineseLine(tradeDate)}
+                {formatYmdForLocale(tradeDate, locale)}
               </Text>
             </Pressable>
           )}
@@ -1243,7 +1242,9 @@ export default function AddModal() {
                 onChangeText={setPurpose}
               />
               <Text style={styles.label}>
-                目标金额（{purposeYuan ? '¥' : assetCurrencySymbol(assetCurrency)}）
+                {t('asset.form.targetAmount', {
+                  symbol: purposeYuan ? '¥' : assetCurrencySymbol(assetCurrency),
+                })}
               </Text>
               <TextInput
                 placeholder={t('asset.form.targetPlaceholder')}

@@ -528,11 +528,13 @@ export function createInsightsStyles(
 
     /** ROI specifics - Editorial Poster Redesign */
     returnPanelCard: {
-      paddingVertical: 24,
+      paddingTop: 36,
+      paddingBottom: 24,
       paddingHorizontal: 24,
     },
     returnMastheadBlock: {
       marginBottom: 28,
+      paddingTop: 6,
     },
     returnKicker: {
       fontFamily: AppFont.displayBold,
@@ -540,7 +542,7 @@ export function createInsightsStyles(
       letterSpacing: -0.4,
       textTransform: 'uppercase',
       color: p,
-      marginBottom: -4,
+      marginBottom: 2,
     },
     returnTitle: {
       fontFamily: AppFont.displayBold,

@@ -80,9 +80,9 @@ export default function SettingsDisplayCurrencyScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.mastheadBlock, { paddingTop: 16 }]}>
-          <Text style={styles.masthead}>CURRENCY</Text>
-          <Text style={styles.kicker}>DISPLAY & INSIGHTS</Text>
+        <View style={styles.mastheadBlockHub}>
+          <Text style={styles.masthead}>{t('masthead.currency')}</Text>
+          <Text style={styles.kicker}>{t('masthead.currencyKicker')}</Text>
         </View>
 
         <View style={styles.preferencesBlock}>

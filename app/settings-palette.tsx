@@ -93,9 +93,9 @@ export default function SettingsPaletteScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.mastheadBlock, { paddingTop: 16 }]}>
-          <Text style={styles.masthead}>PALETTE</Text>
-          <Text style={styles.kicker}>THEMES & ACCENTS</Text>
+        <View style={styles.mastheadBlockHub}>
+          <Text style={styles.masthead}>{t('masthead.palette')}</Text>
+          <Text style={styles.kicker}>{t('masthead.paletteKicker')}</Text>
         </View>
 
         <View style={styles.preferencesBlock}>

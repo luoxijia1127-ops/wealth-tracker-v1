@@ -2,6 +2,7 @@
  * 净值变动归因：收益日历 + 按日明细（从设置网格进入）。
  */
 
+import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
 import { getAssetDailySnapshots } from '@/lib/asset-daily-snapshots';
@@ -18,6 +19,8 @@ import {
   getCachedFxUsdRates,
   getFxUsdRatesHistory,
 } from '@/lib/fx-rates';
+import type { SupportedLocale, Translate, TranslationKey } from '@/lib/language';
+import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { getSnapshots } from '@/lib/snapshots';
 import {
   buildDailyTradeSummaries,
@@ -28,9 +31,6 @@ import {
   type DailyTradeSummary,
   type MarketMoverEntry,
 } from '@/lib/trade-summary';
-import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
-import type { SupportedLocale, Translate, TranslationKey } from '@/lib/language';
-import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams } from 'expo-router';
 import {
@@ -584,14 +584,9 @@ export default function SettingsAttributionScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View
-          style={[
-            hubStyles.mastheadBlock,
-            { paddingTop: 16, paddingHorizontal: 4 },
-          ]}
-        >
-          <Text style={hubStyles.masthead}>ATTRIBUTION</Text>
-          <Text style={hubStyles.kicker}>NET WORTH · DAILY DELTA</Text>
+        <View style={hubStyles.mastheadBlockHubNarrow}>
+          <Text style={hubStyles.masthead}>{t('masthead.attribution')}</Text>
+          <Text style={hubStyles.kicker}>{t('masthead.attributionKicker')}</Text>
         </View>
 
       <View

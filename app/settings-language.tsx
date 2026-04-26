@@ -78,9 +78,9 @@ export default function SettingsLanguageScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.mastheadBlock, { paddingTop: 16 }]}>
-          <Text style={styles.masthead}>LANGUAGE</Text>
-          <Text style={styles.kicker}>INTERFACE</Text>
+        <View style={styles.mastheadBlockHub}>
+          <Text style={styles.masthead}>{t('masthead.language')}</Text>
+          <Text style={styles.kicker}>{t('masthead.languageKicker')}</Text>
         </View>
 
         <View style={styles.preferencesBlock}>
@@ -129,19 +129,6 @@ export default function SettingsLanguageScreen() {
               </Pressable>
             );
           })}
-          <Text
-            style={{
-              fontFamily: AppFont.medium,
-              fontSize: 13,
-              lineHeight: 19,
-              color: muted,
-              paddingHorizontal: 24,
-              paddingTop: 16,
-              paddingBottom: 8,
-            }}
-          >
-            {t('language.description')}
-          </Text>
         </View>
       </ScrollView>
     </View>

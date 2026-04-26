@@ -38,7 +38,20 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
     /** Masthead (Top) */
     mastheadBlock: {
       paddingHorizontal: 24,
-      paddingTop: 64,
+      paddingTop: 72,
+      paddingBottom: 24,
+      backgroundColor: 'transparent',
+    },
+    /** 顶栏为 SettingsHubBackTopBar 时：避免大号标题（含中文）顶沿被裁切 */
+    mastheadBlockHub: {
+      paddingHorizontal: 24,
+      paddingTop: 32,
+      paddingBottom: 24,
+      backgroundColor: 'transparent',
+    },
+    mastheadBlockHubNarrow: {
+      paddingHorizontal: 4,
+      paddingTop: 32,
       paddingBottom: 24,
       backgroundColor: 'transparent',
     },
@@ -49,6 +62,7 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
       letterSpacing: -2.0,
       textTransform: 'uppercase',
       color: p,
+      paddingTop: 4,
     },
     kicker: {
       fontFamily: AppFont.medium,
@@ -56,7 +70,7 @@ export function createSettingsScreenStyles(t: AppPaletteTheme) {
       letterSpacing: 2.0,
       textTransform: 'uppercase',
       color: p,
-      marginTop: 4,
+      marginTop: 8,
     },
 
     /** Poster Collage Stage (Middle) */

@@ -124,9 +124,9 @@ export default function MarketScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={[hubStyles.mastheadBlock, { paddingTop: 16 }]}>
-          <Text style={hubStyles.masthead}>MARKET</Text>
-          <Text style={hubStyles.kicker}>INDICES & FX</Text>
+        <View style={hubStyles.mastheadBlockHub}>
+          <Text style={hubStyles.masthead}>{t('masthead.market')}</Text>
+          <Text style={hubStyles.kicker}>{t('masthead.marketKicker')}</Text>
         </View>
 
         {!cacheReady ? (

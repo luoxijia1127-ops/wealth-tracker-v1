@@ -43,19 +43,19 @@ export default function SettingsSupportHubScreen() {
           },
         ]}
       >
-        <View style={[styles.mastheadBlock, { paddingTop: 16 }]}>
-          <Text style={styles.masthead}>SUPPORT</Text>
-          <Text style={styles.kicker}>HELP & LEGAL</Text>
+        <View style={styles.mastheadBlockHub}>
+          <Text style={styles.masthead}>{t('masthead.support')}</Text>
+          <Text style={styles.kicker}>{t('masthead.supportKicker')}</Text>
         </View>
 
         <View style={styles.preferencesBlock}>
-          {supportTiles.map(t => (
+          {supportTiles.map((tile) => (
             <SettingsGridTile
-              key={t.id}
-              label={t.label}
-              icon={t.icon}
+              key={tile.id}
+              label={tile.label}
+              icon={tile.icon}
               theme={theme}
-              onPress={t.onPress}
+              onPress={tile.onPress}
               variant="list"
             />
           ))}

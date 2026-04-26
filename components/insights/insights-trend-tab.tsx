@@ -5,7 +5,7 @@
 import { InsightsNetWorthAreaChart } from '@/components/insights/insights-networth-area-chart';
 import { TradingDateCalendarModal } from '@/components/trading-date-calendar-modal';
 import {
-  formatYmdChineseLine,
+  formatYmdForLocale,
   YmdDateFields,
 } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
@@ -82,7 +82,7 @@ export function InsightsTrendChart({
   usdRatesForTooltip?: FxUsdMidRates['rates'] | null;
 }) {
   const insets = useSafeAreaInsets();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [draftStart, setDraftStart] = useState('');
   const [draftEnd, setDraftEnd] = useState('');
@@ -410,7 +410,7 @@ export function InsightsTrendChart({
                         marginTop: 4,
                       }}
                     >
-                      {formatYmdChineseLine(draftStart)}
+                      {formatYmdForLocale(draftStart, locale)}
                     </Text>
                   </View>
                   <Ionicons
@@ -443,7 +443,7 @@ export function InsightsTrendChart({
                         marginTop: 4,
                       }}
                     >
-                      {formatYmdChineseLine(draftEnd)}
+                      {formatYmdForLocale(draftEnd, locale)}
                     </Text>
                   </View>
                   <Ionicons

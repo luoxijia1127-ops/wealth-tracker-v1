@@ -491,7 +491,7 @@ export function ReturnScatterPanel({
             }}
             numberOfLines={1}
           >
-            Cumulative Return (%)
+            {t('returns.axisCumulative')}
           </Text>
         </View>
         <Svg
@@ -665,7 +665,7 @@ export function ReturnScatterPanel({
             fontFamily={AppFont.semiBold}
             letterSpacing={0.5}
           >
-            Holding Period (Days)
+            {t('returns.axisHolding')}
           </SvgText>
 
           <SvgText x={padL} y={padT + plotH + 16} fill={textMuted} fontSize={10} fontFamily={AppFont.medium}>
@@ -857,7 +857,7 @@ export function ReturnScatterPanel({
                   {m.name}
                 </Text>
                 <Text style={styles.returnListItemMeta}>
-                  Holding: {m.holdingDays} Days
+                  {t('returns.listHolding', { days: m.holdingDays })}
                   {m.reason !== 'ok' ? ` · ${reasonLabel(m, t)}` : ''}
                 </Text>
               </View>
@@ -878,7 +878,9 @@ export function ReturnScatterPanel({
                 >
                   {formatListCumulativePct(m)}
                 </Text>
-                <Text style={styles.returnListItemValueLabel}>Cumulative Return</Text>
+                <Text style={styles.returnListItemValueLabel}>
+                  {t('returns.listCumulativeLabel')}
+                </Text>
               </View>
             </View>
           );
@@ -888,14 +890,14 @@ export function ReturnScatterPanel({
       <View style={styles.returnFooterRow}>
         {excludedCount > 0 ? (
           <Text style={[styles.returnFooterHint, { color: textMuted }]} numberOfLines={2}>
-            {excludedCount} items hidden due to invalid metrics or filters.
+            {t('returns.footerExcluded', { count: excludedCount })}
           </Text>
         ) : (
           <View style={{ flex: 1 }} />
         )}
         <View style={styles.returnFooterSwitchWrap}>
           <Text style={[styles.returnFooterSwitchLabel, { color: textMuted }]}>
-            Hide Invalid
+            {t('returns.hideInvalid')}
           </Text>
           <Switch
             value={hideInvalid}

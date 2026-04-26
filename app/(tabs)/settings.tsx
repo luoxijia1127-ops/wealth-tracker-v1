@@ -172,15 +172,15 @@ export default function SettingsScreen() {
 
           <View style={styles.rightColumn}>
             <View style={styles.toolsBlock}>
-              <Text style={styles.toolsHeader}>TOOLS</Text>
+              <Text style={styles.toolsHeader}>{t('masthead.tools')}</Text>
               <View style={styles.toolsGrid}>
-                {toolTiles.map(t => (
+                {toolTiles.map((tile) => (
                   <SettingsGridTile
-                    key={t.id}
-                    label={t.label}
-                    icon={t.icon}
+                    key={tile.id}
+                    label={tile.label}
+                    icon={tile.icon}
                     theme={theme}
-                    onPress={t.onPress}
+                    onPress={tile.onPress}
                     variant="tool"
                     color={toolsBg}
                     textColor={pickTextOnAccent(toolsSwatch)}
@@ -215,14 +215,14 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.preferencesBlock}>
-          <Text style={styles.sectionMasthead}>PREFERENCES</Text>
-          {settingsTiles.map(t => (
+          <Text style={styles.sectionMasthead}>{t('masthead.preferences')}</Text>
+          {settingsTiles.map((tile) => (
             <SettingsGridTile
-              key={t.id}
-              label={t.label}
-              icon={t.icon}
+              key={tile.id}
+              label={tile.label}
+              icon={tile.icon}
               theme={theme}
-              onPress={t.onPress}
+              onPress={tile.onPress}
               variant="list"
             />
           ))}

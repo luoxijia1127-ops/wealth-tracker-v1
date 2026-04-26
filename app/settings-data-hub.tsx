@@ -61,19 +61,19 @@ export default function SettingsDataHubScreen() {
           },
         ]}
       >
-        <View style={[styles.mastheadBlock, { paddingTop: 16 }]}>
-          <Text style={styles.masthead}>DATA</Text>
-          <Text style={styles.kicker}>YOUR LOCAL ASSETS</Text>
+        <View style={styles.mastheadBlockHub}>
+          <Text style={styles.masthead}>{t('masthead.data')}</Text>
+          <Text style={styles.kicker}>{t('masthead.dataKicker')}</Text>
         </View>
 
         <View style={styles.preferencesBlock}>
-          {dataTiles.map(t => (
+          {dataTiles.map((tile) => (
             <SettingsGridTile
-              key={t.id}
-              label={t.label}
-              icon={t.icon}
+              key={tile.id}
+              label={tile.label}
+              icon={tile.icon}
               theme={theme}
-              onPress={t.onPress}
+              onPress={tile.onPress}
               variant="list"
             />
           ))}
