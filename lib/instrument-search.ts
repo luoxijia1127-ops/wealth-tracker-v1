@@ -12,7 +12,6 @@ import {
 } from '@/lib/openfigi-search';
 import {
   buildIntlStooqSymbol,
-  INTL_EXCHANGE_LABEL_ZH,
   isValidIntlStooqQuoteSymbol,
   type IntlListingExchange,
 } from '@/lib/intl-exchange-stooq';
@@ -41,6 +40,7 @@ const STOOQ_SUFFIX_VENUE: Record<string, IntlListingExchange> = {
   us: 'US',
   hk: 'HK',
   l: 'LSE',
+  uk: 'LSE',
   de: 'XETR',
   pa: 'XPAR',
   as: 'XAMS',
@@ -58,6 +58,7 @@ const STOOQ_SUFFIX_VENUE: Record<string, IntlListingExchange> = {
 /** 纯字母 ticker 在 Stooq 上探测顺序：英股优先，再常见欧陆后缀 */
 const EU_STOOQ_PROBE: { suffix: string; venue: IntlListingExchange }[] = [
   { suffix: 'l', venue: 'LSE' },
+  { suffix: 'uk', venue: 'LSE' },
   { suffix: 'de', venue: 'XETR' },
   { suffix: 'pa', venue: 'XPAR' },
   { suffix: 'as', venue: 'XAMS' },
@@ -97,7 +98,7 @@ async function stooqLookupHints(
     });
   };
 
-  const explicit = /^([A-Za-z0-9][A-Za-z0-9.\-]{0,15})\.(US|HK|L|DE|PA|AS|SW|MI|MC|BR|ST|OL|CO|HE|I)$/i.exec(
+  const explicit = /^([A-Za-z0-9][A-Za-z0-9.\-]{0,15})\.(US|UK|HK|L|DE|PA|AS|SW|MI|MC|BR|ST|OL|CO|HE|I)$/i.exec(
     compact
   );
   if (explicit) {
@@ -112,7 +113,7 @@ async function stooqLookupHints(
         const codeDisp = base.replace(/\./g, '-').toUpperCase();
         out.push({
           code: codeDisp,
-          name: `${codeDisp}（${INTL_EXCHANGE_LABEL_ZH[venue]}）`,
+          name: codeDisp,
           exchange: venue,
           intlQuoteSymbol: st,
         });
@@ -123,12 +124,15 @@ async function stooqLookupHints(
   const hkKnown =
     KNOWN_HK_CODE[t] ?? KNOWN_HK_CODE[t.toLowerCase()];
   if (hkKnown) {
-    await pushHk(hkKnown, `${t === '腾讯' || t.toLowerCase() === 'tencent' ? '腾讯控股' : t}（港股 ${hkKnown}）`);
+    await pushHk(
+      hkKnown,
+      t === '腾讯' || t.toLowerCase() === 'tencent' ? '腾讯控股' : t
+    );
   }
 
   const hkDigits = t.replace(/\D/g, '');
   if (/^\d{4,5}$/.test(hkDigits)) {
-    await pushHk(hkDigits, `港股 ${parseInt(hkDigits, 10)}`);
+    await pushHk(hkDigits, String(parseInt(hkDigits, 10)));
   }
 
   if (/^[A-Za-z][A-Za-z0-9.\-]{0,9}$/.test(compact)) {
@@ -139,7 +143,7 @@ async function stooqLookupHints(
         seenStooq.add(st);
         out.push({
           code: compact.toUpperCase().replace(/\./g, '-'),
-          name: `${compact.toUpperCase()}（美股）`,
+          name: compact.toUpperCase().replace(/\./g, '-'),
           exchange: 'US',
           intlQuoteSymbol: st,
         });
@@ -159,7 +163,7 @@ async function stooqLookupHints(
           const codeDisp = compact.toUpperCase();
           out.push({
             code: codeDisp,
-            name: `${codeDisp}（${INTL_EXCHANGE_LABEL_ZH[venue]}，Stooq）`,
+            name: codeDisp,
             exchange: venue,
             intlQuoteSymbol: st,
           });

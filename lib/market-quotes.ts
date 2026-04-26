@@ -5,6 +5,7 @@
  */
 
 import { buildStooqCsvUrl, ENDPOINTS } from '@/lib/config/endpoints';
+import { intlStooqPriceFallbackAliases } from '@/lib/stooq-quote';
 import { EASTMONEY_UT } from '@/lib/eastmoney-config';
 import { parseKlineLast } from '@/lib/eastmoney-kline';
 import { Ionicons } from '@expo/vector-icons';
@@ -133,15 +134,14 @@ function parseStooqIntradayLine(line: string): {
   return { tradeDate: date, open, close };
 }
 
-async function fetchStooqLatestRow(
-  symbol: string,
+async function fetchStooqLatestRowOne(
+  sym: string,
   signal?: AbortSignal
 ): Promise<{
   tradeDate: string;
   open: number | null;
   close: number;
 } | null> {
-  const sym = symbol.trim().toLowerCase();
   const url = buildStooqCsvUrl(sym);
   const res = await fetch(url, {
     signal,
@@ -155,6 +155,21 @@ async function fetchStooqLatestRow(
   const lines = text.trim().split(/\r?\n/).filter((l) => l.length > 0);
   if (lines.length < 2) return null;
   return parseStooqIntradayLine(lines[1]!);
+}
+
+async function fetchStooqLatestRow(
+  symbol: string,
+  signal?: AbortSignal
+): Promise<{
+  tradeDate: string;
+  open: number | null;
+  close: number;
+} | null> {
+  for (const sym of intlStooqPriceFallbackAliases(symbol)) {
+    const row = await fetchStooqLatestRowOne(sym, signal);
+    if (row) return row;
+  }
+  return null;
 }
 
 async function fetchEastmoneyIndexDaily(

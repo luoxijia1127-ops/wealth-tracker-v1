@@ -9,7 +9,10 @@ import { FormRow } from '@/components/add-asset/form-row';
 import { FundingSourcePicker } from '@/components/add-asset/funding-source-picker';
 import { InlineSelect } from '@/components/add-asset/inline-select';
 import { GlassSurface } from '@/components/glass-surface';
-import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
+import {
+  SettingsHubBackTopBar,
+  settingsHubBackTopBarBelowInsetHeight,
+} from '@/components/settings-hub-back-navigation';
 import { TradingDateCalendarModal } from '@/components/trading-date-calendar-modal';
 import { formatYmdForLocale, YmdDateFields } from '@/components/ymd-date-fields';
 import { useAppPalette } from '@/contexts/app-palette-context';
@@ -630,8 +633,11 @@ export default function AddModal() {
     }
   };
 
-  /** 与自定义顶栏（安全区 + 返回行）高度大致对齐 */
-  const keyboardOffset = Platform.OS === 'ios' ? insets.top + 60 : 0;
+  /** 与 `SettingsHubBackTopBar compact` 实际高度对齐，避免键盘避让过量把搜索框顶出视口 */
+  const keyboardOffset =
+    Platform.OS === 'ios'
+      ? insets.top + settingsHubBackTopBarBelowInsetHeight({ compact: true })
+      : 0;
 
   const openTradeDatePicker = () => {
     if (Platform.OS === 'web') return;
@@ -659,7 +665,7 @@ export default function AddModal() {
       keyboardVerticalOffset={keyboardOffset}
     >
       <View style={styles.modalAmbient} pointerEvents="none" />
-      <SettingsHubBackTopBar paddingBottom={14} />
+      <SettingsHubBackTopBar compact />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{
@@ -1024,7 +1030,11 @@ export default function AddModal() {
                       onPress={() => onPickInstrument(item)}
                     >
                       <Text style={styles.suggestCode}>
-                        {formatExchangeSymbol(item.exchange, item.code)}
+                        {formatExchangeSymbol(
+                          item.exchange,
+                          item.code,
+                          item.intlQuoteSymbol
+                        )}
                       </Text>
                       <Text style={styles.suggestName} numberOfLines={2}>
                         {item.name}
@@ -1046,7 +1056,8 @@ export default function AddModal() {
                 <Text style={styles.selectedMain}>
                   {formatExchangeSymbol(
                     instrumentPick.exchange,
-                    instrumentPick.code
+                    instrumentPick.code,
+                    instrumentPick.intlQuoteSymbol
                   )}{' '}
                   · {instrumentPick.name}
                 </Text>

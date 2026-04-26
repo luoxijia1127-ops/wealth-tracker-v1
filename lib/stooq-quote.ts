@@ -2,7 +2,8 @@
  * Stooq 延迟行情（CSV，无密钥）：美股 `aapl.us`、港股 `700.hk`、英欧 `vod.l` 等。
  * 大陆网络通常可访问；与 OpenFIGI 联想配合使用。
  *
- * 部分欧股/英股在 `q/l` 单行接口上常返回 N/D，则回退到带 `d1`/`d2` 的日 K 取最近收盘。
+ * 部分 LSE 标的（尤其 ETC）在 Stooq 上 `*.l` 的 `q/l` 常为全表 N/D，而同标的 `*.uk` 有有效行；
+ * 拉价时对 `.l`/`.uk` 做互为回退。其余在 `q/l` 无效时仍尝试日 K（若站点要求 apikey 则可能失败）。
  */
 
 import { buildStooqCsvUrl } from '@/lib/config/endpoints';
@@ -71,6 +72,26 @@ function lastStooqDataRowInLines(lines: string[], maxTailScan: number): StooqQuo
   return best;
 }
 
+/** 同一标的在 Stooq 上可能对应 `.l` 或 `.uk`；拉价时依次尝试（不改变用户保存的 intlQuoteSymbol）。 */
+export function intlStooqPriceFallbackAliases(primary: string): string[] {
+  const s = primary.trim().toLowerCase();
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const add = (x: string): void => {
+    const t = x.trim().toLowerCase();
+    if (!t || seen.has(t)) return;
+    seen.add(t);
+    out.push(t);
+  };
+  add(s);
+  if (s.endsWith('.l')) {
+    add(`${s.slice(0, -2)}.uk`);
+  } else if (s.endsWith('.uk')) {
+    add(`${s.slice(0, -3)}.l`);
+  }
+  return out;
+}
+
 /**
  * `q/d/l` 最近约 140 个上海日历日的日 K（d1/d2 为 YYYYMMDD）；用于 q/l 即时行 N/D 时的回退。
  */
@@ -98,13 +119,10 @@ async function fetchStooqLatestDailyBar(
   }
 }
 
-export async function fetchStooqQuote(
-  intlQuoteSymbol: string,
+async function fetchStooqQuoteForSymbolOnce(
+  sym: string,
   signal?: AbortSignal
 ): Promise<StooqQuoteRow | null> {
-  const sym = intlQuoteSymbol.trim().toLowerCase();
-  if (!isValidIntlStooqQuoteSymbol(sym)) return null;
-
   const url = buildStooqCsvUrl(sym);
   try {
     const res = await fetch(url, {
@@ -119,6 +137,18 @@ export async function fetchStooqQuote(
     /* 继续尝试日 K */
   }
   return fetchStooqLatestDailyBar(sym, signal);
+}
+
+export async function fetchStooqQuote(
+  intlQuoteSymbol: string,
+  signal?: AbortSignal
+): Promise<StooqQuoteRow | null> {
+  for (const sym of intlStooqPriceFallbackAliases(intlQuoteSymbol)) {
+    if (!isValidIntlStooqQuoteSymbol(sym)) continue;
+    const row = await fetchStooqQuoteForSymbolOnce(sym, signal);
+    if (row) return row;
+  }
+  return null;
 }
 
 /** Stooq q/l 单行：外汇/贵金属即期（如 xauusd、xagusd），Close 为 USD/金衡盎司 */
@@ -155,13 +185,11 @@ export async function fetchStooqForexSpotLatest(
 /**
  * 日 K 历史 CSV：取「最后一根 tradeDate ≤ asOfYmd」的收盘（与 add-asset 成本回填一致）。
  */
-export async function fetchStooqCloseOnOrBefore(
-  intlQuoteSymbol: string,
+async function fetchStooqCloseOnOrBeforeOne(
+  sym: string,
   asOfYmd: string,
   signal?: AbortSignal
 ): Promise<StooqQuoteRow | null> {
-  const sym = intlQuoteSymbol.trim().toLowerCase();
-  if (!isValidIntlStooqQuoteSymbol(sym)) return null;
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`;
   try {
     const res = await fetch(url, {
@@ -186,4 +214,19 @@ export async function fetchStooqCloseOnOrBefore(
   } catch {
     return null;
   }
+}
+
+export async function fetchStooqCloseOnOrBefore(
+  intlQuoteSymbol: string,
+  asOfYmd: string,
+  signal?: AbortSignal
+): Promise<StooqQuoteRow | null> {
+  const td = asOfYmd.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(td)) return null;
+  for (const sym of intlStooqPriceFallbackAliases(intlQuoteSymbol)) {
+    if (!isValidIntlStooqQuoteSymbol(sym)) continue;
+    const row = await fetchStooqCloseOnOrBeforeOne(sym, td, signal);
+    if (row) return row;
+  }
+  return null;
 }

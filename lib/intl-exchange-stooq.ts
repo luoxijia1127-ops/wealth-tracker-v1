@@ -50,8 +50,9 @@ export const OPENFIGI_US_EXCH_CODES = new Set([
 export const INTL_STOOQ_SUFFIX_WHITELIST = new Set([
   'us',
   'hk',
-  /** 英国 LSE */
+  /** 英国 LSE（部分 ETC 在 `.l` 上无 q/l 报价，`.uk` 有） */
   'l',
+  'uk',
   /** 德国 Xetra 等 */
   'de',
   /** 巴黎 Euronext */
@@ -177,20 +178,23 @@ export function defaultCurrencyForIntlListingExchange(
   }
 }
 
-/** 联想列表 / 表单展示用短标签（与 `formatExchangeSymbol` 组合） */
-export const INTL_EXCHANGE_LABEL_ZH: Record<IntlListingExchange, string> = {
-  US: '美股',
-  HK: '港股',
-  LSE: '英股',
-  XETR: '德股',
-  XPAR: '法股',
-  XAMS: '荷股',
-  XSWX: '瑞股',
-  XMIL: '意股',
-  BMEX: '西股',
-  XSTO: '瑞典',
-  XOSL: '挪威',
-  XCSE: '丹麦',
-  XHEL: '芬兰',
-  XDUB: '爱尔兰',
+/**
+ * 无 `intlQuoteSymbol` 时，用代码 + 默认 Stooq 后缀拼展示串（小写，如 `aapl.us`）。
+ * 与 `buildIntlStooqSymbol` / 各市场主后缀一致；个别交易所存在多后缀时以常见主后缀为准。
+ */
+export const INTL_VENUE_DEFAULT_STOOQ_SUFFIX: Record<IntlListingExchange, string> = {
+  US: 'us',
+  HK: 'hk',
+  LSE: 'l',
+  XETR: 'de',
+  XPAR: 'pa',
+  XAMS: 'as',
+  XSWX: 'sw',
+  XMIL: 'mi',
+  BMEX: 'mc',
+  XSTO: 'st',
+  XOSL: 'ol',
+  XCSE: 'co',
+  XHEL: 'he',
+  XDUB: 'i',
 };

@@ -6,7 +6,9 @@
 import { EASTMONEY_SUGGEST_TOKEN } from '@/lib/eastmoney-config';
 import { exchangeFromQuoteId } from '@/lib/eastmoney-secid';
 import {
-  INTL_EXCHANGE_LABEL_ZH,
+  INTL_VENUE_DEFAULT_STOOQ_SUFFIX,
+  buildIntlStooqSymbol,
+  isValidIntlStooqQuoteSymbol,
   isIntlListingExchange,
 } from '@/lib/intl-exchange-stooq';
 import type { ChinaExchange, ListingExchange } from '@/types/asset';
@@ -182,15 +184,28 @@ export async function searchSgeSecuritiesMerged(
   return merged;
 }
 
-/** 展示：交易所前缀 + 代码；场外 / 国际 / 上金现货 */
+/**
+ * 展示：A 股等为 `交易所+代码`；国际场为 Stooq 小写符号（如 `aapl.us`、`700.hk`），
+ * 优先用已保存的 `intlQuoteSymbol`，否则用代码 + 该市场默认后缀拼接。
+ */
 export function formatExchangeSymbol(
   exchange: ListingExchange,
-  code: string
+  code: string,
+  intlQuoteSymbol?: string
 ): string {
   if (exchange === 'OTC') return `场外·${code}`;
   if (isIntlListingExchange(exchange)) {
-    const label = INTL_EXCHANGE_LABEL_ZH[exchange];
-    return `${label}·${code}`;
+    const trimmed = intlQuoteSymbol?.trim();
+    if (trimmed && isValidIntlStooqQuoteSymbol(trimmed)) {
+      return trimmed.toLowerCase();
+    }
+    const suf = INTL_VENUE_DEFAULT_STOOQ_SUFFIX[exchange];
+    const c = code.trim();
+    if (c && suf) {
+      const built = buildIntlStooqSymbol(c, suf);
+      if (isValidIntlStooqQuoteSymbol(built)) return built.toLowerCase();
+    }
+    return c.toLowerCase();
   }
   if (exchange === 'SGE') return `上金·${code}`;
   return `${exchange}${code}`;

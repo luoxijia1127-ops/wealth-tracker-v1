@@ -654,7 +654,11 @@ export default function AssetActionScreen() {
   const headerTitle = useMemo(() => {
     if (!asset) return '';
     if (isListedChineseAsset(asset) || isInternationalListedAsset(asset)) {
-      return `${formatExchangeSymbol(asset.exchange!, asset.symbol!)} · ${asset.name}`;
+      return `${formatExchangeSymbol(
+        asset.exchange!,
+        asset.symbol!,
+        asset.intlQuoteSymbol
+      )} · ${asset.name}`;
     }
     return asset.name;
   }, [asset]);
