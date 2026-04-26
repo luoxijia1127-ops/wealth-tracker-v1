@@ -180,9 +180,9 @@ export default function SettingsExportScreen() {
     }
     const csv = manualTransactionsToCsv(rows, locale);
     const fileSafe = `${startDate}_${endDate}`.replace(/[^\d_-]/g, '');
-    const downloadName = `nest-manual-${fileSafe}.csv`;
+    const downloadName = `assetup-manual-${fileSafe}.csv`;
     /** 原生路径仅用 ASCII，避免部分系统对中文路径支持不佳 */
-    const nativeFileName = `nest-manual-${fileSafe}.csv`;
+    const nativeFileName = `assetup-manual-${fileSafe}.csv`;
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       try {

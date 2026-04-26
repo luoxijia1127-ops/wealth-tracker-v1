@@ -1,4 +1,4 @@
-# GitHub Pages（Nest 隐私政策与用户协议）
+# GitHub Pages（Assetup 隐私政策与用户协议）
 
 本目录为静态页面，用于公开展示隐私政策与用户协议，供 App 内 WebView 与 App Store 填写链接。
 

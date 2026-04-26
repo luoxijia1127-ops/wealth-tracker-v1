@@ -1,4 +1,4 @@
-# Nest Code Review — 2026-04
+# Assetup Code Review — 2026-04
 
 > 全面 code review 的汇总结论。按「稳定性 / 架构 / 上架合规 / 业务闭环」四个维度整理，附 iOS App Store 提交前 checklist 和待跟进项。仅作为对内文档，不随 App Store 提审。
 
@@ -85,7 +85,7 @@ npx vitest run
 - `types/asset.ts` 的 `SimpleAsset`、`ASSET_CATEGORY_ORDER` 唯一。
 - `lib/asset-currency.ts` 的 `ASSET_CURRENCY_OPTIONS` 唯一。
 - `lib/market-quotes.ts` 的 `MARKET_SECTIONS` 唯一。
-- 过期迁移 `lib/legacy-test-snapshot-purge.ts`、`lib/nest-storage-migration.ts` 均已有 `MIGRATION_KEY` guard，一次性执行。
+- 过期迁移 `lib/legacy-test-snapshot-purge.ts`、`lib/assetup-storage-migration.ts`（自 `@nest/*` / `@wealth-tracker/*` → `@assetup/*`）均已有 `MIGRATION_KEY` guard，一次性执行。
 
 ### 翻译覆盖补齐
 
@@ -130,7 +130,7 @@ npx vitest run
 ## iOS App Store 提交前 Checklist
 
 - [ ] `app.json` 的 `version` / `ios.buildNumber` 已更新。
-- [ ] RevenueCat 控制台已配置 `nest_pro` Entitlement 并关联订阅商品。
+- [ ] RevenueCat 控制台已配置 `assetup_pro` Entitlement 并关联订阅商品。
 - [ ] App Store Connect 年龄分级、图标（去除 alpha）、Launch Screen 已填写。
 - [ ] 截图中不得包含真人财务数据。
 - [ ] 隐私政策与使用条款 URL 在 `EXPO_PUBLIC_PRIVACY_POLICY_URL` / `EXPO_PUBLIC_TERMS_OF_SERVICE_URL` 已配置。

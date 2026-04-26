@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isValidAssetCurrency } from '@/lib/asset-currency';
 
-const KEY = '@nest/display-currency';
+const KEY = '@assetup/display-currency';
 
 /** ISO 4217，默认 CNY；仅接受当前 App 支持的展示币种 */
 export async function loadDisplayCurrency(): Promise<string> {

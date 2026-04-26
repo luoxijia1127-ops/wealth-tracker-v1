@@ -5,7 +5,7 @@ import {
   isPaletteId,
 } from '@/lib/app-palette';
 
-const KEY = '@nest/palette-id';
+const KEY = '@assetup/palette-id';
 
 export async function loadPaletteId(): Promise<AppPaletteId> {
   try {

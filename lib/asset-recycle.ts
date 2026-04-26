@@ -13,8 +13,8 @@ import {
 } from '@/lib/trade-ledger';
 import { ensureAsset, generateAssetId, type SimpleAsset } from '@/types/asset';
 
-const ARCHIVED_KEY = '@nest/archived-assets-v1';
-const TRASH_KEY = '@nest/deleted-assets-v1';
+const ARCHIVED_KEY = '@assetup/archived-assets-v1';
+const TRASH_KEY = '@assetup/deleted-assets-v1';
 const MAX_ARCHIVED = 80;
 const MAX_TRASH = 50;
 

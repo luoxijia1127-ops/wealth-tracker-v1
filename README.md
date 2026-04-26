@@ -2,7 +2,7 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-## 资产与行情 — 唯一数据源说明（Nest）
+## 资产与行情 — 唯一数据源说明（Assetup）
 
 | 用途 | 位置 |
 |------|------|
@@ -38,7 +38,7 @@ Dashboard 与 Tab 场景底色采用 **sea** 色板：`#B1D4F8` 雾蓝底、`#98
 
 ### 导出 (.zip)
 
-文件名 `nest-backup-YYYYMMDD-HHmm.zip`，明文（未加密）。结构：
+文件名 `assetup-backup-YYYYMMDD-HHmm.zip`，明文（未加密）。结构：
 
 ```
 backup.json           # 换机恢复的唯一数据源；含 schemaVersion、integrity(sha256)
@@ -65,7 +65,7 @@ daily-assets.csv      # 每日逐资产市值
 - **覆盖恢复（推荐）**：四个本地键全部替换为备份里的内容，适合换机。
 - **合并导入**：按 `asset.id` 合并资产（同 id 以备份为准），按日期合并 snapshots / daily，按 recordId 合并归档/回收站，资产内部 `tradeHistory` / `cashLedger` 按条目 id 去重。
 
-写入前会把当前数据打成一份 `nest-pre-import-*.zip` 存到应用缓存目录，执行失败自动回放；成功后也保留该文件，在结果页点「回滚到导入前」可一键恢复。
+写入前会把当前数据打成一份 `assetup-pre-import-*.zip` 存到应用缓存目录，执行失败自动回放；成功后也保留该文件，在结果页点「回滚到导入前」可一键恢复。
 
 > 明文备份包含全部资产与流水，请不要上传到公开云盘或第三方位置。
 

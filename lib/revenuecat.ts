@@ -17,7 +17,7 @@ export function configureRevenueCat(): void {
   if (!key) {
     if (__DEV__) {
       console.warn(
-        '[nest] 未设置 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY，订阅与会员校验不可用'
+        '[assetup] 未设置 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY，订阅与会员校验不可用'
       );
     }
     return;
@@ -28,7 +28,7 @@ export function configureRevenueCat(): void {
     Purchases.configure({ apiKey: key });
     configured = true;
   } catch (e) {
-    console.warn('[nest] RevenueCat configure 失败', e);
+    console.warn('[assetup] RevenueCat configure 失败', e);
   }
 }
 

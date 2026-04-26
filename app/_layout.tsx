@@ -13,7 +13,7 @@ import { PurchasesProvider } from '@/contexts/purchases-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppFont } from '@/lib/app-fonts';
 import { purgeLegacyTestSnapshotDatesOnce } from '@/lib/legacy-test-snapshot-purge';
-import { migrateNestStorageFromWealthTrackerOnce } from '@/lib/nest-storage-migration';
+import { migrateAssetupStorageFromLegacyOnce } from '@/lib/assetup-storage-migration';
 
 // Anchor keeps (tabs) in the background when /modal is presented, so the tab context
 // is preserved and the modal can be dismissed back to it.
@@ -32,7 +32,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     void (async () => {
-      await migrateNestStorageFromWealthTrackerOnce();
+      await migrateAssetupStorageFromLegacyOnce();
       await purgeLegacyTestSnapshotDatesOnce();
     })();
   }, []);

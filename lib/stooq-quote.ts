@@ -10,7 +10,7 @@ import { addCalendarDaysToShanghaiYmd, getShanghaiDateString } from '@/lib/date-
 import { isValidIntlStooqQuoteSymbol } from '@/lib/intl-exchange-stooq';
 
 const STOOQ_UA =
-  'Mozilla/5.0 (compatible; Nest/1.0; +https://stooq.com)';
+  'Mozilla/5.0 (compatible; Assetup/1.0; +https://stooq.com)';
 
 const STOOQ_CSV_HEADERS = {
   Accept: 'text/csv,*/*',

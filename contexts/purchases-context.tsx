@@ -23,7 +23,7 @@ import type { CustomerInfo } from 'react-native-purchases';
 type PurchasesContextValue = {
   /** RevenueCat 已 configure（有 API Key 且成功） */
   ready: boolean;
-  /** 当前是否享有 nest_pro 权益 */
+  /** 当前是否享有 assetup_pro 权益 */
   isPro: boolean;
   refresh: () => Promise<void>;
 };

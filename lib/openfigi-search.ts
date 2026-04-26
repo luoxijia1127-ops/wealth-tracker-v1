@@ -180,7 +180,7 @@ async function fetchOpenFigiSearchRows(
     signal,
     headers: {
       'Content-Type': 'application/json',
-      'User-Agent': 'Nest/1.0',
+      'User-Agent': 'Assetup/1.0',
     },
     body: JSON.stringify({ query: searchQuery }),
   });

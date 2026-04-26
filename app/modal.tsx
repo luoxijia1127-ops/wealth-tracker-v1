@@ -622,7 +622,7 @@ export default function AddModal() {
       router.back();
     } catch (e) {
       if (__DEV__) {
-        console.warn('[nest] 保存资产失败', e);
+        console.warn('[assetup] 保存资产失败', e);
       }
       Alert.alert(t('common.failed'), t('asset.form.saveRetry'));
     } finally {

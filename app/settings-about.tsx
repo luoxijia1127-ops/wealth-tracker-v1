@@ -41,7 +41,7 @@ export default function SettingsAboutScreen() {
         />
         <View style={{ paddingHorizontal: 20 }}>
       <Text style={{ fontSize: 22, fontWeight: '800', color: theme.primary, marginBottom: 8 }}>
-        Nest
+        Assetup
       </Text>
       <Text style={{ fontSize: 14, color: secondary, marginBottom: 20 }}>
         {t('settings.about.tagline')}

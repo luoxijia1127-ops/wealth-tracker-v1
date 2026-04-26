@@ -5,7 +5,7 @@ import {
   type LanguageMode,
 } from '@/lib/language';
 
-const KEY = '@nest/language-mode';
+const KEY = '@assetup/language-mode';
 
 export async function loadLanguageMode(): Promise<LanguageMode> {
   try {

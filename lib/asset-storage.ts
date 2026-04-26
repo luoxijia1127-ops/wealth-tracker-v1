@@ -38,7 +38,7 @@ export async function getAssets(): Promise<SimpleAsset[]> {
     lastGoodAssets = list;
     return list;
   } catch (e) {
-    console.warn('[nest] getAssets 解析失败，使用上次成功缓存或空数组', e);
+    console.warn('[assetup] getAssets 解析失败，使用上次成功缓存或空数组', e);
     return lastGoodAssets ?? [];
   }
 }

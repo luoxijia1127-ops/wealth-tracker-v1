@@ -95,7 +95,7 @@ export const zhCN = {
   'routes.trash': '回收站',
   'routes.cashflowColors': '流水颜色',
 
-  'settings.share.message': '推荐 Nest：本地资产与净值记账。',
+  'settings.share.message': '推荐 Assetup：本地资产与净值记账。',
   'settings.share.failedTitle': '分享失败',
   'settings.share.failedMessage': '请重试。',
   'settings.tiles.market': '市场大盘',
@@ -153,7 +153,7 @@ export const zhCN = {
   'currency.SEK': '瑞典克朗',
   'currency.JPY': '日元',
   'currency.KRW': '韩元',
-  'settings.pro.title': 'Nest Pro',
+  'settings.pro.title': 'Assetup Pro',
   'settings.pro.freeHint': '免费版最多可管理 {limit} 个资产。',
   'settings.pro.active': '已解锁 Pro',
   'settings.pro.upgrade': '升级',
@@ -164,7 +164,7 @@ export const zhCN = {
   'settings.pro.freeAssetHint': '免费版：主列表最多 {limit} 条资产；订阅后可无限添加。',
   'settings.support.feedback': '意见反馈',
   'settings.support.rate': '好评鼓励',
-  'settings.support.rateMessage': '若喜欢 Nest，可在 App Store 搜索应用名并留下评价，感谢支持。',
+  'settings.support.rateMessage': '若喜欢 Assetup，可在 App Store 搜索应用名并留下评价，感谢支持。',
   'settings.currency.description': '用于总览与洞察中的净值汇总与分布分析；各资产仍以各自币种记录，多持仓按中间价折为该货币。',
   'settings.palette.miami': '夏日余晖',
   'settings.palette.sea': '午夜幻梦',
@@ -515,15 +515,15 @@ export const zhCN = {
   'legal.privacy.fallbackHint':
     '完整隐私政策：请在构建时设置环境变量 EXPO_PUBLIC_PRIVACY_POLICY_URL 为你的托管页面地址（https），将在应用内通过 WebView 展示。英文界面可额外设置 EXPO_PUBLIC_PRIVACY_POLICY_URL_EN 指向英文版页面。',
 
-  'legal.terms.docTitle': 'Nest 用户协议',
+  'legal.terms.docTitle': 'Assetup 用户协议',
   'legal.terms.meta':
-    '生效日期：2026年4月5日\n最后更新：2026年4月5日\n运营者：本应用由个人开发者提供。\n联系邮箱：nest_feedback@163.com',
+    '生效日期：2026年4月5日\n最后更新：2026年4月5日\n运营者：本应用由个人开发者提供。\n联系邮箱：assetup_feedback@163.com',
   'legal.terms.s1Title': '一、协议的接受与修订',
   'legal.terms.s1Body':
-    '欢迎使用 Nest（以下简称「本应用」）。当您下载、安装或使用本应用，即表示您已阅读并同意本用户协议（以下简称「本协议」）。若您不同意，请停止使用本应用。\n\n我们可能不时更新本协议；更新后将在应用内或配套页面公示，并可能修订「生效日期」。您在更新后继续使用，即视为接受修订后的协议。',
+    '欢迎使用 Assetup（以下简称「本应用」）。当您下载、安装或使用本应用，即表示您已阅读并同意本用户协议（以下简称「本协议」）。若您不同意，请停止使用本应用。\n\n我们可能不时更新本协议；更新后将在应用内或配套页面公示，并可能修订「生效日期」。您在更新后继续使用，即视为接受修订后的协议。',
   'legal.terms.s2Title': '二、服务说明',
   'legal.terms.s2Body':
-    'Nest 为个人资产记录、净值展示及与市场公开信息相关的辅助工具。本应用按「现状」提供，我们会尽力维护稳定性与数据展示的合理性，但不保证服务持续可用、无中断、无错误，也不保证行情、汇率等第三方数据的实时性、完整性与准确性。',
+    'Assetup 为个人资产记录、净值展示及与市场公开信息相关的辅助工具。本应用按「现状」提供，我们会尽力维护稳定性与数据展示的合理性，但不保证服务持续可用、无中断、无错误，也不保证行情、汇率等第三方数据的实时性、完整性与准确性。',
   'legal.terms.s3Title': '三、非投资建议',
   'legal.terms.s3Body':
     '本应用不构成任何证券、基金、保险或其他投资产品的购买、出售或持有建议，亦不构成财务、税务或法律意见。您应自行判断并承担基于本应用信息所作决策的全部风险与后果。',
@@ -552,7 +552,7 @@ export const zhCN = {
   'legal.terms.s11Body':
     '本协议的订立、效力与解释，以中华人民共和国大陆地区法律为基准（仅为法律适用选择，不视为我们对任何管辖法院的承诺）。若发生争议，双方应友好协商；协商不成的，您可向有管辖权的人民法院提起诉讼。',
   'legal.terms.s12Title': '十二、联系我们',
-  'legal.terms.s12Body': '若对本协议有疑问，请发送邮件至：nest_feedback@163.com。',
+  'legal.terms.s12Body': '若对本协议有疑问，请发送邮件至：assetup_feedback@163.com。',
   'legal.terms.footerNote':
     '提示：以上为便于理解的草案，正式上架前建议结合产品与司法辖区由专业人士审阅。',
 
@@ -596,7 +596,7 @@ export const zhCN = {
   'attribution.close': '关闭',
   'attribution.noDaySummary': '该日暂无汇总数据',
 
-  'paywall.title': '解锁 Nest Pro',
+  'paywall.title': '解锁 Assetup Pro',
   'paywall.restore': '恢复购买',
   'paywall.continue': '继续',
   'paywall.monthly': '月度',
@@ -614,7 +614,7 @@ export const zhCN = {
   'paywall.restoreSuccessTitle': '已恢复购买',
   'paywall.restoreSuccessMessage': '若您曾订阅，权益应已生效。',
   'paywall.restoreFailedTitle': '恢复失败',
-  'paywall.member': 'Nest 会员',
+  'paywall.member': 'Assetup 会员',
   'paywall.description': '免费版可在主列表添加最多 {limit} 个资产；订阅后不限数量。行情、洞察等功能对所有用户开放。',
   'paywall.autoRenew': '自动续订',
   'paywall.footer': '订阅将通过 Apple ID 计费，如不取消将在当期结束前 24 小时内自动续费。订阅可在「设置 › Apple ID › 订阅」中随时管理或取消。购买前请阅读 App Store 上的产品说明、价格与周期。',

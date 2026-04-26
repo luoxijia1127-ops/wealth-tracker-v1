@@ -6,6 +6,7 @@ import { SettingsGridTile } from '@/components/settings-grid-tile';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
 import { usePurchasesEntitlement } from '@/contexts/purchases-context';
+import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -14,7 +15,6 @@ import type { ComponentProps } from 'react';
 import { useCallback, useMemo } from 'react';
 import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 
 type Tile = {
   id: string;
@@ -45,7 +45,7 @@ export default function SettingsScreen() {
     try {
       await Share.share({
         message: t('settings.share.message'),
-        title: 'Nest',
+        title: 'Assetup',
       });
     } catch {
       Alert.alert(t('settings.share.failedTitle'), t('settings.share.failedMessage'));
@@ -131,7 +131,7 @@ export default function SettingsScreen() {
               adjustsFontSizeToFit
               minimumFontScale={0.75}
             >
-              DAYBREAK
+              ASSETUP
             </Text>
             <Pressable
               accessibilityRole="button"

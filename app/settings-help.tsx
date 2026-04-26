@@ -11,7 +11,7 @@ import { useCallback, useMemo } from 'react';
 import { Linking, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const FEEDBACK_EMAIL = 'nest_feedback@163.com';
+const FEEDBACK_EMAIL = 'assetup_feedback@163.com';
 
 export default function SettingsHelpScreen() {
   const insets = useSafeAreaInsets();

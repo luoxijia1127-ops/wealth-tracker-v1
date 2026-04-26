@@ -10,7 +10,7 @@ import {
   type MarketQuoteResult,
 } from '@/lib/market-quotes';
 
-const STORAGE_KEY = '@nest/market-quotes-cache-v1';
+const STORAGE_KEY = '@assetup/market-quotes-cache-v1';
 
 type CachedRow = {
   id: string;

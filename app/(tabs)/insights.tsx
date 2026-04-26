@@ -12,12 +12,11 @@ import { InsightsTrendChart } from '@/components/insights/insights-trend-tab';
 import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
+import { getAssets } from '@/lib/asset-storage';
 import { formatMoney, formatMoneyDisplayParts } from '@/lib/asset-value';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import { loadDisplayCurrency } from '@/lib/display-currency-preference';
-import type { TranslationKey } from '@/lib/language';
-import { numberSingleLineTextProps } from '@/lib/numeric-display-one-line';
 import { themeFinanceDeltaColor } from '@/lib/finance-colors';
 import {
   getCachedFxUsdRates,
@@ -25,8 +24,7 @@ import {
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import {
-  buildAggregatedGoalRows,
-  type GoalProgressDisplayRow,
+  buildAggregatedGoalRows
 } from '@/lib/goal-aggregate';
 import {
   buildDonutSlices,
@@ -42,15 +40,14 @@ import {
   type TrendCustomRange,
   type TrendTimeframe,
 } from '@/lib/insights-model';
-import { computeAllReturnMetrics, isPlottableMetric } from '@/lib/investment-return-metrics';
 import { createInsightsStyles } from '@/lib/insights-styles';
+import { computeAllReturnMetrics, isPlottableMetric } from '@/lib/investment-return-metrics';
+import type { TranslationKey } from '@/lib/language';
 import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
-import { getAssets } from '@/lib/asset-storage';
+import { numberSingleLineTextProps } from '@/lib/numeric-display-one-line';
 import { getSnapshots, type Snapshot } from '@/lib/snapshots';
 import type { AssetCategory, SimpleAsset } from '@/types/asset';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -436,7 +433,7 @@ export default function Insights() {
             adjustsFontSizeToFit
             minimumFontScale={0.35}
           >
-            DAYBREAK
+            ASSETUP
           </Text>
           <View style={styles.heroNetWorthFooter}>
             <Text style={styles.heroMetricLabel}>{t('insights.totalValue')}</Text>

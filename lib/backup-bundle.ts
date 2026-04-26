@@ -60,8 +60,8 @@ import {
 } from '@/types/asset';
 
 /** 归档/回收站键（与 lib/asset-recycle.ts 保持一致） */
-const ARCHIVED_KEY = '@nest/archived-assets-v1';
-const TRASH_KEY = '@nest/deleted-assets-v1';
+const ARCHIVED_KEY = '@assetup/archived-assets-v1';
+const TRASH_KEY = '@assetup/deleted-assets-v1';
 
 export const BACKUP_SCHEMA_VERSION = 1;
 
@@ -85,9 +85,12 @@ export type BackupCounts = {
   cashEntries: number;
 };
 
+/** 备份内 app 字段：新包为 assetup；旧版导出 app 为 nest 的备份仍可解析导入 */
+export type BackupPayloadAppId = 'assetup' | 'nest';
+
 export type BackupPayload = {
   schemaVersion: number;
-  app: 'nest';
+  app: BackupPayloadAppId;
   appVersion?: string;
   exportedAt: string;
   platform?: string;
@@ -240,7 +243,7 @@ export async function collectBackupData(): Promise<
 
   return {
     schemaVersion: BACKUP_SCHEMA_VERSION,
-    app: 'nest',
+    app: 'assetup',
     appVersion:
       typeof Constants.expoConfig?.version === 'string'
         ? Constants.expoConfig.version
@@ -363,7 +366,7 @@ function dailyAssetsCsv(list: AssetDailySnapshot[]): string {
 
 function readmeText(payload: Omit<BackupPayload, 'integrity'>): string {
   const lines = [
-    'Nest 本地备份 (schemaVersion=' + payload.schemaVersion + ')',
+    'Assetup 本地备份 (schemaVersion=' + payload.schemaVersion + ')',
     '',
     '导出时间: ' + payload.exportedAt,
     '平台: ' + (payload.platform ?? '-'),
@@ -382,7 +385,7 @@ function readmeText(payload: Omit<BackupPayload, 'integrity'>): string {
     '  archived / trash    归档与最近删除记录（含原资产快照）',
     '',
     '恢复方法:',
-    '  1) 在新设备上安装 Nest',
+    '  1) 在新设备上安装 Assetup',
     '  2) 打开「设置 -> 数据 -> 导入备份」',
     '  3) 选择本 zip 文件，确认「覆盖恢复（推荐换机场景）」',
     '',
@@ -433,7 +436,7 @@ export async function parseBackupZip(
   }
   const jsonBytes = entries['backup.json'];
   if (!jsonBytes) {
-    throw new Error('zip 内缺少 backup.json，无法识别为 Nest 备份');
+    throw new Error('zip 内缺少 backup.json，无法识别为 Assetup 备份');
   }
   const jsonText = strFromU8(jsonBytes);
   return parseBackupJson(jsonText);
@@ -511,9 +514,13 @@ export async function parseBackupJson(
     cashEntries,
   };
 
+  const rawApp = o.app;
+  const resolvedApp: BackupPayloadAppId =
+    rawApp === 'nest' || rawApp === 'assetup' ? rawApp : 'assetup';
+
   const payload: BackupPayload = {
     schemaVersion,
-    app: 'nest',
+    app: resolvedApp,
     appVersion: typeof o.appVersion === 'string' ? o.appVersion : undefined,
     exportedAt:
       typeof o.exportedAt === 'string' ? o.exportedAt : new Date().toISOString(),
@@ -694,7 +701,7 @@ async function writeAllFromPayload(p: BackupPayload): Promise<void> {
 async function saveRollbackZip(bytes: Uint8Array): Promise<string> {
   const cacheDir = FileSystem.cacheDirectory;
   if (!cacheDir) throw new Error('cacheDirectory 不可用，无法保存回滚快照');
-  const uri = `${cacheDir}nest-pre-import-${Date.now()}.zip`;
+  const uri = `${cacheDir}assetup-pre-import-${Date.now()}.zip`;
   const b64 = u8ToBase64(bytes);
   await FileSystem.writeAsStringAsync(uri, b64, {
     encoding: FileSystem.EncodingType.Base64,
@@ -735,7 +742,7 @@ export async function applyBackupPayload(
 
   const nextPayload: BackupPayload = {
     schemaVersion: BACKUP_SCHEMA_VERSION,
-    app: 'nest',
+    app: 'assetup',
     appVersion: current.appVersion,
     exportedAt: current.exportedAt,
     platform: current.platform,
@@ -762,7 +769,7 @@ export async function applyBackupPayload(
       await writeAllFromPayload({
         ...current,
         schemaVersion: BACKUP_SCHEMA_VERSION,
-        app: 'nest',
+        app: 'assetup',
       } as BackupPayload);
     } catch {
       /* 回滚失败时保留已保存的 rollback zip 作为最后防线 */
@@ -852,7 +859,7 @@ export function defaultBackupFileName(): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   const ymd = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
   const hm = `${pad(d.getHours())}${pad(d.getMinutes())}`;
-  return `nest-backup-${ymd}-${hm}.zip`;
+  return `assetup-backup-${ymd}-${hm}.zip`;
 }
 
 /** 方便导入页复用的 storage 键常量（便于将来扩展） */

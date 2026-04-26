@@ -99,7 +99,7 @@ export const enUS: Record<TranslationKey, string> = {
   'routes.trash': 'Trash',
   'routes.cashflowColors': 'Cash Flow Colors',
 
-  'settings.share.message': 'Try Nest: local asset and net-worth tracking.',
+  'settings.share.message': 'Try Assetup: local asset and net-worth tracking.',
   'settings.share.failedTitle': 'Share Failed',
   'settings.share.failedMessage': 'Please try again.',
   'settings.tiles.market': 'Markets',
@@ -157,7 +157,7 @@ export const enUS: Record<TranslationKey, string> = {
   'currency.SEK': 'Swedish Krona',
   'currency.JPY': 'Japanese Yen',
   'currency.KRW': 'Korean Won',
-  'settings.pro.title': 'Nest Pro',
+  'settings.pro.title': 'Assetup Pro',
   'settings.pro.freeHint': 'Free plan supports up to {limit} assets.',
   'settings.pro.active': 'Pro unlocked',
   'settings.pro.upgrade': 'Upgrade',
@@ -168,7 +168,7 @@ export const enUS: Record<TranslationKey, string> = {
   'settings.pro.freeAssetHint': 'Free plan: up to {limit} assets in the main list; subscribe to add unlimited assets.',
   'settings.support.feedback': 'Feedback',
   'settings.support.rate': 'Rate',
-  'settings.support.rateMessage': 'If you enjoy Nest, search for it in the App Store and leave a review. Thank you for the support.',
+  'settings.support.rateMessage': 'If you enjoy Assetup, search for it in the App Store and leave a review. Thank you for the support.',
   'settings.currency.description': 'Used for net-worth summaries and allocation analysis in Dashboard and Insights. Individual assets keep their own currencies; mixed holdings are converted with mid rates.',
   'settings.palette.miami': 'Miami',
   'settings.palette.sea': 'Midnight',
@@ -466,7 +466,7 @@ export const enUS: Record<TranslationKey, string> = {
   'export.to': 'to',
   'export.rowCount': 'About {count} transactions in this range (cash changes and listed trades).',
   'export.csvWebHint': 'The browser will download a UTF-8 CSV file that opens in Excel.',
-  'export.csvNativeHint': 'The system share sheet will send a UTF-8 .csv file; if file sharing is unavailable, Nest will fall back to plain text.',
+  'export.csvNativeHint': 'The system share sheet will send a UTF-8 .csv file; if file sharing is unavailable, Assetup will fall back to plain text.',
   'export.csvNote': 'Note: CSV is for review only and cannot restore data. Use Full Backup (.zip) for device migration.',
   'import.title': 'Import Backup',
   'import.pickFile': 'Choose Backup File',
@@ -515,15 +515,15 @@ export const enUS: Record<TranslationKey, string> = {
   'legal.privacy.fallbackHint':
     'Full policy: set EXPO_PUBLIC_PRIVACY_POLICY_URL to your hosted HTTPS page for in-app WebView. For English UI, optionally set EXPO_PUBLIC_PRIVACY_POLICY_URL_EN to an English version.',
 
-  'legal.terms.docTitle': 'Nest Terms of Service',
+  'legal.terms.docTitle': 'Assetup Terms of Service',
   'legal.terms.meta':
-    'Effective: April 5, 2026\nLast updated: April 5, 2026\nOperator: provided by an individual developer.\nContact: nest_feedback@163.com',
+    'Effective: April 5, 2026\nLast updated: April 5, 2026\nOperator: provided by an individual developer.\nContact: assetup_feedback@163.com',
   'legal.terms.s1Title': '1. Acceptance and changes',
   'legal.terms.s1Body':
-    'Welcome to Nest (“the App”). By downloading, installing, or using the App, you acknowledge that you have read and agree to these Terms of Service (“Terms”). If you do not agree, do not use the App.\n\nWe may update these Terms from time to time. Updates will be shown in the App or on linked pages, and the “effective date” may change. Continued use after an update means you accept the revised Terms.',
+    'Welcome to Assetup (“the App”). By downloading, installing, or using the App, you acknowledge that you have read and agree to these Terms of Service (“Terms”). If you do not agree, do not use the App.\n\nWe may update these Terms from time to time. Updates will be shown in the App or on linked pages, and the “effective date” may change. Continued use after an update means you accept the revised Terms.',
   'legal.terms.s2Title': '2. Description of service',
   'legal.terms.s2Body':
-    'Nest is a personal tool for recording assets, viewing net worth, and related helpers using public market information. The App is provided “as is.” We strive for reasonable stability and presentation but do not guarantee uninterrupted, error-free service, nor the timeliness, completeness, or accuracy of third-party quotes or FX data.',
+    'Assetup is a personal tool for recording assets, viewing net worth, and related helpers using public market information. The App is provided “as is.” We strive for reasonable stability and presentation but do not guarantee uninterrupted, error-free service, nor the timeliness, completeness, or accuracy of third-party quotes or FX data.',
   'legal.terms.s3Title': '3. Not investment advice',
   'legal.terms.s3Body':
     'Nothing in the App constitutes a recommendation to buy, sell, or hold any security, fund, insurance, or other product, nor financial, tax, or legal advice. You are solely responsible for decisions based on information in the App.',
@@ -552,7 +552,7 @@ export const enUS: Record<TranslationKey, string> = {
   'legal.terms.s11Body':
     'These Terms are governed by the laws of mainland China for interpretive purposes only (not a commitment to any specific court). Disputes should first be resolved amicably; if that fails, you may bring a suit to a competent people’s court with jurisdiction.',
   'legal.terms.s12Title': '12. Contact',
-  'legal.terms.s12Body': 'Questions about these Terms: nest_feedback@163.com.',
+  'legal.terms.s12Body': 'Questions about these Terms: assetup_feedback@163.com.',
   'legal.terms.footerNote':
     'Note: this is a plain-language draft for convenience. Have qualified counsel review before release for your product and jurisdictions.',
 
@@ -596,7 +596,7 @@ export const enUS: Record<TranslationKey, string> = {
   'attribution.close': 'Close',
   'attribution.noDaySummary': 'No summary data for this day',
 
-  'paywall.title': 'Unlock Nest Pro',
+  'paywall.title': 'Unlock Assetup Pro',
   'paywall.restore': 'Restore Purchase',
   'paywall.continue': 'Continue',
   'paywall.monthly': 'Monthly',
@@ -614,7 +614,7 @@ export const enUS: Record<TranslationKey, string> = {
   'paywall.restoreSuccessTitle': 'Purchases Restored',
   'paywall.restoreSuccessMessage': 'If you had an active subscription, your entitlement should now be active.',
   'paywall.restoreFailedTitle': 'Restore Failed',
-  'paywall.member': 'Nest Membership',
+  'paywall.member': 'Assetup Membership',
   'paywall.description': 'Free plan supports up to {limit} assets in the main list. Subscribe for unlimited assets. Quotes and Insights remain available to all users.',
   'paywall.autoRenew': 'auto-renews',
   'paywall.footer': 'Subscriptions are billed through your Apple ID and auto-renew within 24 hours before the end of the current period unless canceled. You can manage or cancel at any time under Settings › Apple ID › Subscriptions. Review App Store product details (price, period, features) before purchasing.',

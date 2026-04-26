@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Nest",
-    "slug": "nest",
+    "name": "Assetup",
+    "slug": "assetup",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "nest",
+    "scheme": "assetup",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.xiga.nest",
+      "bundleIdentifier": "com.xiga.assetup",
       "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
@@ -40,6 +40,7 @@
       }
     },
     "android": {
+      "package": "com.xiga.assetup",
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
