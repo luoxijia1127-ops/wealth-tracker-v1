@@ -17,6 +17,7 @@ export type SettingsGridTileProps = {
   variant?: 'tool' | 'secondary' | 'list';
   color?: string;
   textColor?: string;
+  disabled?: boolean;
 };
 
 export function SettingsGridTile({
@@ -27,6 +28,7 @@ export function SettingsGridTile({
   variant = 'tool',
   color,
   textColor,
+  disabled = false,
 }: SettingsGridTileProps) {
   const p = theme.primary;
   const isList = variant === 'list';
@@ -39,9 +41,10 @@ export function SettingsGridTile({
         accessibilityRole="button"
         accessibilityLabel={label}
         onPress={onPress}
+        disabled={disabled}
         style={({ pressed }) => [
           styles.listRow,
-          pressed && styles.pressed,
+          (pressed || disabled) && styles.pressed,
         ]}
       >
         <MaterialIcons name={icon} size={22} color={p} style={{ width: 36 }} />
@@ -56,10 +59,11 @@ export function SettingsGridTile({
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.compactTile,
         isSecondary && styles.secondaryTile,
-        pressed && styles.pressed,
+        (pressed || disabled) && styles.pressed,
       ]}
     >
       <View

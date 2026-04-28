@@ -13,7 +13,7 @@ import { getTermsOfServiceUrlForLocale } from '@/lib/terms-of-service-url';
 import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Purchases, { type PurchasesPackage } from 'react-native-purchases';
+import Purchases, { PACKAGE_TYPE, type PurchasesPackage } from 'react-native-purchases';
 import {
   ActivityIndicator,
   Alert,
@@ -163,32 +163,42 @@ export default function PaywallScreen() {
         </Text>
       ) : null}
 
-      {packages.map((pkg) => (
-        <Pressable
-          key={pkg.identifier}
-          onPress={() => void onPurchase(pkg)}
-          disabled={!!purchasingId}
-          style={({ pressed }) => ({
-            paddingVertical: 16,
-            paddingHorizontal: 18,
-            borderRadius: 16,
-            backgroundColor: rgbaFromHex(theme.primary, 0.12),
-            marginBottom: 10,
-            opacity: pressed || purchasingId ? 0.85 : 1,
-          })}
-        >
-          <Text style={{ fontSize: 17, fontWeight: '700', color: theme.primary }}>
-            {pkg.product.title}
-          </Text>
-          <Text style={{ fontSize: 15, color: secondary, marginTop: 4 }}>
-            {pkg.product.priceString}
-            {` · ${t('paywall.autoRenew')}`}
-          </Text>
-          {purchasingId === pkg.identifier ? (
-            <ActivityIndicator style={{ marginTop: 8 }} color={theme.primary} />
-          ) : null}
-        </Pressable>
-      ))}
+      {packages.map((pkg) => {
+        const isLifetime = pkg.packageType === PACKAGE_TYPE.LIFETIME;
+        return (
+          <Pressable
+            key={pkg.identifier}
+            onPress={() => void onPurchase(pkg)}
+            disabled={!!purchasingId}
+            style={({ pressed }) => ({
+              paddingVertical: 16,
+              paddingHorizontal: 18,
+              borderRadius: 16,
+              backgroundColor: rgbaFromHex(theme.primary, 0.12),
+              marginBottom: 10,
+              opacity: pressed || purchasingId ? 0.85 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 17, fontWeight: '700', color: theme.primary }}>
+              {pkg.product.title}
+            </Text>
+            <Text style={{ fontSize: 15, color: secondary, marginTop: 4 }}>
+              {pkg.product.priceString}
+              {isLifetime
+                ? ` · ${t('paywall.lifetimeOneTime')}`
+                : ` · ${t('paywall.autoRenew')}`}
+            </Text>
+            {isLifetime ? (
+              <Text style={{ fontSize: 13, color: muted, marginTop: 2 }}>
+                {t('paywall.lifetimeNoRenew')}
+              </Text>
+            ) : null}
+            {purchasingId === pkg.identifier ? (
+              <ActivityIndicator style={{ marginTop: 8 }} color={theme.primary} />
+            ) : null}
+          </Pressable>
+        );
+      })}
 
       <Pressable
         onPress={() => void onRestore()}
