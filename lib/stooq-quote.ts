@@ -19,15 +19,8 @@ const STOOQ_CSV_HEADERS = {
   'User-Agent': STOOQ_UA,
 } as const;
 
-/**
- * Stooq 轻量请求（q/l 单行、带 d1/d2 的有界日 K）：弱网下略放宽，与 quote-refresh 外层 8s 对齐。
- */
-const STOOQ_QUICK_TIMEOUT_MS = 8000;
-
-/**
- * 无 d1/d2 的 `q/d/l` 全历史日 K：响应体大、RTT 长；5s 在大陆网络下极易超时导致「选中 aapl.us 但不回填单价」。
- */
-const STOOQ_UNBOUNDED_DAILY_TIMEOUT_MS = 22_000;
+/** 联想/取价路径上的快失败窗口；外层（quote-refresh）仍有 8s 兜底 */
+const STOOQ_TIMEOUT_MS = 5000;
 
 export type StooqQuoteRow = {
   close: number;
@@ -118,7 +111,7 @@ async function fetchStooqLatestDailyBar(
   try {
     const res = await fetchWithTimeout(url, {
       parentSignal: signal,
-      timeoutMs: STOOQ_QUICK_TIMEOUT_MS,
+      timeoutMs: STOOQ_TIMEOUT_MS,
       headers: STOOQ_CSV_HEADERS,
     });
     if (!res.ok) return null;
@@ -139,7 +132,7 @@ async function fetchStooqQuoteForSymbolOnce(
   try {
     const res = await fetchWithTimeout(url, {
       parentSignal: signal,
-      timeoutMs: STOOQ_QUICK_TIMEOUT_MS,
+      timeoutMs: STOOQ_TIMEOUT_MS,
       headers: STOOQ_CSV_HEADERS,
     });
     if (!res.ok) return null;
@@ -183,7 +176,7 @@ export async function fetchStooqForexSpotLatest(
   try {
     const res = await fetchWithTimeout(url, {
       parentSignal: signal,
-      timeoutMs: STOOQ_QUICK_TIMEOUT_MS,
+      timeoutMs: STOOQ_TIMEOUT_MS,
       headers: { ...STOOQ_CSV_HEADERS },
     });
     if (!res.ok) return null;
@@ -208,7 +201,7 @@ async function fetchStooqCloseOnOrBeforeOne(
   try {
     const res = await fetchWithTimeout(url, {
       parentSignal: signal,
-      timeoutMs: STOOQ_UNBOUNDED_DAILY_TIMEOUT_MS,
+      timeoutMs: STOOQ_TIMEOUT_MS,
       headers: STOOQ_CSV_HEADERS,
     });
     if (!res.ok) return null;

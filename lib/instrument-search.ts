@@ -204,30 +204,6 @@ function dedupeIntlRows(a: IntlSuggestRow[], b: IntlSuggestRow[]): IntlSuggestRo
   return out;
 }
 
-/**
- * 典型美股代码（2–5 位纯字母）：若合并结果里还没有 `ticker.us`，在列表最前插入一条占位联想。
- *
- * 背景：OpenFIGI 对 "aapl" 常返回 APLY / AAPW 等模糊命中；Stooq `fetchStooqQuote(aapl.us)` 在弱网或 5s
- * 超时失败时，用户完全看不到 `aapl.us`。占位项让用户能选到正确符号；参考价仍由后续 Stooq/东财校验。
- */
-export function prependExactUsTickerIfMissing(
-  query: string,
-  rows: IntlSuggestRow[]
-): IntlSuggestRow[] {
-  const compact = query.trim().replace(/\s+/g, '');
-  if (!/^[A-Za-z]{2,5}$/.test(compact)) return rows;
-  const sym = usTickerToStooq(compact).toLowerCase();
-  if (rows.some((r) => r.intlQuoteSymbol.toLowerCase() === sym)) return rows;
-  const codeDisp = compact.toUpperCase();
-  const syn: IntlSuggestRow = {
-    code: codeDisp,
-    name: codeDisp,
-    exchange: 'US',
-    intlQuoteSymbol: sym,
-  };
-  return [syn, ...rows];
-}
-
 export async function searchUnifiedInstruments(
   query: string,
   signal?: AbortSignal
@@ -242,10 +218,7 @@ export async function searchUnifiedInstruments(
   ]);
 
   /** OpenFIGI 在前：避免短 ticker 的 Stooq 美股探测（如 BATS→bats.us）盖住用户更可能要的英欧联想 */
-  const mergedIntl = prependExactUsTickerIfMissing(
-    q,
-    dedupeIntlRows(figiIntl, stooqIntl)
-  );
+  const mergedIntl = dedupeIntlRows(figiIntl, stooqIntl);
 
   const out: UnifiedSuggestItem[] = [];
   for (const e of em) {
