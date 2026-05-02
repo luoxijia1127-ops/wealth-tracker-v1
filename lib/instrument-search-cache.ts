@@ -1,12 +1,13 @@
 /**
  * 联想结果会话内 LRU + TTL 缓存。
  *
- * 解决：用户输入 "AA"→"AAP"→"AAPL" 时，每次都打三源（东财 / OpenFIGI / Stooq 探测），
+ * 解决：用户输入 "AA"→"AAP"→"AAPL" 时，每次都打多源（东财 + 国际联想），
  * 浪费请求且让"输入到下拉"延迟不可预测。
  *
  * 命中后同步返回浅拷贝，避免外层修改污染缓存。
  */
 
+import { intlProviderCacheKeyPrefix } from '@/lib/intl-provider';
 import {
   searchUnifiedInstruments as _searchUnifiedInstruments,
   type UnifiedSuggestItem,
@@ -36,8 +37,10 @@ function makeState(
 
 const state: CacheState = makeState();
 
-function normalizeKey(query: string): string {
-  return query.trim().toLowerCase();
+function normalizeKey(query: string): string | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+  return intlProviderCacheKeyPrefix() + q;
 }
 
 export function getCachedSuggestions(
@@ -45,7 +48,7 @@ export function getCachedSuggestions(
   now: number = Date.now()
 ): UnifiedSuggestItem[] | null {
   const key = normalizeKey(query);
-  if (!key) return null;
+  if (key === null) return null;
   const entry = state.store.get(key);
   if (!entry) return null;
   if (entry.expireAt <= now) {
@@ -64,7 +67,7 @@ export function setCachedSuggestions(
   now: number = Date.now()
 ): void {
   const key = normalizeKey(query);
-  if (!key) return;
+  if (key === null) return;
   state.store.set(key, {
     items: items.slice(),
     expireAt: now + state.ttlMs,

@@ -1,5 +1,5 @@
 /**
- * 行情刷新：A 股东财 push2 + 日 K；场外基金 F10；国际上市 Stooq；贵金属参考价（按品种）。
+ * 行情刷新：A 股东财 push2 + 日 K；场外基金 F10；国际上市 Twelve（经代理）或 legacy Stooq；贵金属参考价（按品种）。
  */
 
 import { isInternationalListedAsset } from '@/lib/asset-value';
@@ -14,6 +14,14 @@ import { fetchOtcFundLatestNav } from '@/lib/eastmoney-fund-nav';
 import { fetchPush2LastPrice } from '@/lib/eastmoney-push';
 import { toEastMoneySecid } from '@/lib/eastmoney-secid';
 import { fetchPreciousMetalCnyPerGram } from '@/lib/precious-metal-quote';
+import {
+  isIntlStooqFallbackEnabled,
+  isTwelveIntlProviderEnabled,
+} from '@/lib/intl-provider';
+import {
+  fetchTwelveQuoteViaProxy,
+  type TwelveQuoteOk,
+} from '@/lib/market-proxy-client';
 import { fetchStooqQuote } from '@/lib/stooq-quote';
 import { getAssets, saveAssets } from '@/lib/asset-storage';
 import {
@@ -30,11 +38,21 @@ function listedEastMoneySecid(a: SimpleAsset): string {
   return toEastMoneySecid(a.exchange as ChinaExchange, a.symbol!.trim());
 }
 
+function assetHasTwelveKeys(a: SimpleAsset): boolean {
+  return (
+    typeof a.twelveDataSymbol === 'string' &&
+    a.twelveDataSymbol.trim().length > 0 &&
+    typeof a.twelveDataMic === 'string' &&
+    a.twelveDataMic.trim().length > 0
+  );
+}
+
 function isEmQuoteEligibleListedAsset(a: SimpleAsset): boolean {
   if (!isListedAssetCategory(a.category)) return false;
   if (typeof a.intlQuoteSymbol === 'string' && a.intlQuoteSymbol.trim().length > 0) {
     return false;
   }
+  if (assetHasTwelveKeys(a)) return false;
   if (typeof a.shares !== 'number' || a.shares <= 0) return false;
   const em = typeof a.emSecid === 'string' ? a.emSecid.trim() : '';
   if (em.length > 0 && /^\d+\.\d+$/.test(em)) return true;
@@ -49,10 +67,10 @@ function isEmQuoteEligibleListedAsset(a: SimpleAsset): boolean {
 }
 
 function isIntlQuoteEligibleListedAsset(a: SimpleAsset): boolean {
+  if (!isInternationalListedAsset(a)) return false;
+  if (isTwelveIntlProviderEnabled() && assetHasTwelveKeys(a)) return true;
   return (
-    isInternationalListedAsset(a) &&
-    typeof a.intlQuoteSymbol === 'string' &&
-    a.intlQuoteSymbol.trim().length > 0
+    typeof a.intlQuoteSymbol === 'string' && a.intlQuoteSymbol.trim().length > 0
   );
 }
 
@@ -101,6 +119,29 @@ function mergeListedQuotes(
     markPriceDate,
     lastClose,
     lastCloseDate,
+  };
+  const unit = getListedUnitPrice(next);
+  if (unit !== null && typeof a.shares === 'number') {
+    return {
+      ...next,
+      value: a.shares * unit,
+      currency: listingCurrencyForMerge(a),
+    };
+  }
+  return next;
+}
+
+function mergeTwelveQuote(a: SimpleAsset, row: TwelveQuoteOk): SimpleAsset {
+  const d =
+    typeof row.tradeDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(row.tradeDate)
+      ? row.tradeDate.slice(0, 10)
+      : getShanghaiDateString();
+  const next: SimpleAsset = {
+    ...a,
+    markPrice: row.close,
+    markPriceDate: d,
+    lastClose: row.close,
+    lastCloseDate: d,
   };
   const unit = getListedUnitPrice(next);
   if (unit !== null && typeof a.shares === 'number') {
@@ -219,11 +260,42 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
     })
   );
 
-  const uniqueStooq = [
-    ...new Set(
-      intlListed.map((a) => a.intlQuoteSymbol!.trim().toLowerCase())
-    ),
-  ];
+  const twelveEnabled = isTwelveIntlProviderEnabled();
+  const twelveKeysList = intlListed
+    .filter((a) => twelveEnabled && assetHasTwelveKeys(a))
+    .map(
+      (a) =>
+        `${a.twelveDataSymbol!.trim()}|${a.twelveDataMic!.trim().toUpperCase()}`
+    );
+  const uniqueTwelve = [...new Set(twelveKeysList)];
+
+  const twelvePack = new Map<string, TwelveQuoteOk | null>();
+  await Promise.all(
+    uniqueTwelve.map(async (k) => {
+      const [sym, mic] = k.split('|');
+      if (!sym || !mic) return;
+      const row = await withTimeout(8000, (signal) => {
+        return fetchTwelveQuoteViaProxy(sym, mic, signal).then((r) =>
+          r.ok ? r : null
+        );
+      });
+      twelvePack.set(k, row);
+    })
+  );
+
+  const needStooqSymbols = intlListed.flatMap((a) => {
+    if (!twelveEnabled || !assetHasTwelveKeys(a)) {
+      const s = a.intlQuoteSymbol?.trim().toLowerCase();
+      return s ? [s] : [];
+    }
+    const k = `${a.twelveDataSymbol!.trim()}|${a.twelveDataMic!.trim().toUpperCase()}`;
+    if (!isIntlStooqFallbackEnabled()) return [];
+    if (twelvePack.get(k)) return [];
+    const s = a.intlQuoteSymbol?.trim().toLowerCase();
+    return s ? [s] : [];
+  });
+
+  const uniqueStooq = [...new Set(needStooqSymbols)];
   const stooqPack = new Map<string, Awaited<ReturnType<typeof fetchStooqQuote>>>();
   await Promise.all(
     uniqueStooq.map(async (sym) => {
@@ -242,6 +314,21 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
       return mergeListedQuotes(a, pack.push, pack.kline);
     }
     if (isIntlQuoteEligibleListedAsset(a)) {
+      if (twelveEnabled && assetHasTwelveKeys(a)) {
+        const k = `${a.twelveDataSymbol!.trim()}|${a.twelveDataMic!.trim().toUpperCase()}`;
+        const trow = twelvePack.get(k);
+        if (trow) return mergeTwelveQuote(a, trow);
+        if (
+          isIntlStooqFallbackEnabled() &&
+          typeof a.intlQuoteSymbol === 'string' &&
+          a.intlQuoteSymbol.trim().length > 0
+        ) {
+          const sym = a.intlQuoteSymbol.trim().toLowerCase();
+          const row = stooqPack.get(sym);
+          if (row) return mergeStooqQuote(a, row);
+        }
+        return a;
+      }
       const sym = a.intlQuoteSymbol!.trim().toLowerCase();
       const row = stooqPack.get(sym);
       if (!row) return a;

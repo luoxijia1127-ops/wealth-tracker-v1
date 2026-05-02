@@ -111,7 +111,7 @@
         <h1>隐私政策</h1>
         <p class="meta">
           <strong>生效日期：</strong>2026年4月5日<br />
-          <strong>最后更新：</strong>2026年4月5日<br />
+          <strong>最后更新：</strong>2026年5月2日<br />
           <strong>运营者：</strong>Assetup 应用由个人开发者运营（以下简称「我们」）。<br />
           <strong>联系我们：</strong
           ><a href="mailto:assetup_feedback@163.com">assetup_feedback@163.com</a>
@@ -152,13 +152,18 @@
             <strong>东方财富（eastmoney.com）</strong>：A 股 / 港股 / 基金即时行情、历史日 K、标的联想，以及基金净值查询；
           </li>
           <li>
-            <strong>Stooq（stooq.com）</strong>：国际上市标的（美/欧/亚）日级行情与外汇参考报价；
+            <strong>Stooq（stooq.com）</strong>：在未启用自建代理或兜底模式下，用于国际上市标的（美/欧/亚）日级行情与外汇参考报价；
           </li>
           <li>
             <strong>Frankfurter（api.frankfurter.app）</strong>：欧洲央行美元/主要货币汇率（可通过 EXPO_PUBLIC_FX_URL 配置替代地址）；
           </li>
           <li>
-            <strong>OpenFIGI（api.openfigi.com）</strong>：国际证券代码 / 交易所映射搜索；
+            <strong>OpenFIGI（api.openfigi.com）</strong>：在未启用自建国际行情代理时，用于国际证券代码 / 交易所映射搜索；
+          </li>
+          <li>
+            <strong>自建行情代理（例如部署在 Vercel 上的 *.vercel.app 或您绑定的自定义域）</strong>：当您或发行方在构建配置中填写
+            <code>EXPO_PUBLIC_MARKET_PROXY_ORIGIN</code> 时，应用仅向该域名请求国际标的联想与报价；该代理服务端可能再请求
+            <strong>Twelve Data（api.twelvedata.com）</strong> 等上游，Twelve 的 API Key 由代理托管、不会内嵌在 App 安装包中；
           </li>
           <li>
             <strong>招商银行黄金报价页（cmb-mobile-web.paas.cmbchina.com）</strong>：公开页面抓取人民币金价参考；
@@ -232,7 +237,7 @@
         <h1>Privacy Policy</h1>
         <p class="meta">
           <strong>Effective date:</strong> April 5, 2026<br />
-          <strong>Last updated:</strong> April 5, 2026<br />
+          <strong>Last updated:</strong> May 2, 2026<br />
           <strong>Operator:</strong> Assetup is operated by an individual developer (“we”, “us”).<br />
           <strong>Contact:</strong>
           <a href="mailto:assetup_feedback@163.com">assetup_feedback@163.com</a>
@@ -285,13 +290,18 @@
             <strong>Eastmoney (eastmoney.com)</strong> for A-share / HK / fund quotes, candlesticks, search suggestions, and fund NAVs;
           </li>
           <li>
-            <strong>Stooq (stooq.com)</strong> for international instruments (US / EU / Asia) daily quotes and FX snapshots;
+            <strong>Stooq (stooq.com)</strong> for international instruments (US / EU / Asia) daily quotes and FX snapshots when the self-hosted proxy is not enabled or as an optional fallback;
           </li>
           <li>
             <strong>Frankfurter (api.frankfurter.app)</strong> for ECB reference FX rates (the endpoint can be overridden via EXPO_PUBLIC_FX_URL);
           </li>
           <li>
-            <strong>OpenFIGI (api.openfigi.com)</strong> for international ticker / exchange mapping;
+            <strong>OpenFIGI (api.openfigi.com)</strong> for international ticker / exchange mapping when the self-hosted proxy is not enabled;
+          </li>
+          <li>
+            <strong>A self-hosted market proxy (for example on Vercel: *.vercel.app or your custom domain)</strong>: when
+            <code>EXPO_PUBLIC_MARKET_PROXY_ORIGIN</code> is set in the build, the App calls only that origin for international symbol search and quotes; the proxy server may then call upstream providers such as
+            <strong>Twelve Data (api.twelvedata.com)</strong>. The Twelve API key is kept on the proxy and is not embedded in the App bundle;
           </li>
           <li>
             <strong>China Merchants Bank public gold rate page (cmb-mobile-web.paas.cmbchina.com)</strong> for CNY gold reference prices;

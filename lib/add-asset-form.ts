@@ -30,8 +30,11 @@ export type ListedFormInput = {
   purposeTarget: string;
   isEditMode: boolean;
   hasInstrumentPick: boolean;
-  /** 有值表示国际 Stooq 报价键，与东财六位代码互斥 */
+  /** 有值表示国际 Stooq 报价键（legacy / 兜底），与东财六位代码互斥 */
   intlQuoteSymbol?: string;
+  /** Twelve Data 经代理报价键，与 `twelveDataMic` 成对 */
+  twelveDataSymbol?: string;
+  twelveDataMic?: string;
 };
 
 export type CashLikeFormInput = {
@@ -43,7 +46,7 @@ export type CashLikeFormInput = {
 };
 
 /**
- * 校验「场内」表单：东财 A 股/基金六位代码，或 OpenFIGI+Stooq 国际上市标的。
+ * 校验「场内」表单：东财 A 股/基金六位代码，或国际上市（Twelve 成对键 或 legacy Stooq 键）。
  */
 export function validateListedForm(input: ListedFormInput): FormValidationError {
   if (!input.name.trim()) return '请填写或确认标的名称。';
@@ -52,19 +55,33 @@ export function validateListedForm(input: ListedFormInput): FormValidationError 
       ? input.intlQuoteSymbol.trim()
       : '';
   const intl = intlRaw.length > 0;
+  const twelveSym =
+    typeof input.twelveDataSymbol === 'string'
+      ? input.twelveDataSymbol.trim()
+      : '';
+  const twelveMicRaw =
+    typeof input.twelveDataMic === 'string'
+      ? input.twelveDataMic.trim().toUpperCase()
+      : '';
+  const hasTwelve =
+    twelveSym.length > 0 &&
+    twelveMicRaw.length > 0 &&
+    /^[A-Z0-9]{3,12}$/.test(twelveMicRaw);
 
   if (!input.isEditMode && !input.hasInstrumentPick) {
     return '请搜索并从列表中选择一只标的（含交易所与代码）。';
   }
 
-  if (intl) {
+  if (intl || hasTwelve) {
     if (
       typeof input.exchange !== 'string' ||
       !isIntlListingExchange(input.exchange)
     ) {
       return '请从联想列表选择国际上市标的（含交易所与代码）。';
     }
-    if (!isValidIntlStooqQuoteSymbol(intlRaw)) {
+    if (hasTwelve) {
+      /* Twelve 路径不要求 Stooq 形态 */
+    } else if (!isValidIntlStooqQuoteSymbol(intlRaw)) {
       return '国际行情代码无效。';
     }
   } else if (!/^\d{6}$/.test(input.symbol.trim())) {
@@ -78,7 +95,7 @@ export function validateListedForm(input: ListedFormInput): FormValidationError 
   const costNum = parseFloat(input.costPrice);
   if (!input.isEditMode) {
     if (Number.isNaN(costNum) || costNum <= 0) {
-      return intl
+      return intl || hasTwelve
         ? '请填写有效的成本价/买价（与所选币种一致/份）。'
         : '请填写有效的成本价/买价（CNY/份）。';
     }
@@ -134,6 +151,8 @@ export type BuildListedParams = {
   emSecid?: string;
   /** Stooq 符号如 aapl.us、700.hk、vod.l */
   intlQuoteSymbol?: string;
+  twelveDataSymbol?: string;
+  twelveDataMic?: string;
   figi?: string;
   isin?: string;
   fundingSourceAssetId?: string;
@@ -154,6 +173,10 @@ export function buildListedAsset(p: BuildListedParams): SimpleAsset {
     typeof p.intlQuoteSymbol === 'string' && p.intlQuoteSymbol.trim().length > 0
       ? p.intlQuoteSymbol.trim().toLowerCase()
       : '';
+  const twelveSym =
+    typeof p.twelveDataSymbol === 'string' ? p.twelveDataSymbol.trim() : '';
+  const twelveMic =
+    typeof p.twelveDataMic === 'string' ? p.twelveDataMic.trim().toUpperCase() : '';
   const tradeDay =
     typeof p.tradeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.tradeDate.trim())
       ? p.tradeDate.trim()
@@ -188,8 +211,12 @@ export function buildListedAsset(p: BuildListedParams): SimpleAsset {
     ...p.purposeFields,
   };
   if (accountRaw.length > 0) asset.account = accountRaw;
-  if (intl) {
-    asset.intlQuoteSymbol = intl;
+  if (intl || (twelveSym.length > 0 && twelveMic.length > 0)) {
+    if (intl) asset.intlQuoteSymbol = intl;
+    if (twelveSym.length > 0 && twelveMic.length > 0) {
+      asset.twelveDataSymbol = twelveSym;
+      asset.twelveDataMic = twelveMic;
+    }
     const fig = typeof p.figi === 'string' ? p.figi.trim().toUpperCase() : '';
     if (fig.length >= 8 && fig.length <= 14 && /^[A-Z0-9]+$/.test(fig)) {
       asset.figi = fig;

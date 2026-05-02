@@ -20,7 +20,7 @@ export type ChinaExchange = 'SH' | 'SZ' | 'BJ' | 'OTC';
 export type { IntlListingExchange };
 export { INTL_LISTING_EXCHANGES, isIntlListingExchange };
 
-/** A 股/场外 + 国际场（OpenFIGI+Stooq）+ 上金现货（SGE） */
+/** A 股/场外 + 国际场（Twelve Data 代理 或 OpenFIGI+Stooq）+ 上金现货（SGE） */
 export type ListingExchange = ChinaExchange | IntlListingExchange | 'SGE';
 
 /** 资产大类（存储与逻辑的唯一分类来源，不再单独存 type 字段） */
@@ -170,9 +170,16 @@ export type SimpleAsset = {
   emSecid?: string;
   /**
    * 国际收盘价来源：Stooq 符号，如 `aapl.us`、`700.hk`、`vod.l`（与东财体系互斥）。
-   * 由 OpenFIGI 联想映射得到。
+   * 由联想映射得到；Twelve Data 模式下仍会写入以便展示与 legacy 兜底。
    */
   intlQuoteSymbol?: string;
+  /**
+   * Twelve Data 报价键（经 Vercel 代理）：与 `twelveDataMic` 成对出现。
+   * 有值且配置了 `EXPO_PUBLIC_MARKET_PROXY_ORIGIN` 时，刷新/参考价优先走 Twelve。
+   */
+  twelveDataSymbol?: string;
+  /** ISO 10383 MIC，如 XNAS、XHKG */
+  twelveDataMic?: string;
   /** OpenFIGI 返回的 FIGI（可选，便于换行情源时映射） */
   figi?: string;
   /** ISIN ISO 6166（可选） */
@@ -397,6 +404,16 @@ export function ensureAsset(raw: unknown): SimpleAsset {
     intlRaw.length > 0 && isValidIntlStooqQuoteSymbol(intlRaw)
       ? intlRaw.toLowerCase()
       : undefined;
+  const twelveSymRaw =
+    typeof o.twelveDataSymbol === 'string' ? o.twelveDataSymbol.trim() : '';
+  const twelveMicRaw =
+    typeof o.twelveDataMic === 'string' ? o.twelveDataMic.trim().toUpperCase() : '';
+  const twelveDataSymbol =
+    twelveSymRaw.length > 0 && twelveSymRaw.length <= 32 ? twelveSymRaw : undefined;
+  const twelveDataMic =
+    twelveMicRaw.length > 0 && /^[A-Z0-9]{3,12}$/.test(twelveMicRaw)
+      ? twelveMicRaw
+      : undefined;
   const figiRaw = typeof o.figi === 'string' ? o.figi.trim().toUpperCase() : '';
   const figi =
     figiRaw.length >= 8 && figiRaw.length <= 14 && /^[A-Z0-9]+$/.test(figiRaw)
@@ -496,6 +513,8 @@ export function ensureAsset(raw: unknown): SimpleAsset {
   if (markPriceDate) asset.markPriceDate = markPriceDate;
   if (emSecid) asset.emSecid = emSecid;
   if (intlQuoteSymbol) asset.intlQuoteSymbol = intlQuoteSymbol;
+  if (twelveDataSymbol) asset.twelveDataSymbol = twelveDataSymbol;
+  if (twelveDataMic) asset.twelveDataMic = twelveDataMic;
   if (figi) asset.figi = figi;
   if (isin) asset.isin = isin;
   if (preciousMetalSpot) asset.preciousMetalSpot = preciousMetalSpot;
@@ -527,10 +546,19 @@ export function ensureAsset(raw: unknown): SimpleAsset {
       asset.exchange === 'BJ' ||
       asset.exchange === 'OTC');
 
+  const hasIntlQuoteKey =
+    typeof asset.intlQuoteSymbol === 'string' &&
+    asset.intlQuoteSymbol.trim().length > 0;
+  const hasTwelveQuoteKey =
+    typeof asset.twelveDataSymbol === 'string' &&
+    asset.twelveDataSymbol.trim().length > 0 &&
+    typeof asset.twelveDataMic === 'string' &&
+    asset.twelveDataMic.trim().length > 0;
+
   const listedIntlComplete =
     isListedAssetCategory(asset.category) &&
     sharesHeld !== null &&
-    typeof asset.intlQuoteSymbol === 'string' &&
+    (hasIntlQuoteKey || hasTwelveQuoteKey) &&
     typeof asset.exchange === 'string' &&
     isIntlListingExchange(asset.exchange) &&
     typeof asset.symbol === 'string' &&

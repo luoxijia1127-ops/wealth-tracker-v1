@@ -4,7 +4,7 @@
  * 解决：用户选中 AAPL 后改一下交易日期、或来回切换证券/上金表单时，
  * 同一 (symbol|secid, tradeDate) 不必重复打 Stooq / 东财。
  *
- * 缓存键：优先 intlQuoteSymbol（小写）；否则 quoteId（secid）。
+ * 缓存键：有成对 Twelve 字段用 symbol|mic；否则 intlQuoteSymbol（小写）；再否则 quoteId（secid）。
  * 失败结果（null）不缓存，避免一次抖动让后续 60s 都拿不到价。
  */
 
@@ -40,6 +40,11 @@ export function buildReferencePriceCacheKey(
 ): string | null {
   const td = tradeDate.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(td)) return null;
+  const twSym = pick.twelveDataSymbol?.trim() ?? '';
+  const twMic = pick.twelveDataMic?.trim().toUpperCase() ?? '';
+  if (twSym.length > 0 && twMic.length > 0) {
+    return `td:${twSym}|${twMic}|${td}`;
+  }
   const intl = pick.intlQuoteSymbol?.trim().toLowerCase() ?? '';
   if (intl.length > 0) return `intl:${intl}|${td}`;
   const secid = pick.quoteId?.trim() ?? '';

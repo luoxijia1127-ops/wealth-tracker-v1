@@ -38,14 +38,19 @@ export function isListedChineseAsset(a: SimpleAsset): boolean {
   return heldLikeShape(a);
 }
 
-/** 国际上市：Stooq + OpenFIGI，与 A 股东财互斥 */
+/** 国际上市：Stooq 键和/或 Twelve Data 键，与 A 股东财互斥 */
 export function isInternationalListedAsset(a: SimpleAsset): boolean {
   if (!isListedAssetCategory(a.category)) return false;
   if (typeof a.shares !== 'number' || a.shares <= 0) return false;
   const iq =
     typeof a.intlQuoteSymbol === 'string' && a.intlQuoteSymbol.trim().length > 0;
+  const tq =
+    typeof a.twelveDataSymbol === 'string' &&
+    a.twelveDataSymbol.trim().length > 0 &&
+    typeof a.twelveDataMic === 'string' &&
+    a.twelveDataMic.trim().length > 0;
   return (
-    iq &&
+    (iq || tq) &&
     typeof a.exchange === 'string' &&
     isIntlListingExchange(a.exchange)
   );

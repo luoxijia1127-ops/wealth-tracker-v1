@@ -2,7 +2,7 @@
  * 新增资产（Modal）
  *
  * 编辑已有资产、加减仓、改流水请在 Dashboard 点进资产详情页完成，不再使用本弹窗。
- * 股票/基金/ETF：同一套表单，支持 A 股（东财）与国际上市（OpenFIGI+Stooq）；收盘价仅由 Dashboard 同步写入。
+ * 股票/基金/ETF：同一套表单，支持 A 股（东财）与国际上市（Twelve Data 经代理，或未配代理时 OpenFIGI+Stooq）；收盘价由 Dashboard 同步写入。
  */
 
 import { FormRow } from '@/components/add-asset/form-row';
@@ -151,9 +151,20 @@ export default function AddModal() {
   const showGoldForm = category === 'Gold';
   const showListedSecuritiesForm = isListedCategory;
   /** 用途目标与 A 股/贵金属同为人民币展示；国际上市标的与报价币种一致 */
+  const isIntlInstrumentPick = useMemo(() => {
+    const p = instrumentPick;
+    if (!p) return false;
+    if (p.intlQuoteSymbol && isIntlListingExchange(p.exchange)) return true;
+    if (
+      p.twelveDataSymbol &&
+      p.twelveDataMic &&
+      isIntlListingExchange(p.exchange)
+    )
+      return true;
+    return false;
+  }, [instrumentPick]);
   const purposeYuan =
-    showGoldForm ||
-    (showListedSecuritiesForm && !instrumentPick?.intlQuoteSymbol);
+    showGoldForm || (showListedSecuritiesForm && !isIntlInstrumentPick);
   const showSimpleBalanceForm = !showGoldForm && !showListedSecuritiesForm;
   const canChooseFundingSource =
     showGoldForm || showListedSecuritiesForm;
@@ -401,7 +412,12 @@ export default function AddModal() {
     setSymbol(item.code);
     setExchange(item.exchange);
     setName(item.name);
-    if (item.intlQuoteSymbol && isIntlListingExchange(item.exchange)) {
+    if (
+      (item.intlQuoteSymbol && isIntlListingExchange(item.exchange)) ||
+      (item.twelveDataSymbol &&
+        item.twelveDataMic &&
+        isIntlListingExchange(item.exchange))
+    ) {
       setAssetCurrency(defaultCurrencyForIntlListingExchange(item.exchange));
     } else {
       setAssetCurrency('CNY');
@@ -496,6 +512,8 @@ export default function AddModal() {
           isEditMode: false,
           hasInstrumentPick: !!instrumentPick,
           intlQuoteSymbol: instrumentPick?.intlQuoteSymbol,
+          twelveDataSymbol: instrumentPick?.twelveDataSymbol,
+          twelveDataMic: instrumentPick?.twelveDataMic,
         });
         if (err) {
           Alert.alert(t('asset.form.cannotSave'), err);
@@ -518,10 +536,14 @@ export default function AddModal() {
           tradeDate: tradeDay,
           purposeFields,
           listingCurrency: normalizeAssetCurrency(assetCurrency),
-          emSecid: instrumentPick?.intlQuoteSymbol
-            ? undefined
-            : instrumentPick?.quoteId,
+          emSecid:
+            instrumentPick?.intlQuoteSymbol ||
+            (instrumentPick?.twelveDataSymbol && instrumentPick?.twelveDataMic)
+              ? undefined
+              : instrumentPick?.quoteId,
           intlQuoteSymbol: instrumentPick?.intlQuoteSymbol,
+          twelveDataSymbol: instrumentPick?.twelveDataSymbol,
+          twelveDataMic: instrumentPick?.twelveDataMic,
           figi: instrumentPick?.figi,
           isin: instrumentPick?.isin,
           account: accountTrim || undefined,
@@ -1020,7 +1042,9 @@ export default function AddModal() {
                   {suggestions.map((item) => (
                     <Pressable
                       key={`${item.exchange}-${item.code}-${
-                        item.quoteId ?? item.intlQuoteSymbol ?? ''
+                        item.quoteId ??
+                        item.intlQuoteSymbol ??
+                        `${item.twelveDataSymbol ?? ''}|${item.twelveDataMic ?? ''}`
                       }`}
                       style={({ pressed }) => [
                         styles.suggestRow,

@@ -1,5 +1,5 @@
 /**
- * 添加资产页：按「交易日」回填成本参考价（东财现价/日 K 收盘、Stooq 历史收盘）。
+ * 添加资产页：按「交易日」回填成本参考价（东财现价/日 K 收盘、Twelve 经代理、或 legacy Stooq）。
  * 场内加减仓：从已有持仓构造 UnifiedSuggestItem，供同一套拉价逻辑使用。
  */
 
@@ -10,7 +10,12 @@ import {
 } from '@/lib/eastmoney-kline';
 import { fetchPush2LastPrice } from '@/lib/eastmoney-push';
 import type { UnifiedSuggestItem } from '@/lib/instrument-search';
+import {
+  isIntlStooqFallbackEnabled,
+  isTwelveIntlProviderEnabled,
+} from '@/lib/intl-provider';
 import { isIntlListingExchange } from '@/lib/intl-exchange-stooq';
+import { fetchTwelveQuoteViaProxy } from '@/lib/market-proxy-client';
 import { fetchStooqCloseOnOrBefore, fetchStooqQuote } from '@/lib/stooq-quote';
 import type { SimpleAsset } from '@/types/asset';
 
@@ -20,10 +25,51 @@ export type ReferencePriceResult = {
   hint: string;
 };
 
-/** 从已保存的场内/贵金属持仓构造拉价入参；无东财 secid / Stooq 代码时返回 null（仅能手填单价）。 */
+function pickTwelveKeys(pick: UnifiedSuggestItem): {
+  sym: string;
+  mic: string;
+} | null {
+  const sym = pick.twelveDataSymbol?.trim() ?? '';
+  const mic = pick.twelveDataMic?.trim().toUpperCase() ?? '';
+  if (!sym || !mic) return null;
+  return { sym, mic };
+}
+
+/** 从已保存的场内/贵金属持仓构造拉价入参；无东财 secid / 国际键时返回 null（仅能手填单价）。 */
 export function listedAssetToReferencePricePick(
   asset: SimpleAsset
 ): UnifiedSuggestItem | null {
+  const twelveSym =
+    typeof asset.twelveDataSymbol === 'string'
+      ? asset.twelveDataSymbol.trim()
+      : '';
+  const twelveMicRaw =
+    typeof asset.twelveDataMic === 'string' ? asset.twelveDataMic.trim() : '';
+  const twelveMic = twelveMicRaw.toUpperCase();
+  if (
+    twelveSym.length > 0 &&
+    twelveMic.length > 0 &&
+    typeof asset.exchange === 'string' &&
+    isIntlListingExchange(asset.exchange)
+  ) {
+    const intlRaw =
+      typeof asset.intlQuoteSymbol === 'string'
+        ? asset.intlQuoteSymbol.trim().toLowerCase()
+        : '';
+    const code =
+      typeof asset.symbol === 'string' && asset.symbol.trim().length > 0
+        ? asset.symbol.trim()
+        : twelveSym;
+    return {
+      code,
+      name: (asset.name || code).trim(),
+      exchange: asset.exchange,
+      ...(intlRaw.length > 0 ? { intlQuoteSymbol: intlRaw } : {}),
+      twelveDataSymbol: twelveSym,
+      twelveDataMic: twelveMic,
+    };
+  }
+
   const intlRaw =
     typeof asset.intlQuoteSymbol === 'string'
       ? asset.intlQuoteSymbol.trim().toLowerCase()
@@ -73,6 +119,100 @@ export function listedAssetToReferencePricePick(
   return null;
 }
 
+function hintFromBarDate(barDate: string | null, td: string): string {
+  if (!barDate) return '收盘';
+  if (barDate < td) return `收盘 ${barDate}（最近交易日）`;
+  return `收盘 ${barDate}`;
+}
+
+async function fetchIntlReferenceFromTwelve(
+  pick: UnifiedSuggestItem,
+  td: string,
+  today: string,
+  signal?: AbortSignal
+): Promise<ReferencePriceResult | null> {
+  const keys = pickTwelveKeys(pick);
+  if (!keys || !isTwelveIntlProviderEnabled()) return null;
+  const { sym, mic } = keys;
+
+  if (td === today) {
+    const last = await fetchTwelveQuoteViaProxy(sym, mic, signal);
+    if (
+      last.ok &&
+      last.tradeDate &&
+      last.tradeDate.length >= 10 &&
+      last.tradeDate.slice(0, 10) <= td
+    ) {
+      return {
+        price: last.close,
+        hint: `收盘 ${last.tradeDate.slice(0, 10)}`,
+      };
+    }
+    const hist = await fetchTwelveQuoteViaProxy(sym, mic, signal, td);
+    if (hist.ok && hist.tradeDate) {
+      const d = hist.tradeDate.slice(0, 10);
+      return { price: hist.close, hint: hintFromBarDate(d, td) };
+    }
+    return null;
+  }
+
+  const hist = await fetchTwelveQuoteViaProxy(sym, mic, signal, td);
+  if (hist.ok && hist.tradeDate) {
+    const d = hist.tradeDate.slice(0, 10);
+    return { price: hist.close, hint: hintFromBarDate(d, td) };
+  }
+  const last = await fetchTwelveQuoteViaProxy(sym, mic, signal);
+  if (
+    last.ok &&
+    last.tradeDate &&
+    last.tradeDate.slice(0, 10) <= td
+  ) {
+    return {
+      price: last.close,
+      hint: `收盘 ${last.tradeDate.slice(0, 10)}`,
+    };
+  }
+  return null;
+}
+
+async function fetchIntlReferenceFromStooq(
+  pick: UnifiedSuggestItem,
+  td: string,
+  today: string,
+  signal?: AbortSignal
+): Promise<ReferencePriceResult | null> {
+  const sym = pick.intlQuoteSymbol?.trim();
+  if (!sym) return null;
+
+  if (td === today) {
+    const last = await fetchStooqQuote(sym, signal);
+    if (last && last.tradeDate <= td) {
+      return { price: last.close, hint: `收盘 ${last.tradeDate}` };
+    }
+    const hist = await fetchStooqCloseOnOrBefore(sym, td, signal);
+    if (hist) {
+      return {
+        price: hist.close,
+        hint: hintFromBarDate(hist.tradeDate, td),
+      };
+    }
+    return null;
+  }
+
+  const hist = await fetchStooqCloseOnOrBefore(sym, td, signal);
+  if (hist) {
+    return {
+      price: hist.close,
+      hint: hintFromBarDate(hist.tradeDate, td),
+    };
+  }
+  const last = await fetchStooqQuote(sym, signal);
+  if (last && last.tradeDate <= td) {
+    return { price: last.close, hint: `收盘 ${last.tradeDate}` };
+  }
+  return null;
+}
+
 export async function fetchAddAssetReferencePrice(
   pick: UnifiedSuggestItem,
   tradeDate: string,
@@ -82,53 +222,18 @@ export async function fetchAddAssetReferencePrice(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(td)) return null;
   const today = getShanghaiDateString();
 
-  if (pick.intlQuoteSymbol) {
-    /**
-     * 当天回填：先打 q/l 单行 CSV（≈1 RTT，最快），命中即可返回；
-     * 历史日期回填：q/l 只能拿到「最新交易日」收盘，无法替代「≤td 的最近交易日」，
-     * 直接走整表 q/d/l。两种情况下另一个都作为兜底，覆盖 q/l 偶发 N/D 与 q/d/l 失败。
-     */
-    if (td === today) {
-      const last = await fetchStooqQuote(pick.intlQuoteSymbol, signal);
-      if (last && last.tradeDate <= td) {
-        return { price: last.close, hint: `收盘 ${last.tradeDate}` };
-      }
-      const hist = await fetchStooqCloseOnOrBefore(
-        pick.intlQuoteSymbol,
-        td,
-        signal
-      );
-      if (hist) {
-        return {
-          price: hist.close,
-          hint:
-            hist.tradeDate < td
-              ? `收盘 ${hist.tradeDate}（最近交易日）`
-              : `收盘 ${hist.tradeDate}`,
-        };
-      }
-      return null;
-    }
-
-    const hist = await fetchStooqCloseOnOrBefore(
-      pick.intlQuoteSymbol,
-      td,
-      signal
-    );
-    if (hist) {
-      return {
-        price: hist.close,
-        hint:
-          hist.tradeDate < td
-            ? `收盘 ${hist.tradeDate}（最近交易日）`
-            : `收盘 ${hist.tradeDate}`,
-      };
-    }
-    const last = await fetchStooqQuote(pick.intlQuoteSymbol, signal);
-    if (last && last.tradeDate <= td) {
-      return { price: last.close, hint: `收盘 ${last.tradeDate}` };
+  const twelveKeys = pickTwelveKeys(pick);
+  if (twelveKeys && isTwelveIntlProviderEnabled()) {
+    const tw = await fetchIntlReferenceFromTwelve(pick, td, today, signal);
+    if (tw) return tw;
+    if (isIntlStooqFallbackEnabled() && pick.intlQuoteSymbol?.trim()) {
+      return fetchIntlReferenceFromStooq(pick, td, today, signal);
     }
     return null;
+  }
+
+  if (pick.intlQuoteSymbol) {
+    return fetchIntlReferenceFromStooq(pick, td, today, signal);
   }
 
   const secid = pick.quoteId?.trim();
@@ -149,10 +254,7 @@ export async function fetchAddAssetReferencePrice(
   if (k) {
     return {
       price: k.close,
-      hint:
-        k.tradeDate < td
-          ? `收盘 ${k.tradeDate}（最近交易日）`
-          : `收盘 ${k.tradeDate}`,
+      hint: hintFromBarDate(k.tradeDate, td),
     };
   }
 

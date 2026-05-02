@@ -41,6 +41,11 @@ export const ENDPOINTS = {
     'EXPO_PUBLIC_OPENFIGI_SEARCH_URL',
     'https://api.openfigi.com/v3/search'
   ),
+  /**
+   * Twelve Data 经自建 Vercel 代理的根地址（无尾斜杠）。
+   * 未配置时国际联想/报价仍走 legacy（OpenFIGI + Stooq）。
+   */
+  marketProxyOrigin: envUrl('EXPO_PUBLIC_MARKET_PROXY_ORIGIN', ''),
   /** 招行公开金价页（HTML），可被 EXPO_PUBLIC_GOLD_QUOTE_URL JSON 覆盖逻辑见 gold-quote */
   cmbGoldRateHtml: envUrl(
     'EXPO_PUBLIC_CMB_GOLD_RATE_URL',

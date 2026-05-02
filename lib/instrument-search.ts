@@ -1,5 +1,7 @@
 /**
- * 统一联想：东财（A 股 / 场外基金）+ OpenFIGI（美股 / 港股 / 英欧等）+ Stooq 代码探测（如 AAPL）。
+ * 统一联想：东财（A 股 / 场外基金）+ 国际场：
+ * - 配置了 `EXPO_PUBLIC_MARKET_PROXY_ORIGIN` 且非 legacy：Twelve Data（经代理）
+ * - 否则：OpenFIGI + Stooq 探测（legacy）
  */
 
 import { searchSecurities } from '@/lib/eastmoney-suggest';
@@ -16,10 +18,12 @@ import {
   type IntlListingExchange,
 } from '@/lib/intl-exchange-stooq';
 import { fetchStooqQuote } from '@/lib/stooq-quote';
+import { isTwelveIntlProviderEnabled } from '@/lib/intl-provider';
+import { searchTwelveDataIntl } from '@/lib/twelve-data-instrument-search';
 
 export type { UnifiedSuggestItem } from '@/lib/openfigi-search';
 
-/** 常见中文/英文名 → 港股代码（OpenFIGI 联想常被期货占满，用 Stooq 校验） */
+/** 常见中文/英文名 → 港股代码（legacy 联想用 Stooq 校验） */
 const KNOWN_HK_CODE: Record<string, string> = {
   腾讯: '700',
   tencent: '700',
@@ -128,8 +132,7 @@ async function stooqLookupHints(
     }
   }
 
-  const hkKnown =
-    KNOWN_HK_CODE[t] ?? KNOWN_HK_CODE[t.toLowerCase()];
+  const hkKnown = KNOWN_HK_CODE[t] ?? KNOWN_HK_CODE[t.toLowerCase()];
   if (hkKnown) {
     await pushHk(
       hkKnown,
@@ -173,10 +176,9 @@ async function stooqLookupHints(
           fetchStooqQuote(p.stooq, signal).then((row) => ({ p, row }))
         )
       );
-      /** 按 EU_STOOQ_PROBE 顺序（即 probes 顺序）取首个有效行情，保留原"英股优先"语义 */
       const hit = probeResults.find((r) => r.row !== null);
       if (hit) {
-        const { suffix: _suffix, venue, stooq: st } = hit.p;
+        const { venue, stooq: st } = hit.p;
         seenStooq.add(st);
         const codeDisp = compact.toUpperCase();
         out.push({
@@ -211,13 +213,43 @@ export async function searchUnifiedInstruments(
   const q = query.trim();
   if (q.length < 1) return [];
 
+  if (isTwelveIntlProviderEnabled()) {
+    const [em, twelveIntl] = await Promise.all([
+      searchSecurities(q, signal),
+      searchTwelveDataIntl(q, signal),
+    ]);
+    const out: UnifiedSuggestItem[] = [];
+    for (const e of em) {
+      out.push({
+        code: e.code,
+        name: e.name,
+        exchange: e.exchange,
+        quoteId: e.quoteId,
+      });
+    }
+    for (const r of twelveIntl) {
+      out.push({
+        code: r.code,
+        name: r.name,
+        exchange: r.exchange,
+        intlQuoteSymbol: r.intlQuoteSymbol,
+        ...(r.twelveDataSymbol && r.twelveDataMic
+          ? {
+              twelveDataSymbol: r.twelveDataSymbol,
+              twelveDataMic: r.twelveDataMic,
+            }
+          : {}),
+      });
+    }
+    return out;
+  }
+
   const [em, figiIntl, stooqIntl] = await Promise.all([
     searchSecurities(q, signal),
     searchOpenFigiIntl(q, signal),
     stooqLookupHints(q, signal),
   ]);
 
-  /** OpenFIGI 在前：避免短 ticker 的 Stooq 美股探测（如 BATS→bats.us）盖住用户更可能要的英欧联想 */
   const mergedIntl = dedupeIntlRows(figiIntl, stooqIntl);
 
   const out: UnifiedSuggestItem[] = [];
@@ -237,6 +269,12 @@ export async function searchUnifiedInstruments(
       intlQuoteSymbol: r.intlQuoteSymbol,
       ...(r.figi ? { figi: r.figi } : {}),
       ...(r.isin ? { isin: r.isin } : {}),
+      ...(r.twelveDataSymbol && r.twelveDataMic
+        ? {
+            twelveDataSymbol: r.twelveDataSymbol,
+            twelveDataMic: r.twelveDataMic,
+          }
+        : {}),
     });
   }
   return out;

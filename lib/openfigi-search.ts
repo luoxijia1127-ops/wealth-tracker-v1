@@ -22,6 +22,9 @@ export type IntlSuggestRow = {
   intlQuoteSymbol: string;
   figi?: string;
   isin?: string;
+  /** Twelve Data 报价键（与 `twelveDataMic` 成对）；legacy 联想无此字段 */
+  twelveDataSymbol?: string;
+  twelveDataMic?: string;
 };
 
 /** OpenFIGI 对纯中文公司名常无结果，用英文关键词再搜一次 */
@@ -328,4 +331,6 @@ export type UnifiedSuggestItem = {
   intlQuoteSymbol?: string;
   figi?: string;
   isin?: string;
+  twelveDataSymbol?: string;
+  twelveDataMic?: string;
 };

@@ -17,9 +17,20 @@ vi.mock('@/lib/eastmoney-kline', () => ({
   fetchEastMoneyCloseOnOrBefore: vi.fn(),
 }));
 
+vi.mock('@/lib/intl-provider', () => ({
+  isTwelveIntlProviderEnabled: vi.fn(() => false),
+  isIntlStooqFallbackEnabled: vi.fn(() => false),
+}));
+
+vi.mock('@/lib/market-proxy-client', () => ({
+  fetchTwelveQuoteViaProxy: vi.fn(),
+}));
+
 import * as stooq from './stooq-quote';
 import * as emPush from './eastmoney-push';
 import * as emKline from './eastmoney-kline';
+import * as intlProvider from './intl-provider';
+import * as twelveClient from './market-proxy-client';
 import { fetchAddAssetReferencePrice } from './add-asset-reference-price';
 import type { UnifiedSuggestItem } from './instrument-search';
 
@@ -37,8 +48,19 @@ const emMaotai: UnifiedSuggestItem = {
   quoteId: '1.600519',
 };
 
+const aaplTwelve: UnifiedSuggestItem = {
+  code: 'AAPL',
+  name: 'Apple Inc',
+  exchange: 'US',
+  intlQuoteSymbol: 'aapl.us',
+  twelveDataSymbol: 'AAPL',
+  twelveDataMic: 'XNAS',
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(intlProvider.isTwelveIntlProviderEnabled).mockReturnValue(false);
+  vi.mocked(intlProvider.isIntlStooqFallbackEnabled).mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -123,6 +145,51 @@ describe('fetchAddAssetReferencePrice · intl 分支', () => {
     expect(
       await fetchAddAssetReferencePrice(intlAapl, '2026-05-02')
     ).toBeNull();
+  });
+});
+
+describe('fetchAddAssetReferencePrice · Twelve', () => {
+  it('启用代理且有成对键：走 Twelve，不调 Stooq', async () => {
+    vi.mocked(intlProvider.isTwelveIntlProviderEnabled).mockReturnValue(true);
+    (twelveClient.fetchTwelveQuoteViaProxy as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      close: 201,
+      tradeDate: '2026-05-02',
+      currency: 'USD',
+      symbol: 'AAPL',
+      mic_code: 'XNAS',
+      source: 'twelve_quote',
+    });
+    const r = await fetchAddAssetReferencePrice(aaplTwelve, '2026-05-02');
+    expect(r).toEqual({ price: 201, hint: '收盘 2026-05-02' });
+    expect(twelveClient.fetchTwelveQuoteViaProxy).toHaveBeenCalled();
+    expect(stooq.fetchStooqQuote).not.toHaveBeenCalled();
+  });
+
+  it('Twelve 失败且无 Stooq 兜底：返回 null', async () => {
+    vi.mocked(intlProvider.isTwelveIntlProviderEnabled).mockReturnValue(true);
+    (twelveClient.fetchTwelveQuoteViaProxy as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      reason: 'no_close',
+    });
+    expect(await fetchAddAssetReferencePrice(aaplTwelve, '2026-05-02')).toBeNull();
+    expect(stooq.fetchStooqQuote).not.toHaveBeenCalled();
+  });
+
+  it('Twelve 失败且开启 Stooq 兜底：回落 Stooq', async () => {
+    vi.mocked(intlProvider.isTwelveIntlProviderEnabled).mockReturnValue(true);
+    vi.mocked(intlProvider.isIntlStooqFallbackEnabled).mockReturnValue(true);
+    (twelveClient.fetchTwelveQuoteViaProxy as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      reason: 'no_close',
+    });
+    (stooq.fetchStooqQuote as ReturnType<typeof vi.fn>).mockResolvedValue({
+      close: 200.1,
+      tradeDate: '2026-05-02',
+    });
+    const r = await fetchAddAssetReferencePrice(aaplTwelve, '2026-05-02');
+    expect(r?.price).toBe(200.1);
+    expect(stooq.fetchStooqQuote).toHaveBeenCalled();
   });
 });
 

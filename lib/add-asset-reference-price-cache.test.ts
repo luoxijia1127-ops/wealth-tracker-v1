@@ -58,6 +58,19 @@ describe('buildReferencePriceCacheKey', () => {
     ).toBe('intl:aapl.us|2026-05-02');
   });
 
+  it('有成对 Twelve 字段时优先于 intlQuoteSymbol', () => {
+    expect(
+      buildReferencePriceCacheKey(
+        {
+          ...intlAapl,
+          twelveDataSymbol: 'AAPL',
+          twelveDataMic: 'xnas',
+        },
+        '2026-05-02'
+      )
+    ).toBe('td:AAPL|XNAS|2026-05-02');
+  });
+
   it('无 intlQuoteSymbol 时退回 quoteId', () => {
     expect(buildReferencePriceCacheKey(emMaotai, '2026-05-02')).toBe(
       'em:1.600519|2026-05-02'
