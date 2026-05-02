@@ -6,6 +6,10 @@
     "@vercel/node": "^3.2.29"
   },
   "devDependencies": {
+    "@types/node": "^20.14.0",
     "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

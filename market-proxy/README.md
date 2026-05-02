@@ -28,6 +28,7 @@ npx vercel dev
 
 ## 路由
 
+- `GET /api/health` → 自检（不调用 Twelve）；若此路由也 500，多为项目根目录 / Node 编译问题
 - `GET /api/market/search?q=AAPL&limit=14` → 转发 `symbol_search`
 - `GET /api/market/quote?symbol=AAPL&mic=XNAS` → 转发 `quote`
 - `GET /api/market/quote?symbol=AAPL&mic=XNAS&asOf=2026-04-15` → 转发 `time_series`（`end_date=asOf`，取 `<= asOf` 的最近一根）
