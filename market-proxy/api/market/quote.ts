@@ -32,34 +32,35 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ): Promise<void> {
-  if (req.method !== 'GET') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-  if (!checkSecret(req)) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  const symbol = String(req.query.symbol ?? '').trim();
-  const mic = String(req.query.mic ?? '').trim();
-  const asOf = String(req.query.asOf ?? '').trim();
-
-  if (!symbol || symbol.length > 32 || !mic || mic.length > 16) {
-    res.status(400).json({ error: 'Invalid symbol or mic' });
-    return;
-  }
-
-  const apikey = process.env.TWELVE_DATA_API_KEY;
-  if (!apikey) {
-    res.status(500).json({ error: 'TWELVE_DATA_API_KEY missing' });
-    return;
-  }
-
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 8000);
-
   try {
+    if (req.method !== 'GET') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+    if (!checkSecret(req)) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const symbol = String(req.query.symbol ?? '').trim();
+    const mic = String(req.query.mic ?? '').trim();
+    const asOf = String(req.query.asOf ?? '').trim();
+
+    if (!symbol || symbol.length > 32 || !mic || mic.length > 16) {
+      res.status(400).json({ error: 'Invalid symbol or mic' });
+      return;
+    }
+
+    const apikey = process.env.TWELVE_DATA_API_KEY;
+    if (!apikey) {
+      res.status(500).json({ error: 'TWELVE_DATA_API_KEY missing' });
+      return;
+    }
+
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 8000);
+
+    try {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) {
       /** 最新价 / 最近报价 */
       const url = new URL(`${BASE}/quote`);
@@ -153,9 +154,18 @@ export default async function handler(
       mic_code: mic,
       source: 'twelve_time_series',
     });
-  } catch {
-    res.status(502).json({ error: 'Upstream timeout or network error' });
-  } finally {
-    clearTimeout(timer);
+    } catch {
+      res.status(502).json({ error: 'Upstream timeout or network error' });
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (e) {
+    console.error('[api/market/quote]', e);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Internal error',
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
   }
 }

@@ -17,61 +17,71 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ): Promise<void> {
-  if (req.method !== 'GET') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-  if (!checkSecret(req)) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  const q = String(req.query.q ?? '').trim();
-  if (q.length < 1 || q.length > 64) {
-    res.status(400).json({ error: 'Invalid q' });
-    return;
-  }
-
-  const limRaw = parseInt(String(req.query.limit ?? '14'), 10);
-  const outputsize = Number.isFinite(limRaw)
-    ? Math.min(120, Math.max(1, limRaw))
-    : 14;
-
-  const apikey = process.env.TWELVE_DATA_API_KEY;
-  if (!apikey) {
-    res.status(500).json({ error: 'TWELVE_DATA_API_KEY missing' });
-    return;
-  }
-
-  const url = new URL(UPSTREAM);
-  url.searchParams.set('symbol', q);
-  url.searchParams.set('apikey', apikey);
-  url.searchParams.set('outputsize', String(outputsize));
-
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 8000);
   try {
-    const r = await fetch(url.toString(), { signal: ac.signal });
-    const text = await r.text();
-    if (!r.ok) {
-      res.status(502).json({ error: 'Upstream error', status: r.status });
+    if (req.method !== 'GET') {
+      res.status(405).json({ error: 'Method not allowed' });
       return;
     }
-    let json: unknown;
+    if (!checkSecret(req)) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const q = String(req.query.q ?? '').trim();
+    if (q.length < 1 || q.length > 64) {
+      res.status(400).json({ error: 'Invalid q' });
+      return;
+    }
+
+    const limRaw = parseInt(String(req.query.limit ?? '14'), 10);
+    const outputsize = Number.isFinite(limRaw)
+      ? Math.min(120, Math.max(1, limRaw))
+      : 14;
+
+    const apikey = process.env.TWELVE_DATA_API_KEY;
+    if (!apikey) {
+      res.status(500).json({ error: 'TWELVE_DATA_API_KEY missing' });
+      return;
+    }
+
+    const url = new URL(UPSTREAM);
+    url.searchParams.set('symbol', q);
+    url.searchParams.set('apikey', apikey);
+    url.searchParams.set('outputsize', String(outputsize));
+
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 8000);
     try {
-      json = JSON.parse(text) as unknown;
+      const r = await fetch(url.toString(), { signal: ac.signal });
+      const text = await r.text();
+      if (!r.ok) {
+        res.status(502).json({ error: 'Upstream error', status: r.status });
+        return;
+      }
+      let json: unknown;
+      try {
+        json = JSON.parse(text) as unknown;
+      } catch {
+        res.status(502).json({ error: 'Invalid upstream JSON' });
+        return;
+      }
+      res.setHeader(
+        'Cache-Control',
+        'public, s-maxage=30, stale-while-revalidate=120'
+      );
+      res.status(200).json(json);
     } catch {
-      res.status(502).json({ error: 'Invalid upstream JSON' });
-      return;
+      res.status(502).json({ error: 'Upstream timeout or network error' });
+    } finally {
+      clearTimeout(timer);
     }
-    res.setHeader(
-      'Cache-Control',
-      'public, s-maxage=30, stale-while-revalidate=120'
-    );
-    res.status(200).json(json);
-  } catch {
-    res.status(502).json({ error: 'Upstream timeout or network error' });
-  } finally {
-    clearTimeout(timer);
+  } catch (e) {
+    console.error('[api/market/search]', e);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Internal error',
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
   }
 }
