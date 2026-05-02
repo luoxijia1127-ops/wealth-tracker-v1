@@ -9,6 +9,7 @@
 import { buildStooqCsvUrl } from '@/lib/config/endpoints';
 import { addCalendarDaysToShanghaiYmd, getShanghaiDateString } from '@/lib/date-shanghai';
 import { isValidIntlStooqQuoteSymbol } from '@/lib/intl-exchange-stooq';
+import { fetchWithTimeout } from '@/lib/net/fetch-with-timeout';
 
 const STOOQ_UA =
   'Mozilla/5.0 (compatible; Assetup/1.0; +https://stooq.com)';
@@ -17,6 +18,16 @@ const STOOQ_CSV_HEADERS = {
   Accept: 'text/csv,*/*',
   'User-Agent': STOOQ_UA,
 } as const;
+
+/**
+ * Stooq 轻量请求（q/l 单行、带 d1/d2 的有界日 K）：弱网下略放宽，与 quote-refresh 外层 8s 对齐。
+ */
+const STOOQ_QUICK_TIMEOUT_MS = 8000;
+
+/**
+ * 无 d1/d2 的 `q/d/l` 全历史日 K：响应体大、RTT 长；5s 在大陆网络下极易超时导致「选中 aapl.us 但不回填单价」。
+ */
+const STOOQ_UNBOUNDED_DAILY_TIMEOUT_MS = 22_000;
 
 export type StooqQuoteRow = {
   close: number;
@@ -105,8 +116,9 @@ async function fetchStooqLatestDailyBar(
   const d2 = today.replace(/-/g, '');
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d&d1=${d1}&d2=${d2}`;
   try {
-    const res = await fetch(url, {
-      signal,
+    const res = await fetchWithTimeout(url, {
+      parentSignal: signal,
+      timeoutMs: STOOQ_QUICK_TIMEOUT_MS,
       headers: STOOQ_CSV_HEADERS,
     });
     if (!res.ok) return null;
@@ -125,8 +137,9 @@ async function fetchStooqQuoteForSymbolOnce(
 ): Promise<StooqQuoteRow | null> {
   const url = buildStooqCsvUrl(sym);
   try {
-    const res = await fetch(url, {
-      signal,
+    const res = await fetchWithTimeout(url, {
+      parentSignal: signal,
+      timeoutMs: STOOQ_QUICK_TIMEOUT_MS,
       headers: STOOQ_CSV_HEADERS,
     });
     if (!res.ok) return null;
@@ -168,8 +181,9 @@ export async function fetchStooqForexSpotLatest(
   if (!/^[a-z]{6,12}$/.test(sym)) return null;
   const url = buildStooqCsvUrl(sym);
   try {
-    const res = await fetch(url, {
-      signal,
+    const res = await fetchWithTimeout(url, {
+      parentSignal: signal,
+      timeoutMs: STOOQ_QUICK_TIMEOUT_MS,
       headers: { ...STOOQ_CSV_HEADERS },
     });
     if (!res.ok) return null;
@@ -192,8 +206,9 @@ async function fetchStooqCloseOnOrBeforeOne(
 ): Promise<StooqQuoteRow | null> {
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`;
   try {
-    const res = await fetch(url, {
-      signal,
+    const res = await fetchWithTimeout(url, {
+      parentSignal: signal,
+      timeoutMs: STOOQ_UNBOUNDED_DAILY_TIMEOUT_MS,
       headers: STOOQ_CSV_HEADERS,
     });
     if (!res.ok) return null;

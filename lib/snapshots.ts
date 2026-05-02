@@ -71,10 +71,34 @@ export async function saveSnapshot(
   }
   snapshots.sort((a, b) => a.date.localeCompare(b.date));
   await AsyncStorage.setItem(SNAPSHOTS_STORAGE_KEY, JSON.stringify(snapshots));
+  notifySnapshots(snapshots);
 }
 
 /** 批量写回（如恢复资产后回补历史日净值） */
 export async function saveSnapshotsList(snapshots: Snapshot[]): Promise<void> {
   const sorted = [...snapshots].sort((a, b) => a.date.localeCompare(b.date));
   await AsyncStorage.setItem(SNAPSHOTS_STORAGE_KEY, JSON.stringify(sorted));
+  notifySnapshots(sorted);
+}
+
+const snapshotListeners = new Set<(snapshots: Snapshot[]) => void>();
+
+/** 订阅快照持久化写入；回调收到的是写入后的最新数组。返回取消订阅函数。 */
+export function subscribeSnapshots(
+  listener: (snapshots: Snapshot[]) => void
+): () => void {
+  snapshotListeners.add(listener);
+  return () => {
+    snapshotListeners.delete(listener);
+  };
+}
+
+function notifySnapshots(snapshots: Snapshot[]): void {
+  snapshotListeners.forEach((cb) => {
+    try {
+      cb(snapshots);
+    } catch {
+      /* listener 异常不影响其它订阅者 */
+    }
+  });
 }

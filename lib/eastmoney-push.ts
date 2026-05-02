@@ -5,8 +5,11 @@
 import { EASTMONEY_UT } from '@/lib/eastmoney-config';
 
 import { ENDPOINTS } from '@/lib/config/endpoints';
+import { fetchWithTimeout } from '@/lib/net/fetch-with-timeout';
 
 const PUSH_URL = ENDPOINTS.eastmoneyPush;
+/** 联想/取价路径上的快失败窗口；外层（quote-refresh）仍有 8s 兜底 */
+const PUSH_TIMEOUT_MS = 5000;
 
 export type Push2Quote = {
   price: number;
@@ -25,7 +28,10 @@ export async function fetchPush2LastPrice(
     fields: 'f43,f58',
   });
   try {
-    const res = await fetch(`${PUSH_URL}?${params}`, { signal });
+    const res = await fetchWithTimeout(`${PUSH_URL}?${params}`, {
+      parentSignal: signal,
+      timeoutMs: PUSH_TIMEOUT_MS,
+    });
     if (!res.ok) return null;
     const json = (await res.json()) as {
       rc?: number;

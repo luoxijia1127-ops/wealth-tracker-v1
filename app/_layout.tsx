@@ -1,19 +1,22 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { ErrorBoundary as AppErrorBoundary } from '@/components/app-error-boundary';
 import { FontRoot } from '@/components/font-root';
 import { SettingsHubBackButton } from '@/components/settings-hub-back-navigation';
-import { AppPaletteProvider } from '@/contexts/app-palette-context';
+import { AppPaletteProvider, useAppPalette } from '@/contexts/app-palette-context';
 import { LanguageProvider, useLanguage } from '@/contexts/language-context';
 import { PurchasesProvider } from '@/contexts/purchases-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppFont } from '@/lib/app-fonts';
 import { purgeLegacyTestSnapshotDatesOnce } from '@/lib/legacy-test-snapshot-purge';
 import { migrateAssetupStorageFromLegacyOnce } from '@/lib/assetup-storage-migration';
+import { useAppStore } from '@/lib/store/app-store';
+import { startAutoRefresh, type AutoRefreshHandle } from '@/lib/store/auto-refresh';
 
 // Anchor keeps (tabs) in the background when /modal is presented, so the tab context
 // is preserved and the modal can be dismissed back to it.
@@ -29,12 +32,32 @@ export { AppErrorBoundary as ErrorBoundary };
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [hydrated, setHydrated] = useState<boolean>(
+    () => useAppStore.getState().hydrated
+  );
 
   useEffect(() => {
+    let stopAutoRefresh: AutoRefreshHandle | null = null;
+    let mounted = true;
+
     void (async () => {
-      await migrateAssetupStorageFromLegacyOnce();
-      await purgeLegacyTestSnapshotDatesOnce();
+      try {
+        /** 旧 storage key 的一次性迁移必须先于 store hydrate */
+        await migrateAssetupStorageFromLegacyOnce();
+        await purgeLegacyTestSnapshotDatesOnce();
+        await useAppStore.getState().hydrate();
+      } finally {
+        if (!mounted) return;
+        setHydrated(true);
+        /** hydrate 完成后开启自动刷新（冷启动 + 后台切回前台，3 分钟节流） */
+        stopAutoRefresh = startAutoRefresh();
+      }
     })();
+
+    return () => {
+      mounted = false;
+      stopAutoRefresh?.();
+    };
   }, []);
 
   return (
@@ -43,13 +66,30 @@ export default function RootLayout() {
       <PurchasesProvider>
       <FontRoot>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AppStack />
+        {hydrated ? <AppStack /> : <HydrateGate />}
         <StatusBar style="auto" />
       </ThemeProvider>
       </FontRoot>
       </PurchasesProvider>
       </LanguageProvider>
     </AppPaletteProvider>
+  );
+}
+
+/** hydrate 期间的全屏占位，避免空数据闪现到 Tab 屏幕 */
+function HydrateGate() {
+  const { theme } = useAppPalette();
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: theme.pageBg,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <ActivityIndicator size="large" color={theme.primary} />
+    </View>
   );
 }
 

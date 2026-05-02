@@ -5,8 +5,6 @@
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
-import { getAssetDailySnapshots } from '@/lib/asset-daily-snapshots';
-import { getAssets } from '@/lib/asset-storage';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
@@ -16,12 +14,18 @@ import {
 } from '@/lib/finance-colors';
 import {
   createFxRatesResolver,
-  getCachedFxUsdRates,
   getFxUsdRatesHistory,
+  type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import type { SupportedLocale, Translate, TranslationKey } from '@/lib/language';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
-import { getSnapshots } from '@/lib/snapshots';
+import {
+  useAssetDailySnapshots,
+  useAssets,
+  useFxUsdRates,
+  useHydrated,
+  useSnapshots,
+} from '@/lib/store/selectors';
 import {
   buildDailyTradeSummaries,
   filterInternalTradeLines,
@@ -438,8 +442,34 @@ export default function SettingsAttributionScreen() {
   const { theme } = useAppPalette();
   const { t, locale } = useLanguage();
   const params = useLocalSearchParams<{ focusDate?: string }>();
-  const [tradeSummaries, setTradeSummaries] = useState<DailyTradeSummary[]>([]);
-  const [tradeLoading, setTradeLoading] = useState(false);
+  const hydrated = useHydrated();
+  const assets = useAssets();
+  const snapshots = useSnapshots();
+  const assetDailySnapshots = useAssetDailySnapshots();
+  const fx = useFxUsdRates();
+  const [fxHistory, setFxHistory] = useState<FxUsdMidRates[]>([]);
+  const [fxHistoryLoading, setFxHistoryLoading] = useState(true);
+  const tradeLoading = !hydrated || fxHistoryLoading;
+
+  /** tradeSummaries 由 store 数据 + fxHistory 派生；store 任何 mutation 自动重算 */
+  const tradeSummaries = useMemo<DailyTradeSummary[]>(() => {
+    if (tradeLoading) return [];
+    try {
+      const resolveFxRates = createFxRatesResolver(fxHistory, fx?.rates ?? null);
+      return buildDailyTradeSummaries(
+        {
+          assets,
+          snapshots,
+          assetDailySnapshots,
+          usdRates: fx?.rates ?? null,
+          resolveFxRates,
+        },
+        { filterInsignificant: false }
+      );
+    } catch {
+      return [];
+    }
+  }, [tradeLoading, assets, snapshots, assetDailySnapshots, fx, fxHistory]);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [unitMode, setUnitMode] = useState<'cny' | 'pct'>('cny');
   const shanghaiToday = useMemo(() => getShanghaiDateString(), []);
@@ -483,38 +513,19 @@ export default function SettingsAttributionScreen() {
     }
   }, [params.focusDate, tradeSummaries, tradeLoading, summaryByDate]);
 
+  /** fxHistory 是独立 storage（不在 store 内），focus 时拉一次；后续靠 useMemo 自动重算 */
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      setTradeLoading(true);
+      setFxHistoryLoading(true);
       (async () => {
         try {
-          const [assets, snaps, assetSnaps, fx, fxHistory] = await Promise.all([
-            getAssets(),
-            getSnapshots(),
-            getAssetDailySnapshots(),
-            getCachedFxUsdRates(),
-            getFxUsdRatesHistory(),
-          ]);
-          const resolveFxRates = createFxRatesResolver(
-            fxHistory,
-            fx?.rates ?? null
-          );
-          const rows = buildDailyTradeSummaries(
-            {
-              assets,
-              snapshots: snaps,
-              assetDailySnapshots: assetSnaps,
-              usdRates: fx?.rates ?? null,
-              resolveFxRates,
-            },
-            { filterInsignificant: false }
-          );
-          if (!cancelled) setTradeSummaries(rows);
+          const hist = await getFxUsdRatesHistory();
+          if (!cancelled) setFxHistory(hist);
         } catch {
-          if (!cancelled) setTradeSummaries([]);
+          if (!cancelled) setFxHistory([]);
         } finally {
-          if (!cancelled) setTradeLoading(false);
+          if (!cancelled) setFxHistoryLoading(false);
         }
       })();
       return () => {

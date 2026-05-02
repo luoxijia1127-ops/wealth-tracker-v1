@@ -86,6 +86,7 @@ npx vitest run
 - `lib/asset-currency.ts` 的 `ASSET_CURRENCY_OPTIONS` 唯一。
 - `lib/market-quotes.ts` 的 `MARKET_SECTIONS` 唯一。
 - 过期迁移 `lib/legacy-test-snapshot-purge.ts`、`lib/assetup-storage-migration.ts`（自 `@nest/*` / `@wealth-tracker/*` → `@assetup/*`）均已有 `MIGRATION_KEY` guard，一次性执行。
+- **2026-05 补充**：内存态由 `lib/store/app-store.ts`（zustand）统一收口；`assets / snapshots / assetDailySnapshots / displayCurrency / fxUsdRates` 5 项的写入通过 repository 内 `subscribeXxx` 钩子自动回流到 store，屏幕侧只 select 不 reload。详见根 `README.md` 的「数据层架构」章节。
 
 ### 翻译覆盖补齐
 
@@ -147,3 +148,63 @@ npx vitest run
 3. 回收站 30 天清理策略产品决策。
 4. 翻译键覆盖剩余边角：`lib/asset-recycle.ts` 抛错文案、`formatRecycleTransactionSummary` 等非用户直接可见但可能通过 Alert 漏出的字符串。
 5. Android 专属审查（内购、分享、权限清单）：iOS 上架稳定后启动。
+
+> 2026-05 状态：1 / 2 / 3 / 4 / 5 仍待办。原本"各 Tab 自行 useFocusEffect → reload 拉取"的时间窗不一致风险已由「数据层（PR1+PR2）」整体覆盖，详见下节。
+
+---
+
+## Updates · 2026-05
+
+> 本节增量记录 2026-04 review 之后落地的工程改动，与正文的 Phase 0–4 是相邻的迭代，不回写正文。
+
+### 数据层（PR1 + PR2）· 全局 store + 自动刷新
+
+#### 已交付
+
+| 模块 | 改动 |
+| :- | :- |
+| 新增 `lib/store/{mutex, app-store, auto-refresh, selectors, app-store.test, auto-refresh.test}.ts` | zustand store + selector hooks + FIFO `persistMutex` + 冷启动/前台切回的节流自动刷新 |
+| 5 个 repository（`asset-storage` / `snapshots` / `asset-daily-snapshots` / `display-currency-preference` / `fx-rates`） | 各加 `subscribeXxx` 钩子，mutation 末尾自动通知 store；旧同步 API 保留以服务 lib helper 与表单 read-modify-write |
+| `app/_layout.tsx` | 接入 `useAppStore.hydrate()` + `startAutoRefresh()` + `HydrateGate` 全屏占位 |
+| 屏幕迁移 | `dashboard / insights / asset-action / modal / settings-display-currency / settings-fx / settings-export / settings-attribution` 全部改用 selector，删除原 `useFocusEffect → reload` 链 |
+| 屏幕保留原状（按用途合理） | `market`（独立行情）/ `cash-ledger-edit` / `trade-edit`（表单只加载特定 asset）/ `settings-archived` / `settings-trash`（独立 storage） |
+
+#### 用户能感知的新行为
+
+- 冷启动 + 后台切回前台后，自动调 `syncNetWorthFromMarket`（3 分钟节流，静默后台，失败不弹 Alert）。
+- 跨 Tab 即时同步：改完资产、切换币种、备份导入后所有 Tab 立即反映，不再依赖 focus。
+
+#### 工程基线
+
+- `npx tsc --noEmit` → 0 errors
+- `npx expo lint` → 0 errors / 8 warnings（均为 PR1 之前已存在）
+- `npx vitest run` → 10 files / 53 tests passed（新增 15 个）
+
+#### 对原 Phase 2「后续建议」的影响
+
+- 原"各 Tab 自行 reload + 时间窗不一致"风险 → 由 store + listener 收敛。
+- 新引入的并发写覆盖隐患（`syncNetWorthFromMarket` ⨯ `updateAsset` 同写 `assets` key）→ `persistMutex` 串行化兜底。
+- `lib/asset-daily-snapshots.ts` 全量读写 → **未动**，仍在 Follow-up #2，规划中的 P2「按月分键 + Dashboard FlatList + memo」会一并处理。
+
+#### `@deprecated` 评估结论
+
+PR3 阶段评估了是否对 5 个 repository 的"读"API（`getAssets / getSnapshots / getCachedFxUsdRates / loadDisplayCurrency / getAssetDailySnapshots`）打 `@deprecated`。结论：**不打**。剩余调用方分布全部合法：
+
+| 层 | 典型调用方 | 是否能换成 selector |
+| :- | :- | :- |
+| 纯 lib helper | `asset-recycle / backup-bundle / quote-refresh / asset-limit / net-worth-sync / snapshot-restore-adjust` | 否（非 React + 需"写前最新值"） |
+| 表单页 | `modal / asset-action / cash-ledger-edit / trade-edit` | 否（read-modify-write 必须命中 storage 而非 store 缓存） |
+| Store 自身 | `app-store.hydrate` | 否（自我引用） |
+| 写路径 helper | `app/(tabs)/index.tsx` 的 `archiveHiddenAssetsIfAny` | 否（独立于组件 state） |
+
+selector 与 raw API 是"屏幕展示" vs "写路径 / 副作用"的分工，不存在替换关系。
+
+### 后续路线（与本次 review 解耦）
+
+1. P0 拆超大文件：`asset-action.tsx` 2468 行 / `modal.tsx` 1305 行 / `backup-bundle.ts` 872 行 等。
+2. P1 design token + editorial primitives + 删悬空件（`components/themed-text` / `parallax-scroll-view` / `ui/collapsible` 未消费；`react-native-chart-kit` 装了未用；`Pacifico` 字段声明但未加载）。
+3. P1 暗色一致性（`insights segmentedActivePill #FFFFFF`、`market.tsx` 涨跌色硬编码、`insights-distribution stroke #FFFFFF` 等）。
+4. P1 错误观测（统一 catch + 本地日志环 + 接入 `lib/errors/app-error.ts`）。
+5. P2 `asset-daily-snapshots` 按月分键 + Dashboard FlatList + memo。
+6. P3 测试补全 + i18n / a11y 收尾。
+7. P3 业务 follow-up（回收站 30 天清理 / 备份加密 / iOS 上架 checklist 6 项）。

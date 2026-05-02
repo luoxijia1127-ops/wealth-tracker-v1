@@ -12,16 +12,12 @@ import { InsightsTrendChart } from '@/components/insights/insights-trend-tab';
 import { ReturnScatterPanel } from '@/components/return-scatter-panel';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
-import { getAssets } from '@/lib/asset-storage';
 import { formatMoney, formatMoneyDisplayParts } from '@/lib/asset-value';
 import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
-import { loadDisplayCurrency } from '@/lib/display-currency-preference';
 import { themeFinanceDeltaColor } from '@/lib/finance-colors';
 import {
-  getCachedFxUsdRates,
   hasUsdAnchoredFxTable,
-  type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import {
   buildAggregatedGoalRows
@@ -43,11 +39,17 @@ import {
 import { createInsightsStyles } from '@/lib/insights-styles';
 import { computeAllReturnMetrics, isPlottableMetric } from '@/lib/investment-return-metrics';
 import type { TranslationKey } from '@/lib/language';
-import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { numberSingleLineTextProps } from '@/lib/numeric-display-one-line';
-import { getSnapshots, type Snapshot } from '@/lib/snapshots';
-import type { AssetCategory, SimpleAsset } from '@/types/asset';
-import { useFocusEffect } from '@react-navigation/native';
+import { useAppStore } from '@/lib/store/app-store';
+import {
+  useAssets,
+  useDisplayCurrency,
+  useFxUsdRates,
+  useHydrated,
+  useSnapshots,
+  useSyncing,
+} from '@/lib/store/selectors';
+import type { AssetCategory } from '@/types/asset';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -119,18 +121,19 @@ export default function Insights() {
     return Math.max(band - insets.top, 1);
   }, [windowHeight, insets.top]);
 
-  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
-  const [assets, setAssets] = useState<SimpleAsset[]>([]);
-  const [fxRates, setFxRates] = useState<FxUsdMidRates | null>(null);
-  const [displayCurrency, setDisplayCurrency] = useState<string>('CNY');
-  const [loading, setLoading] = useState(true);
+  const hydrated = useHydrated();
+  const snapshots = useSnapshots();
+  const assets = useAssets();
+  const fxRates = useFxUsdRates();
+  const displayCurrency = useDisplayCurrency();
+  const refreshing = useSyncing();
+
   const [chartTab, setChartTab] = useState<InsightsChartTab>('trend');
   const [chartTabSeeded, setChartTabSeeded] = useState(false);
   const [selectedDistributionCategory, setSelectedDistributionCategory] = useState<AssetCategory | null>(null);
   const [trendTip, setTrendTip] = useState<{ index: number; x: number; y: number } | null>(null);
   const [trendTimeframe, setTrendTimeframe] = useState<TrendTimeframe>('ALL');
   const [trendCustomRange, setTrendCustomRange] = useState<TrendCustomRange | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
   const chartHeight = useMemo(() => {
     const h = Math.round(windowHeight * 0.38);
@@ -183,63 +186,10 @@ export default function Insights() {
     [trendRangeSnapshots, displayCurrency, fxRates]
   );
 
-  const reloadInsightsData = useCallback(async () => {
-    const [snaps, ass, cachedFx, dc] = await Promise.all([
-      getSnapshots(),
-      getAssets(),
-      getCachedFxUsdRates(),
-      loadDisplayCurrency(),
-    ]);
-    setSnapshots(snaps);
-    setAssets(ass);
-    setFxRates(cachedFx);
-    setDisplayCurrency(dc);
-  }, []);
-
   const onRefreshInsights = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      try {
-        await syncNetWorthFromMarket();
-      } catch {
-        // ignore
-      }
-      await reloadInsightsData();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [reloadInsightsData]);
-
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        try {
-          const [localSnaps, localAssets, cachedFx, dc] = await Promise.all([
-            getSnapshots(),
-            getAssets(),
-            getCachedFxUsdRates(),
-            loadDisplayCurrency(),
-          ]);
-          if (!cancelled) {
-            setSnapshots(localSnaps);
-            setAssets(localAssets);
-            setFxRates(cachedFx);
-            setDisplayCurrency(dc);
-            setLoading(false);
-          }
-        } catch {
-          if (!cancelled) {
-            setSnapshots([]);
-            setAssets([]);
-            setFxRates(null);
-            setLoading(false);
-          }
-        }
-      })();
-      return () => { cancelled = true; };
-    }, [])
-  );
+    /** 强制刷新（绕节流）；store 自动同步 snapshots / assets / fxRates */
+    await useAppStore.getState().syncNetWorthFromMarket();
+  }, []);
 
   const hasSnapshotTrend = trendModel.series.length > 0;
   const hasAnySnapshots = orderedSnapshots.length > 0;
@@ -300,10 +250,10 @@ export default function Insights() {
   const distributionPanelOpen = !!selectedDistributionCategory;
 
   useEffect(() => {
-    if (loading || chartTabSeeded) return;
+    if (!hydrated || chartTabSeeded) return;
     if (!hasAnySnapshots && hasAssets) setChartTab('distribution');
     setChartTabSeeded(true);
-  }, [loading, hasAnySnapshots, hasAssets, chartTabSeeded]);
+  }, [hydrated, hasAnySnapshots, hasAssets, chartTabSeeded]);
 
   useEffect(() => {
     if (chartTab !== 'distribution') setSelectedDistributionCategory(null);
@@ -354,7 +304,7 @@ export default function Insights() {
     return formatMoneyDisplayParts(n, displayCurrency);
   }, [latest, displayCurrency, fxRates]);
 
-  if (loading) {
+  if (!hydrated) {
     return (
       <View style={styles.screen}>
         <View style={styles.dashboardAmbient} pointerEvents="none" />

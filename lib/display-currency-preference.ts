@@ -25,7 +25,30 @@ export async function saveDisplayCurrency(code: string): Promise<void> {
   if (!isValidAssetCurrency(code)) return;
   try {
     await AsyncStorage.setItem(KEY, code);
+    notifyDisplayCurrency(code);
   } catch {
     /* ignore */
   }
+}
+
+const displayCurrencyListeners = new Set<(code: string) => void>();
+
+/** 订阅展示币种变更；回调收到的是写入后的最新值。返回取消订阅函数。 */
+export function subscribeDisplayCurrency(
+  listener: (code: string) => void
+): () => void {
+  displayCurrencyListeners.add(listener);
+  return () => {
+    displayCurrencyListeners.delete(listener);
+  };
+}
+
+function notifyDisplayCurrency(code: string): void {
+  displayCurrencyListeners.forEach((cb) => {
+    try {
+      cb(code);
+    } catch {
+      /* listener 异常不影响其它订阅者 */
+    }
+  });
 }

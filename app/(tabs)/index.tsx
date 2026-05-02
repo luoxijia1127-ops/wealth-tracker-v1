@@ -23,7 +23,6 @@ import {
 } from '@/lib/asset-value';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { createDashboardStyles, type DashboardStyles } from '@/lib/dashboard-styles';
-import { loadDisplayCurrency } from '@/lib/display-currency-preference';
 import {
   magazineBlocks,
   magazineStrongOnBlock,
@@ -32,15 +31,21 @@ import { themeFinanceDeltaColor } from '@/lib/finance-colors';
 import { numberSingleLineTextProps } from '@/lib/numeric-display-one-line';
 import {
   ensureFxUsdRatesHistoryBackfill,
-  getCachedFxUsdRates,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
 import {
   formatInsightsPnlParts,
   getDailyChangeInDisplay,
 } from '@/lib/insights-model';
-import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
-import { getSnapshots, type Snapshot } from '@/lib/snapshots';
+import { useAppStore } from '@/lib/store/app-store';
+import {
+  useAssets,
+  useDisplayCurrency,
+  useFxUsdRates,
+  useHydrated,
+  useSnapshots,
+  useSyncing,
+} from '@/lib/store/selectors';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import {
   ASSET_CATEGORY_ORDER,
@@ -51,7 +56,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import * as ExpoStatusBar from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -66,10 +71,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CATEGORY_ORDER = ASSET_CATEGORY_ORDER;
 
-async function archiveHiddenAssetsIfAny(): Promise<SimpleAsset[]> {
-  let list = await getAssets();
+/**
+ * 把被隐藏的资产归档；mutation 走 saveAssets，store 会通过 listener 自动同步。
+ * 保留为非阻塞调用即可，无需返回值。
+ */
+async function archiveHiddenAssetsIfAny(): Promise<void> {
+  const list = await getAssets();
   const hidden = list.filter(isAssetHiddenFromDashboard);
-  if (hidden.length === 0) return list;
+  if (hidden.length === 0) return;
   for (const a of hidden) {
     try {
       await archiveAssetRecord(a);
@@ -77,7 +86,6 @@ async function archiveHiddenAssetsIfAny(): Promise<SimpleAsset[]> {
       // ignore single failure
     }
   }
-  return getAssets();
 }
 
 const CATEGORY_ROW_ICONS: Record<AssetCategory, keyof typeof MaterialIcons.glyphMap> = {
@@ -449,15 +457,17 @@ export default function Dashboard() {
 
   const blocks = useMemo(() => magazineBlocks(theme), [theme]);
   const insets = useSafeAreaInsets();
-  
-  const [assets, setAssets] = useState<SimpleAsset[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [syncingQuotes, setSyncingQuotes] = useState(false);
-  const [netWorthDisplay, setNetWorthDisplay] = useState<number | null>(null);
-  const [displayCurrency, setDisplayCurrency] = useState<string>('CNY');
-  const [fxUsdRates, setFxUsdRates] = useState<FxUsdMidRates['rates'] | null>(null);
-  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
-  const focusLoadGen = useRef(0);
+
+  const hydrated = useHydrated();
+  const assets = useAssets();
+  const snapshots = useSnapshots();
+  const displayCurrency = useDisplayCurrency();
+  const fxUsdRatesCached = useFxUsdRates();
+  const fxUsdRates = useMemo<FxUsdMidRates['rates'] | null>(
+    () => fxUsdRatesCached?.rates ?? null,
+    [fxUsdRatesCached]
+  );
+  const syncingQuotes = useSyncing();
 
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => new Set());
   const toggleCategory = useCallback((cat: string) => {
@@ -467,22 +477,6 @@ export default function Dashboard() {
       else next.add(cat);
       return next;
     });
-  }, []);
-
-  const reloadDashboardState = useCallback(async () => {
-    const local = await archiveHiddenAssetsIfAny();
-    setAssets(local);
-    const dc = await loadDisplayCurrency();
-    setDisplayCurrency(dc);
-    setSnapshots(await getSnapshots());
-    const dash = filterAssetsForDashboard(local);
-    const needsFx = dash.some((a) => getAssetCurrency(a) !== dc);
-    const cached = await getCachedFxUsdRates();
-    setFxUsdRates(cached?.rates ?? null);
-    const unified = sumDisplayValuesInCurrency(dash, dc, cached?.rates ?? null);
-    if (unified !== null) setNetWorthDisplay(unified);
-    else if (!needsFx) setNetWorthDisplay(sumDisplayValuesNaive(dash));
-    else setNetWorthDisplay(null);
   }, []);
 
   const handleEditAsset = useCallback((asset: SimpleAsset) => {
@@ -500,40 +494,20 @@ export default function Dashboard() {
             text: t('asset.form.deleteTitle'),
             style: 'destructive',
             onPress: () => {
-              void (async () => {
-                await moveAssetToTrash(asset.id);
-                await reloadDashboardState();
-              })();
+              /** moveAssetToTrash 内部 saveAssets，listener 自动通知 store */
+              void moveAssetToTrash(asset.id);
             },
           },
         ]
       );
     },
-    [reloadDashboardState, t]
+    [t]
   );
 
   const refreshMarketData = useCallback(async () => {
-    setSyncingQuotes(true);
-    try {
-      await syncNetWorthFromMarket();
-      const cleaned = await archiveHiddenAssetsIfAny();
-      setAssets(cleaned);
-      const dc = await loadDisplayCurrency();
-      setDisplayCurrency(dc);
-      setSnapshots(await getSnapshots());
-      const dash = filterAssetsForDashboard(cleaned);
-      const needsFxDash = dash.some((a) => getAssetCurrency(a) !== dc);
-      const cachedAfterSync = await getCachedFxUsdRates();
-      setFxUsdRates(cachedAfterSync?.rates ?? null);
-      const unified = sumDisplayValuesInCurrency(dash, dc, cachedAfterSync?.rates ?? null);
-      if (unified !== null) setNetWorthDisplay(unified);
-      else if (!needsFxDash) setNetWorthDisplay(sumDisplayValuesNaive(dash));
-      else setNetWorthDisplay(null);
-    } catch {
-      /* ignore */
-    } finally {
-      setSyncingQuotes(false);
-    }
+    /** 强制刷新（绕节流）；archive 后 listener 自动通知 store */
+    await useAppStore.getState().syncNetWorthFromMarket();
+    await archiveHiddenAssetsIfAny();
   }, []);
 
   useFocusEffect(
@@ -545,22 +519,10 @@ export default function Dashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      const gen = ++focusLoadGen.current;
-      let cancelled = false;
-      (async () => {
-        try {
-          void ensureFxUsdRatesHistoryBackfill();
-          await reloadDashboardState();
-          if (!cancelled && gen === focusLoadGen.current) setLoading(false);
-        } catch {
-          if (!cancelled && gen === focusLoadGen.current) {
-            setAssets([]);
-            setLoading(false);
-          }
-        }
-      })();
-      return () => { cancelled = true; };
-    }, [reloadDashboardState])
+      void ensureFxUsdRatesHistoryBackfill();
+      void archiveHiddenAssetsIfAny();
+      return undefined;
+    }, [])
   );
 
   const dashboardAssets = useMemo(() => filterAssetsForDashboard(assets), [assets]);
@@ -568,7 +530,15 @@ export default function Dashboard() {
   const netWorthSummary = useMemo(() => formatNetWorthSummary(dashboardAssets), [dashboardAssets]);
   const dailyChange = useMemo(() => getDailyChangeInDisplay(snapshots, displayCurrency, fxUsdRates), [snapshots, displayCurrency, fxUsdRates]);
 
-  if (loading) {
+  const netWorthDisplay = useMemo<number | null>(() => {
+    const unified = sumDisplayValuesInCurrency(dashboardAssets, displayCurrency, fxUsdRates);
+    if (unified !== null) return unified;
+    const needsFx = dashboardAssets.some((a) => getAssetCurrency(a) !== displayCurrency);
+    if (!needsFx) return sumDisplayValuesNaive(dashboardAssets);
+    return null;
+  }, [dashboardAssets, displayCurrency, fxUsdRates]);
+
+  if (!hydrated) {
     return (
       <View style={styles.screenWrapper}>
         <View style={styles.dashboardAmbient} pointerEvents="none" />

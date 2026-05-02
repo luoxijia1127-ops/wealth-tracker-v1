@@ -83,6 +83,33 @@ export async function fetchAddAssetReferencePrice(
   const today = getShanghaiDateString();
 
   if (pick.intlQuoteSymbol) {
+    /**
+     * 当天回填：先打 q/l 单行 CSV（≈1 RTT，最快），命中即可返回；
+     * 历史日期回填：q/l 只能拿到「最新交易日」收盘，无法替代「≤td 的最近交易日」，
+     * 直接走整表 q/d/l。两种情况下另一个都作为兜底，覆盖 q/l 偶发 N/D 与 q/d/l 失败。
+     */
+    if (td === today) {
+      const last = await fetchStooqQuote(pick.intlQuoteSymbol, signal);
+      if (last && last.tradeDate <= td) {
+        return { price: last.close, hint: `收盘 ${last.tradeDate}` };
+      }
+      const hist = await fetchStooqCloseOnOrBefore(
+        pick.intlQuoteSymbol,
+        td,
+        signal
+      );
+      if (hist) {
+        return {
+          price: hist.close,
+          hint:
+            hist.tradeDate < td
+              ? `收盘 ${hist.tradeDate}（最近交易日）`
+              : `收盘 ${hist.tradeDate}`,
+        };
+      }
+      return null;
+    }
+
     const hist = await fetchStooqCloseOnOrBefore(
       pick.intlQuoteSymbol,
       td,

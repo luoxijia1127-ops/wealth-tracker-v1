@@ -8,7 +8,6 @@ import { SettingsEditorialMasthead } from '@/components/settings-editorial-masth
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
-import { getAssets } from '@/lib/asset-storage';
 import {
   buildBackupZip,
   collectBackupData,
@@ -24,11 +23,10 @@ import {
   type DatePresetId,
 } from '@/lib/manual-transactions-export';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
-import type { SimpleAsset } from '@/types/asset';
+import { useAssets, useHydrated } from '@/lib/store/selectors';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -60,34 +58,24 @@ export default function SettingsExportScreen() {
   const chipActiveBg = rgbaFromHex(theme.primary, 0.22);
 
   const [mode, setMode] = useState<ExportMode>('backup');
-  const [loading, setLoading] = useState(true);
-  const [assets, setAssets] = useState<SimpleAsset[]>([]);
+  const hydrated = useHydrated();
+  const assets = useAssets();
+  const loading = !hydrated;
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [activePreset, setActivePreset] = useState<DatePresetId | null>('d30');
   const [exporting, setExporting] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const list = await getAssets();
-      setAssets(list);
-      const r = getPresetDateRange('d30', list);
-      setStartDate(r.start);
-      setEndDate(r.end);
-      setActivePreset('d30');
-    } catch {
-      setAssets([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load])
-  );
+  /** 进入页面后 hydrated 完成时初始化日期 preset 一次；用户后续手动改不会被覆盖 */
+  const datesInitedRef = useRef(false);
+  useEffect(() => {
+    if (!hydrated || datesInitedRef.current) return;
+    datesInitedRef.current = true;
+    const r = getPresetDateRange('d30', assets);
+    setStartDate(r.start);
+    setEndDate(r.end);
+    setActivePreset('d30');
+  }, [hydrated, assets]);
 
   const rowCount = useMemo(() => {
     if (!validateYmd(startDate) || !validateYmd(endDate) || startDate > endDate) {

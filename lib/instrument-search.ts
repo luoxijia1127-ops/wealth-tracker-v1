@@ -55,7 +55,11 @@ const STOOQ_SUFFIX_VENUE: Record<string, IntlListingExchange> = {
   i: 'XDUB',
 };
 
-/** 纯字母 ticker 在 Stooq 上探测顺序：英股优先，再常见欧陆后缀 */
+/**
+ * 纯字母 ticker 在 Stooq 上探测顺序：英股优先，再常见欧陆后缀。
+ * 列表保持完整以记录覆盖范围，但运行时只取前 EU_STOOQ_PROBE_LIMIT 个并行探测；
+ * 弱网下避免 14 跳串行把联想拖到 4-5 秒。
+ */
 const EU_STOOQ_PROBE: { suffix: string; venue: IntlListingExchange }[] = [
   { suffix: 'l', venue: 'LSE' },
   { suffix: 'uk', venue: 'LSE' },
@@ -72,6 +76,9 @@ const EU_STOOQ_PROBE: { suffix: string; venue: IntlListingExchange }[] = [
   { suffix: 'he', venue: 'XHEL' },
   { suffix: 'i', venue: 'XDUB' },
 ];
+
+/** 联想阶段 EU 后缀并行上限；命中按优先级取第一个 */
+const EU_STOOQ_PROBE_LIMIT = 4;
 
 /** Stooq 能拉到收盘价则视为有效代码（绕过 OpenFIGI 排序/条数限制；含英欧显式后缀与 .l 探测） */
 async function stooqLookupHints(
@@ -154,21 +161,30 @@ async function stooqLookupHints(
   if (/^[A-Za-z]{2,5}$/.test(compact)) {
     const usSym = usTickerToStooq(compact);
     if (!seenStooq.has(usSym)) {
-      for (const { suffix, venue } of EU_STOOQ_PROBE) {
-        const st = buildIntlStooqSymbol(compact, suffix);
-        if (seenStooq.has(st)) continue;
-        const row = await fetchStooqQuote(st, signal);
-        if (row) {
-          seenStooq.add(st);
-          const codeDisp = compact.toUpperCase();
-          out.push({
-            code: codeDisp,
-            name: codeDisp,
-            exchange: venue,
-            intlQuoteSymbol: st,
-          });
-          break;
-        }
+      const probes = EU_STOOQ_PROBE.slice(0, EU_STOOQ_PROBE_LIMIT)
+        .map((p) => ({
+          ...p,
+          stooq: buildIntlStooqSymbol(compact, p.suffix),
+        }))
+        .filter((p) => !seenStooq.has(p.stooq));
+
+      const probeResults = await Promise.all(
+        probes.map((p) =>
+          fetchStooqQuote(p.stooq, signal).then((row) => ({ p, row }))
+        )
+      );
+      /** 按 EU_STOOQ_PROBE 顺序（即 probes 顺序）取首个有效行情，保留原"英股优先"语义 */
+      const hit = probeResults.find((r) => r.row !== null);
+      if (hit) {
+        const { suffix: _suffix, venue, stooq: st } = hit.p;
+        seenStooq.add(st);
+        const codeDisp = compact.toUpperCase();
+        out.push({
+          code: codeDisp,
+          name: codeDisp,
+          exchange: venue,
+          intlQuoteSymbol: st,
+        });
       }
     }
   }
@@ -188,6 +204,30 @@ function dedupeIntlRows(a: IntlSuggestRow[], b: IntlSuggestRow[]): IntlSuggestRo
   return out;
 }
 
+/**
+ * 典型美股代码（2–5 位纯字母）：若合并结果里还没有 `ticker.us`，在列表最前插入一条占位联想。
+ *
+ * 背景：OpenFIGI 对 "aapl" 常返回 APLY / AAPW 等模糊命中；Stooq `fetchStooqQuote(aapl.us)` 在弱网或 5s
+ * 超时失败时，用户完全看不到 `aapl.us`。占位项让用户能选到正确符号；参考价仍由后续 Stooq/东财校验。
+ */
+export function prependExactUsTickerIfMissing(
+  query: string,
+  rows: IntlSuggestRow[]
+): IntlSuggestRow[] {
+  const compact = query.trim().replace(/\s+/g, '');
+  if (!/^[A-Za-z]{2,5}$/.test(compact)) return rows;
+  const sym = usTickerToStooq(compact).toLowerCase();
+  if (rows.some((r) => r.intlQuoteSymbol.toLowerCase() === sym)) return rows;
+  const codeDisp = compact.toUpperCase();
+  const syn: IntlSuggestRow = {
+    code: codeDisp,
+    name: codeDisp,
+    exchange: 'US',
+    intlQuoteSymbol: sym,
+  };
+  return [syn, ...rows];
+}
+
 export async function searchUnifiedInstruments(
   query: string,
   signal?: AbortSignal
@@ -202,7 +242,10 @@ export async function searchUnifiedInstruments(
   ]);
 
   /** OpenFIGI 在前：避免短 ticker 的 Stooq 美股探测（如 BATS→bats.us）盖住用户更可能要的英欧联想 */
-  const mergedIntl = dedupeIntlRows(figiIntl, stooqIntl);
+  const mergedIntl = prependExactUsTickerIfMissing(
+    q,
+    dedupeIntlRows(figiIntl, stooqIntl)
+  );
 
   const out: UnifiedSuggestItem[] = [];
   for (const e of em) {

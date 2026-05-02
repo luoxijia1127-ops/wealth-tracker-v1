@@ -14,8 +14,11 @@ import {
 import type { ChinaExchange, ListingExchange } from '@/types/asset';
 
 import { ENDPOINTS } from '@/lib/config/endpoints';
+import { fetchWithTimeout } from '@/lib/net/fetch-with-timeout';
 
 const SUGGEST_URL = ENDPOINTS.eastmoneySuggest;
+/** 联想路径上的快失败窗口，避免单源拖累并行三源的整体延迟 */
+const SUGGEST_TIMEOUT_MS = 5000;
 
 export type SuggestInstrument = {
   code: string;
@@ -92,8 +95,9 @@ export async function searchSecurities(
     count: '12',
   });
 
-  const res = await fetch(`${SUGGEST_URL}?${params.toString()}`, {
-    signal,
+  const res = await fetchWithTimeout(`${SUGGEST_URL}?${params.toString()}`, {
+    parentSignal: signal,
+    timeoutMs: SUGGEST_TIMEOUT_MS,
   });
   if (!res.ok) return [];
 

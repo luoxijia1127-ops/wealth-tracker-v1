@@ -7,14 +7,15 @@ import { useLanguage } from '@/contexts/language-context';
 import { AppFont } from '@/lib/app-fonts';
 import { ASSET_CURRENCY_OPTIONS } from '@/lib/asset-currency';
 import { rgbaFromHex } from '@/lib/color-utils';
-import {
-  loadDisplayCurrency,
-  saveDisplayCurrency,
-} from '@/lib/display-currency-preference';
+import { saveDisplayCurrency } from '@/lib/display-currency-preference';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
+import {
+  useDisplayCurrency,
+  useHydrated,
+} from '@/lib/store/selectors';
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -39,24 +40,11 @@ export default function SettingsDisplayCurrencyScreen() {
   const { theme } = useAppPalette();
   const { t } = useLanguage();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
-  const [code, setCode] = useState<string>('CNY');
-  const [loading, setLoading] = useState(true);
+  const code = useDisplayCurrency();
+  const hydrated = useHydrated();
 
-  useEffect(() => {
-    let cancelled = false;
-    void loadDisplayCurrency().then((c) => {
-      if (!cancelled) {
-        setCode(c);
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+  /** 写入由 saveDisplayCurrency 触发；store listener 会自动更新 code，无需本地 setState */
   const onPick = useCallback(async (next: string) => {
-    setCode(next);
     await saveDisplayCurrency(next);
   }, []);
 
@@ -98,7 +86,7 @@ export default function SettingsDisplayCurrencyScreen() {
           >
             {t('settings.currency.description')}
           </Text>
-          {loading ? (
+          {!hydrated ? (
             <View style={{ paddingVertical: 24, alignItems: 'center' }}>
               <ActivityIndicator color={p} />
             </View>

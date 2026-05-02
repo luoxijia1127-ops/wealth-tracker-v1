@@ -54,6 +54,7 @@ export async function saveAssetDailySnapshot(
   const trimmed =
     snaps.length > MAX_DAYS ? snaps.slice(snaps.length - MAX_DAYS) : snaps;
   await AsyncStorage.setItem(ASSET_DAILY_SNAPSHOTS_KEY, JSON.stringify(trimmed));
+  notifyAssetDailySnapshots(trimmed);
 }
 
 /** 全量写回（如恢复资产后合并历史日逐资产行） */
@@ -68,5 +69,30 @@ export async function replaceAllAssetDailySnapshots(
     ASSET_DAILY_SNAPSHOTS_KEY,
     JSON.stringify(trimmed)
   );
+  notifyAssetDailySnapshots(trimmed);
+}
+
+const assetDailyListeners = new Set<
+  (snapshots: AssetDailySnapshot[]) => void
+>();
+
+/** 订阅日逐资产快照持久化写入；回调收到的是写入后的最新数组。返回取消订阅函数。 */
+export function subscribeAssetDailySnapshots(
+  listener: (snapshots: AssetDailySnapshot[]) => void
+): () => void {
+  assetDailyListeners.add(listener);
+  return () => {
+    assetDailyListeners.delete(listener);
+  };
+}
+
+function notifyAssetDailySnapshots(snapshots: AssetDailySnapshot[]): void {
+  assetDailyListeners.forEach((cb) => {
+    try {
+      cb(snapshots);
+    } catch {
+      /* listener 异常不影响其它订阅者 */
+    }
+  });
 }
 

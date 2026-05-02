@@ -6,8 +6,11 @@
 import { ENDPOINTS } from '@/lib/config/endpoints';
 import { EASTMONEY_UT } from '@/lib/eastmoney-config';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
+import { fetchWithTimeout } from '@/lib/net/fetch-with-timeout';
 
 const KLINE_URL = ENDPOINTS.eastmoneyKline;
+/** 联想/取价路径上的快失败窗口；外层（quote-refresh）仍有 8s 兜底 */
+const KLINE_TIMEOUT_MS = 5000;
 
 /** A 股常规收盘后再等几分钟，避免日 K 未落库 */
 const SHANGHAI_CLOSE_MINUTES = 15 * 60 + 5;
@@ -81,7 +84,10 @@ export async function fetchDailySettlementClose(
     lmt: '20',
   });
   const url = `${KLINE_URL}?${params.toString()}`;
-  const res = await fetch(url, { signal });
+  const res = await fetchWithTimeout(url, {
+    parentSignal: signal,
+    timeoutMs: KLINE_TIMEOUT_MS,
+  });
   if (!res.ok) return null;
   const json = (await res.json()) as {
     rc?: number;
@@ -124,7 +130,10 @@ export async function fetchEastMoneyCloseOnOrBefore(
     lmt: '500',
   });
   const url = `${KLINE_URL}?${params.toString()}`;
-  const res = await fetch(url, { signal });
+  const res = await fetchWithTimeout(url, {
+    parentSignal: signal,
+    timeoutMs: KLINE_TIMEOUT_MS,
+  });
   if (!res.ok) return null;
   const json = (await res.json()) as {
     rc?: number;

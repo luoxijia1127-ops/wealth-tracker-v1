@@ -46,6 +46,29 @@ export async function getAssets(): Promise<SimpleAsset[]> {
 export async function saveAssets(assets: SimpleAsset[]): Promise<void> {
   await AsyncStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(assets));
   lastGoodAssets = assets;
+  notifyAssets(assets);
+}
+
+const assetListeners = new Set<(assets: SimpleAsset[]) => void>();
+
+/** 订阅资产持久化写入；回调收到的是写入后的最新数组。返回取消订阅函数。 */
+export function subscribeAssets(
+  listener: (assets: SimpleAsset[]) => void
+): () => void {
+  assetListeners.add(listener);
+  return () => {
+    assetListeners.delete(listener);
+  };
+}
+
+function notifyAssets(assets: SimpleAsset[]): void {
+  assetListeners.forEach((cb) => {
+    try {
+      cb(assets);
+    } catch {
+      /* listener 异常不影响其它订阅者 */
+    }
+  });
 }
 
 export async function addAsset(asset: SimpleAsset): Promise<void> {

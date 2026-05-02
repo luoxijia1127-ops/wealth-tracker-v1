@@ -114,6 +114,29 @@ export async function getCachedFxUsdRates(): Promise<FxUsdMidRates | null> {
 
 async function saveCachedFxUsdRates(data: FxUsdMidRates): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  notifyFxRates(data);
+}
+
+const fxRatesListeners = new Set<(rates: FxUsdMidRates) => void>();
+
+/** 订阅当日汇率缓存写入；回调收到的是写入后的最新值。返回取消订阅函数。 */
+export function subscribeFxRates(
+  listener: (rates: FxUsdMidRates) => void
+): () => void {
+  fxRatesListeners.add(listener);
+  return () => {
+    fxRatesListeners.delete(listener);
+  };
+}
+
+function notifyFxRates(rates: FxUsdMidRates): void {
+  fxRatesListeners.forEach((cb) => {
+    try {
+      cb(rates);
+    } catch {
+      /* listener 异常不影响其它订阅者 */
+    }
+  });
 }
 
 export type FxEnsureSource = 'network' | 'cache' | 'stale' | 'none';

@@ -9,7 +9,11 @@ import {
   openfigiExchCodeToVenueAndSuffix,
   type IntlListingExchange,
 } from '@/lib/intl-exchange-stooq';
+import { fetchWithTimeout } from '@/lib/net/fetch-with-timeout';
 import type { ChinaExchange, ListingExchange } from '@/types/asset';
+
+/** 联想路径上的快失败窗口；OpenFIGI 在弱网下偶发 10s+ 长尾 */
+const OPENFIGI_TIMEOUT_MS = 5000;
 
 export type IntlSuggestRow = {
   code: string;
@@ -175,9 +179,10 @@ async function fetchOpenFigiSearchRows(
   searchQuery: string,
   signal?: AbortSignal
 ): Promise<FigiRow[]> {
-  const res = await fetch(ENDPOINTS.openfigiSearch, {
+  const res = await fetchWithTimeout(ENDPOINTS.openfigiSearch, {
     method: 'POST',
-    signal,
+    parentSignal: signal,
+    timeoutMs: OPENFIGI_TIMEOUT_MS,
     headers: {
       'Content-Type': 'application/json',
       'User-Agent': 'Assetup/1.0',
@@ -205,13 +210,21 @@ export async function searchOpenFigiIntl(
     const extraQuery =
       FIGI_FALLBACK_QUERY[q] ?? FIGI_FALLBACK_QUERY[qLower];
 
-    let rows = await fetchOpenFigiSearchRows(q, signal);
-    if (extraQuery && extraQuery !== q) {
-      const more = await fetchOpenFigiSearchRows(extraQuery, signal);
+    /** 主查询与中→英别名查询并行打，去重合并；弱网下省一个 RTT */
+    const [primaryRows, extraRows] =
+      extraQuery && extraQuery !== q
+        ? await Promise.all([
+            fetchOpenFigiSearchRows(q, signal),
+            fetchOpenFigiSearchRows(extraQuery, signal),
+          ])
+        : [await fetchOpenFigiSearchRows(q, signal), [] as FigiRow[]];
+
+    let rows = primaryRows;
+    if (extraRows.length > 0) {
       const rowKey = (r: FigiRow) =>
         `${r.ticker ?? ''}|${r.exchCode ?? ''}|${r.name ?? ''}`;
       const seen = new Set(rows.map(rowKey));
-      for (const r of more) {
+      for (const r of extraRows) {
         const k = rowKey(r);
         if (!seen.has(k)) {
           seen.add(k);

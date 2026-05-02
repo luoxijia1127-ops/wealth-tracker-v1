@@ -26,7 +26,7 @@ import {
     validateGoldForm,
     validateListedForm,
 } from '@/lib/add-asset-form';
-import { fetchAddAssetReferencePrice } from '@/lib/add-asset-reference-price';
+import { fetchAddAssetReferencePriceCached as fetchAddAssetReferencePrice } from '@/lib/add-asset-reference-price-cache';
 import {
     ASSET_CURRENCY_OPTIONS,
     assetCurrencySymbol,
@@ -46,15 +46,13 @@ import {
   defaultCurrencyForIntlListingExchange,
   isIntlListingExchange,
 } from '@/lib/intl-exchange-stooq';
-import {
-    searchUnifiedInstruments,
-    type UnifiedSuggestItem,
-} from '@/lib/instrument-search';
+import { type UnifiedSuggestItem } from '@/lib/instrument-search';
+import { searchUnifiedInstrumentsCached } from '@/lib/instrument-search-cache';
 import { createAddModalStyles } from '@/lib/modal-styles';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import type { TranslationKey } from '@/lib/language';
-import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
+import { useAppStore } from '@/lib/store/app-store';
 import {
     FREE_ASSET_LIMIT,
 } from '@/lib/subscription-constants';
@@ -199,7 +197,7 @@ export default function AddModal() {
     const ac = new AbortController();
     const t = setTimeout(() => {
       setSuggestLoading(true);
-      searchUnifiedInstruments(q, ac.signal)
+      searchUnifiedInstrumentsCached(q, ac.signal)
         .then((list) => {
           if (!ac.signal.aborted) setSuggestions(list);
         })
@@ -209,7 +207,7 @@ export default function AddModal() {
         .finally(() => {
           if (!ac.signal.aborted) setSuggestLoading(false);
         });
-    }, 320);
+    }, 200);
     return () => {
       clearTimeout(t);
       ac.abort();
@@ -250,7 +248,7 @@ export default function AddModal() {
         .finally(() => {
           if (!ac.signal.aborted) setGoldSuggestLoading(false);
         });
-    }, 320);
+    }, 200);
     return () => {
       clearTimeout(t);
       ac.abort();
@@ -268,21 +266,21 @@ export default function AddModal() {
       setListedQuoteLoading(false);
       return;
     }
-    let cancelled = false;
+    const ac = new AbortController();
     setListedQuoteLoading(true);
     setListedQuoteHint(null);
-    fetchAddAssetReferencePrice(instrumentPick, tradeDate)
+    fetchAddAssetReferencePrice(instrumentPick, tradeDate, ac.signal)
       .then((r) => {
-        if (cancelled || !r) return;
+        if (ac.signal.aborted || !r) return;
         setCostPrice(String(r.price));
         setListedQuoteHint(r.hint);
       })
       .catch(() => {})
       .finally(() => {
-        if (!cancelled) setListedQuoteLoading(false);
+        if (!ac.signal.aborted) setListedQuoteLoading(false);
       });
     return () => {
-      cancelled = true;
+      ac.abort();
     };
   }, [showListedSecuritiesForm, tradeDate, instrumentPick]);
 
@@ -297,12 +295,12 @@ export default function AddModal() {
       setGoldQuoteLoading(false);
       return;
     }
-    let cancelled = false;
+    const ac = new AbortController();
     setGoldQuoteLoading(true);
     setGoldQuoteHint(null);
-    fetchAddAssetReferencePrice(goldInstrumentPick, tradeDate)
+    fetchAddAssetReferencePrice(goldInstrumentPick, tradeDate, ac.signal)
       .then((r) => {
-        if (cancelled) return;
+        if (ac.signal.aborted) return;
         if (r) {
           setCostPrice(String(r.price));
           setGoldQuoteHint(r.hint);
@@ -311,15 +309,15 @@ export default function AddModal() {
         }
       })
       .catch(() => {
-        if (!cancelled) {
+        if (!ac.signal.aborted) {
           setGoldQuoteHint(t('asset.form.unitPricePlaceholder'));
         }
       })
       .finally(() => {
-        if (!cancelled) setGoldQuoteLoading(false);
+        if (!ac.signal.aborted) setGoldQuoteLoading(false);
       });
     return () => {
-      cancelled = true;
+      ac.abort();
     };
   }, [showGoldForm, tradeDate, goldInstrumentPick, t]);
 
@@ -617,11 +615,12 @@ export default function AddModal() {
         all.push(assetToSave);
         await saveAssets(all);
       }
-      try {
-        await syncNetWorthFromMarket();
-      } catch {
-        /* 净值可稍后在首页下拉刷新 */
-      }
+      /**
+       * 走 store action：与其它屏幕共享 syncing flag + mutex；失败仅写入 lastSyncError，不抛出。
+       * 不 await：让用户立刻回到 Dashboard，行情通过 store listener 自动更新，
+       * 期间 useSyncing() 为 true，UI 可据此展示后台刷新指示。
+       */
+      void useAppStore.getState().syncNetWorthFromMarket();
       router.back();
     } catch (e) {
       if (__DEV__) {

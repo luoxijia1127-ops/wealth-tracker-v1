@@ -17,10 +17,8 @@ import {
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
 import { buildPurposeFields } from '@/lib/add-asset-form';
-import {
-  fetchAddAssetReferencePrice,
-  listedAssetToReferencePricePick,
-} from '@/lib/add-asset-reference-price';
+import { listedAssetToReferencePricePick } from '@/lib/add-asset-reference-price';
+import { fetchAddAssetReferencePriceCached as fetchAddAssetReferencePrice } from '@/lib/add-asset-reference-price-cache';
 import {
   ASSET_CURRENCY_OPTIONS,
   assetCurrencySymbol,
@@ -54,8 +52,8 @@ import type { UnifiedSuggestItem } from '@/lib/instrument-search';
 import type { TranslationKey } from '@/lib/language';
 import { tryApplyListedAdjustTrade } from '@/lib/listed-adjust-trade';
 import { createAddModalStyles } from '@/lib/modal-styles';
-import { syncNetWorthFromMarket } from '@/lib/net-worth-sync';
 import { preciousMetalSpotFromSgeContractCode } from '@/lib/sge-eastmoney-quote';
+import { useAppStore } from '@/lib/store/app-store';
 import {
   computeSellRealizedPnlByTradeId,
   ensureBaselineLedger,
@@ -868,11 +866,11 @@ export default function AssetActionScreen() {
       await updateAsset(nextWithFunding);
       if (await archiveIfHiddenAndGo(nextWithFunding)) return;
       await load();
-      try {
-        await syncNetWorthFromMarket();
-      } catch {
-        /* 忽略 */
-      }
+      /**
+       * 走 store action：与其它屏幕共享 syncing flag + mutex；失败仅写入 lastSyncError，不抛出。
+       * 不 await：本地写已落盘，行情刷新让 store 异步推；用户立刻看到「保存成功」与最新表单值。
+       */
+      void useAppStore.getState().syncNetWorthFromMarket();
       Alert.alert(t('common.success'));
     } finally {
       setListedMetaSaving(false);

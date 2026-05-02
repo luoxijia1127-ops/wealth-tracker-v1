@@ -13,7 +13,6 @@ import type { AppPaletteTheme } from '@/lib/app-palette';
 import { ASSET_CURRENCY_OPTIONS } from '@/lib/asset-currency';
 import { rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
-import { loadDisplayCurrency } from '@/lib/display-currency-preference';
 import {
   basePerOneTarget,
   effectiveChartBase,
@@ -21,7 +20,6 @@ import {
 } from '@/lib/fx-cross-rate';
 import {
   ensureFxUsdRatesHistoryBackfill,
-  getCachedFxUsdRates,
   getFxUsdRatesHistory,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
@@ -32,6 +30,11 @@ import {
   numberSingleLineTextProps,
 } from '@/lib/numeric-display-one-line';
 import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
+import {
+  useDisplayCurrency,
+  useFxUsdRates,
+  useHydrated,
+} from '@/lib/store/selectors';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -70,10 +73,12 @@ export default function SettingsFxScreen() {
   const { width: windowW } = useWindowDimensions();
   const { theme, appearance } = useAppPalette();
   const { t } = useLanguage();
-  const [loading, setLoading] = useState(true);
-  const [fx, setFx] = useState<FxUsdMidRates | null>(null);
+  const hydrated = useHydrated();
+  const fx = useFxUsdRates();
+  const displayCurrency = useDisplayCurrency();
+  /** fxHistory 不在 store（独立 storage key 且仅本页消费），保留本地 useState */
   const [fxHistory, setFxHistory] = useState<FxUsdMidRates[]>([]);
-  const [displayCurrency, setDisplayCurrency] = useState<string>('CNY');
+  const [historyLoading, setHistoryLoading] = useState(true);
   /** 单卡内切换：当前展示走势的主五币目标代码 */
   const [selectedFxCode, setSelectedFxCode] = useState<string | null>(null);
 
@@ -81,30 +86,19 @@ export default function SettingsFxScreen() {
     useCallback(() => {
       let cancelled = false;
       (async () => {
-        setLoading(true);
+        setHistoryLoading(true);
         try {
           try {
             await ensureFxUsdRatesHistoryBackfill();
           } catch {
             /* 回填失败仍展示已有本地历史 */
           }
-          const dc = await loadDisplayCurrency();
-          const [r, hist] = await Promise.all([
-            getCachedFxUsdRates(),
-            getFxUsdRatesHistory(),
-          ]);
-          if (!cancelled) {
-            setDisplayCurrency(dc);
-            setFx(r);
-            setFxHistory(hist);
-          }
+          const hist = await getFxUsdRatesHistory();
+          if (!cancelled) setFxHistory(hist);
         } catch {
-          if (!cancelled) {
-            setFx(null);
-            setFxHistory([]);
-          }
+          if (!cancelled) setFxHistory([]);
         } finally {
-          if (!cancelled) setLoading(false);
+          if (!cancelled) setHistoryLoading(false);
         }
       })();
       return () => {
@@ -112,6 +106,8 @@ export default function SettingsFxScreen() {
       };
     }, [])
   );
+
+  const loading = !hydrated || historyLoading;
 
   const muted = rgbaFromHex(theme.primary, 0.5);
 
