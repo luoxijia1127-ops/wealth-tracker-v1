@@ -2,9 +2,6 @@
   "name": "assetup-market-proxy",
   "private": true,
   "description": "Vercel serverless proxy for Twelve Data (hides API key from Expo client).",
-  "dependencies": {
-    "@vercel/node": "^3.2.29"
-  },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "typescript": "^5.7.3"

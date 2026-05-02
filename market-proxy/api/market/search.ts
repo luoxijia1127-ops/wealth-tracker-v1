@@ -1,22 +1,24 @@
 /**
  * GET /api/market/search?q=AAPL&limit=14
  * 转发 Twelve Data symbol_search，不在响应中暴露 apikey。
+ * 不依赖 @vercel/node，避免运行时加载失败。
  */
-
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const UPSTREAM = 'https://api.twelvedata.com/symbol_search';
 
-function checkSecret(req: VercelRequest): boolean {
-  const secret = process.env.PROXY_SHARED_SECRET;
-  if (!secret) return true;
-  return req.headers['x-assetup-proxy-secret'] === secret;
+function headerVal(req: any, name: string): string | undefined {
+  const h = req.headers?.[name];
+  if (Array.isArray(h)) return h[0];
+  return typeof h === 'string' ? h : undefined;
 }
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-): Promise<void> {
+function checkSecret(req: any): boolean {
+  const secret = process.env.PROXY_SHARED_SECRET;
+  if (!secret) return true;
+  return headerVal(req, 'x-assetup-proxy-secret') === secret;
+}
+
+export default async function handler(req: any, res: any): Promise<void> {
   try {
     if (req.method !== 'GET') {
       res.status(405).json({ error: 'Method not allowed' });
@@ -27,13 +29,13 @@ export default async function handler(
       return;
     }
 
-    const q = String(req.query.q ?? '').trim();
+    const q = String(req.query?.q ?? '').trim();
     if (q.length < 1 || q.length > 64) {
       res.status(400).json({ error: 'Invalid q' });
       return;
     }
 
-    const limRaw = parseInt(String(req.query.limit ?? '14'), 10);
+    const limRaw = parseInt(String(req.query?.limit ?? '14'), 10);
     const outputsize = Number.isFinite(limRaw)
       ? Math.min(120, Math.max(1, limRaw))
       : 14;

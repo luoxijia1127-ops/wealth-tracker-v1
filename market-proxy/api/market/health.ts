@@ -1,13 +1,8 @@
 /**
- * GET /api/market/health — 不访问 Twelve；与 search 同目录，便于确认该函数包已部署。
+ * GET /api/market/health — 不访问 Twelve。
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-export default function handler(
-  req: VercelRequest,
-  res: VercelResponse
-): void {
+export default function handler(req: any, res: any): void {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
