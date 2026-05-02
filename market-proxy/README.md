@@ -28,7 +28,8 @@ npx vercel dev
 
 ## 路由
 
-- `GET /api/health` → 自检（不调用 Twelve）；若此路由也 500，多为项目根目录 / Node 编译问题
+- `GET /api/market/health` → 自检（不调用 Twelve）；与 `search` 同目录，部署后应先能打开此地址
+- `GET /api/health` → 同上（根级副本）；若仅有 `market/health` 能开、此 404，说明旧部署未含根级文件，以 `market/health` 为准即可
 - `GET /api/market/search?q=AAPL&limit=14` → 转发 `symbol_search`
 - `GET /api/market/quote?symbol=AAPL&mic=XNAS` → 转发 `quote`
 - `GET /api/market/quote?symbol=AAPL&mic=XNAS&asOf=2026-04-15` → 转发 `time_series`（`end_date=asOf`，取 `<= asOf` 的最近一根）
