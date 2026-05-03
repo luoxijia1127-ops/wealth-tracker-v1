@@ -214,10 +214,35 @@ export async function searchUnifiedInstruments(
   if (q.length < 1) return [];
 
   if (isTwelveIntlProviderEnabled()) {
-    const [em, twelveIntl] = await Promise.all([
+    /**
+     * 必须互不拖累：Twelve 代理失败（超时/401/网络）时仍应展示东财 A 股/基金联想；
+     * 原先 Promise.all 任一侧 throw 会导致整页「无结果」。
+     */
+    const [emSettled, twelveSettled] = await Promise.allSettled([
       searchSecurities(q, signal),
       searchTwelveDataIntl(q, signal),
     ]);
+    const em =
+      emSettled.status === 'fulfilled' ? emSettled.value : [];
+    let twelveIntl =
+      twelveSettled.status === 'fulfilled' ? twelveSettled.value : [];
+    /**
+     * Twelve 为空时再走 legacy（OpenFIGI + Stooq 探测）：常见于 (1) 手机访问 Vercel 不稳；
+     * (2) Twelve 免费额度用尽或非 ok；(3) 中文昵称「腾讯」等在 Twelve 上命中差。
+     * 东财联想不含港股（parse 仅认 0./1. secid），港股必须依赖国际源。
+     */
+    if (twelveIntl.length === 0) {
+      const [figiSettled, stooqSettled] = await Promise.allSettled([
+        searchOpenFigiIntl(q, signal),
+        stooqLookupHints(q, signal),
+      ]);
+      const figiIntl =
+        figiSettled.status === 'fulfilled' ? figiSettled.value : [];
+      const stooqIntl =
+        stooqSettled.status === 'fulfilled' ? stooqSettled.value : [];
+      twelveIntl = dedupeIntlRows(figiIntl, stooqIntl);
+    }
+
     const out: UnifiedSuggestItem[] = [];
     for (const e of em) {
       out.push({
@@ -233,6 +258,8 @@ export async function searchUnifiedInstruments(
         name: r.name,
         exchange: r.exchange,
         intlQuoteSymbol: r.intlQuoteSymbol,
+        ...(r.figi ? { figi: r.figi } : {}),
+        ...(r.isin ? { isin: r.isin } : {}),
         ...(r.twelveDataSymbol && r.twelveDataMic
           ? {
               twelveDataSymbol: r.twelveDataSymbol,
@@ -244,11 +271,17 @@ export async function searchUnifiedInstruments(
     return out;
   }
 
-  const [em, figiIntl, stooqIntl] = await Promise.all([
+  const [emSettled, figiSettled, stooqSettled] = await Promise.allSettled([
     searchSecurities(q, signal),
     searchOpenFigiIntl(q, signal),
     stooqLookupHints(q, signal),
   ]);
+  const em =
+    emSettled.status === 'fulfilled' ? emSettled.value : [];
+  const figiIntl =
+    figiSettled.status === 'fulfilled' ? figiSettled.value : [];
+  const stooqIntl =
+    stooqSettled.status === 'fulfilled' ? stooqSettled.value : [];
 
   const mergedIntl = dedupeIntlRows(figiIntl, stooqIntl);
 

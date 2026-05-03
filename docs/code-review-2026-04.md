@@ -130,6 +130,11 @@ npx vitest run
 
 ## iOS App Store 提交前 Checklist
 
+**打包与上架顺序（避免误解）**：不必「先上架 App Store」才能 TestFlight。典型顺序是：**先在 EAS 配好生产环境变量 → `eas build` 生成安装包 → `eas submit` 或 Transporter 上传到 App Store Connect → 在 Connect 里走 TestFlight（内测/外测）→ 最后再提交 App Store 审核**。其中 **`EXPO_PUBLIC_*` 必须在执行云构建之前写入 EAS**（Secret 或 profile `env`），否则上线包里的国际行情代理地址仍是空的。
+
+- [ ] **EAS 云端构建前**：已为生产构建注入 `EXPO_PUBLIC_MARKET_PROXY_ORIGIN`（Vercel 代理根 URL，无尾斜杠）。可用 `eas secret:create --scope project --name EXPO_PUBLIC_MARKET_PROXY_ORIGIN --value …`，或在 `eas.json` 的 `production.env` 中配置（域名非机密）。仅依赖本机 `.env` **不会**自动进入 Expo 云端构建。
+- [ ] **若 Vercel 设置了 `PROXY_SHARED_SECRET`**：同步在 EAS 配置 `EXPO_PUBLIC_MARKET_PROXY_SECRET`（与 Vercel 完全一致）。
+- [ ] **勿**在生产构建环境设置 `EXPO_PUBLIC_INTL_PROVIDER=legacy`（否则会走 OpenFIGI+Stooq，不走 Twelve 代理）。
 - [ ] `app.json` 的 `version` / `ios.buildNumber` 已更新。
 - [ ] RevenueCat 控制台已配置 `assetup_pro` Entitlement 并关联订阅商品。
 - [ ] App Store Connect 年龄分级、图标（去除 alpha）、Launch Screen 已填写。
