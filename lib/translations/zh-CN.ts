@@ -517,7 +517,7 @@ export const zhCN = {
 
   'legal.terms.docTitle': 'Assetup 用户协议',
   'legal.terms.meta':
-    '生效日期：2026年4月5日\n最后更新：2026年4月5日\n运营者：本应用由个人开发者提供。\n联系邮箱：assetup_feedback@163.com',
+    '生效日期：2026年4月5日\n最后更新：2026年4月5日\n运营者：本应用由个人开发者提供。\n联系邮箱：assetup2026@163.com',
   'legal.terms.s1Title': '一、协议的接受与修订',
   'legal.terms.s1Body':
     '欢迎使用 Assetup（以下简称「本应用」）。当您下载、安装或使用本应用，即表示您已阅读并同意本用户协议（以下简称「本协议」）。若您不同意，请停止使用本应用。\n\n我们可能不时更新本协议；更新后将在应用内或配套页面公示，并可能修订「生效日期」。您在更新后继续使用，即视为接受修订后的协议。',
@@ -552,7 +552,7 @@ export const zhCN = {
   'legal.terms.s11Body':
     '本协议的订立、效力与解释，以中华人民共和国大陆地区法律为基准（仅为法律适用选择，不视为我们对任何管辖法院的承诺）。若发生争议，双方应友好协商；协商不成的，您可向有管辖权的人民法院提起诉讼。',
   'legal.terms.s12Title': '十二、联系我们',
-  'legal.terms.s12Body': '若对本协议有疑问，请发送邮件至：assetup_feedback@163.com。',
+  'legal.terms.s12Body': '若对本协议有疑问，请发送邮件至：assetup2026@163.com。',
   'legal.terms.footerNote':
     '提示：以上为便于理解的草案，正式上架前建议结合产品与司法辖区由专业人士审阅。',
 

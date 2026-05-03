@@ -517,7 +517,7 @@ export const enUS: Record<TranslationKey, string> = {
 
   'legal.terms.docTitle': 'Assetup Terms of Service',
   'legal.terms.meta':
-    'Effective: April 5, 2026\nLast updated: April 5, 2026\nOperator: provided by an individual developer.\nContact: assetup_feedback@163.com',
+    'Effective: April 5, 2026\nLast updated: April 5, 2026\nOperator: provided by an individual developer.\nContact: assetup2026@163.com',
   'legal.terms.s1Title': '1. Acceptance and changes',
   'legal.terms.s1Body':
     'Welcome to Assetup (“the App”). By downloading, installing, or using the App, you acknowledge that you have read and agree to these Terms of Service (“Terms”). If you do not agree, do not use the App.\n\nWe may update these Terms from time to time. Updates will be shown in the App or on linked pages, and the “effective date” may change. Continued use after an update means you accept the revised Terms.',
@@ -552,7 +552,7 @@ export const enUS: Record<TranslationKey, string> = {
   'legal.terms.s11Body':
     'These Terms are governed by the laws of mainland China for interpretive purposes only (not a commitment to any specific court). Disputes should first be resolved amicably; if that fails, you may bring a suit to a competent people’s court with jurisdiction.',
   'legal.terms.s12Title': '12. Contact',
-  'legal.terms.s12Body': 'Questions about these Terms: assetup_feedback@163.com.',
+  'legal.terms.s12Body': 'Questions about these Terms: assetup2026@163.com.',
   'legal.terms.footerNote':
     'Note: this is a plain-language draft for convenience. Have qualified counsel review before release for your product and jurisdictions.',
 
