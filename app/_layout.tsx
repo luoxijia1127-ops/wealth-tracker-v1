@@ -61,18 +61,18 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <AppPaletteProvider>
-      <LanguageProvider>
+    <LanguageProvider>
       <PurchasesProvider>
-      <FontRoot>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {hydrated ? <AppStack /> : <HydrateGate />}
-        <StatusBar style="auto" />
-      </ThemeProvider>
-      </FontRoot>
+        <AppPaletteProvider>
+          <FontRoot>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              {hydrated ? <AppStack /> : <HydrateGate />}
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </FontRoot>
+        </AppPaletteProvider>
       </PurchasesProvider>
-      </LanguageProvider>
-    </AppPaletteProvider>
+    </LanguageProvider>
   );
 }
 
@@ -273,7 +273,7 @@ function AppStack() {
           <Stack.Screen
             name="paywall"
             options={{
-              headerShown: true,
+              headerShown: false,
               title: t('paywall.title'),
               headerShadowVisible: false,
             }}

@@ -1,5 +1,7 @@
+import { usePurchasesEntitlement } from '@/contexts/purchases-context';
 import {
   DEFAULT_PALETTE_ID,
+  FREE_TIER_PALETTE_ID,
   type AppPaletteId,
   type AppPaletteTheme,
 } from '@/lib/app-palette';
@@ -34,6 +36,7 @@ export function AppPaletteProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { ready: purchasesReady, isPro } = usePurchasesEntitlement();
   const systemScheme = useColorScheme();
   const appearance = useMemo(
     () => appearanceFromColorScheme(systemScheme),
@@ -61,6 +64,14 @@ export function AppPaletteProvider({
     setPaletteIdState(id);
     await savePaletteId(id);
   }, []);
+
+  /** 非会员持久化偏好若为会员专属主题，在订阅状态就绪后强制回落到免费档配色 */
+  useEffect(() => {
+    if (!ready || !purchasesReady) return;
+    if (isPro) return;
+    if (paletteId === FREE_TIER_PALETTE_ID) return;
+    void setPaletteId(FREE_TIER_PALETTE_ID);
+  }, [ready, purchasesReady, isPro, paletteId, setPaletteId]);
 
   const theme = useMemo(
     () => resolvePaletteTheme(paletteId, appearance),

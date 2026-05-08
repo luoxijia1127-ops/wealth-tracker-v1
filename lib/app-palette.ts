@@ -16,7 +16,11 @@ export const PALETTE_IDS = [
 
 export type AppPaletteId = (typeof PALETTE_IDS)[number];
 
-export const DEFAULT_PALETTE_ID: AppPaletteId = 'miami';
+/** 免费用户唯一可用配色（中文设置页「锈岩冷调」） */
+export const FREE_TIER_PALETTE_ID: AppPaletteId = 'mountain_twilight';
+
+/** 首次安装默认主题：与免费档一致，避免未订阅用户先看到会员专属色再被切回 */
+export const DEFAULT_PALETTE_ID: AppPaletteId = FREE_TIER_PALETTE_ID;
 
 /** 应用配色列表中展示「New!」角标的主题（可按上新节奏增删） */
 export const PALETTE_OPTION_NEW_IDS: readonly AppPaletteId[] = [

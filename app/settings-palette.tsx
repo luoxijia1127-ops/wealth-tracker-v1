@@ -4,8 +4,10 @@
 
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
+import { usePurchasesEntitlement } from '@/contexts/purchases-context';
 import {
   APP_PALETTE_THEMES,
+  FREE_TIER_PALETTE_ID,
   PALETTE_IDS,
   PALETTE_OPTION_NEW_IDS,
   type AppPaletteId,
@@ -16,7 +18,8 @@ import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SWATCH_W = 100;
@@ -69,6 +72,8 @@ function PaletteSwatchStack({
 
 export default function SettingsPaletteScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { isPro } = usePurchasesEntitlement();
   const { theme, paletteId, setPaletteId } = useAppPalette();
   const { t } = useLanguage();
   const styles = useMemo(() => createSettingsScreenStyles(theme), [theme]);
@@ -104,6 +109,7 @@ export default function SettingsPaletteScreen() {
               const palette = APP_PALETTE_THEMES[id];
               const selected = paletteId === id;
               const showNew = newSet.has(id);
+              const lockedForFree = !isPro && id !== FREE_TIER_PALETTE_ID;
               const four = [
                 palette.swatches[0]!,
                 palette.swatches[1]!,
@@ -115,8 +121,24 @@ export default function SettingsPaletteScreen() {
                 <Pressable
                   key={id}
                   accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => void setPaletteId(id)}
+                  accessibilityState={{ selected, disabled: lockedForFree }}
+                  onPress={() => {
+                    if (lockedForFree) {
+                      Alert.alert(
+                        t('settings.palette.memberOnlyTitle'),
+                        t('settings.palette.memberOnlyMessage'),
+                        [
+                          { text: t('common.cancel'), style: 'cancel' },
+                          {
+                            text: t('dashboard.learnSubscription'),
+                            onPress: () => router.push('/paywall'),
+                          },
+                        ]
+                      );
+                      return;
+                    }
+                    void setPaletteId(id);
+                  }}
                   style={({ pressed }) => [
                     LIST_ROW,
                     {
@@ -124,7 +146,10 @@ export default function SettingsPaletteScreen() {
                       minHeight: ROW_MIN_H + ROW_PAD_V * 2,
                     },
                     selected && { backgroundColor: rgbaFromHex(p, 0.06) },
-                    { opacity: pressed ? 0.88 : 1 },
+                    {
+                      opacity:
+                        pressed ? 0.88 : lockedForFree ? 0.48 : 1,
+                    },
                   ]}
                 >
                   <PaletteSwatchStack colors={four} />
@@ -141,6 +166,26 @@ export default function SettingsPaletteScreen() {
                   >
                     {t(`settings.palette.${id}` as TranslationKey)}
                   </Text>
+                  {!isPro && id === FREE_TIER_PALETTE_ID ? (
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: rgbaFromHex(p, 0.55),
+                        marginRight: 6,
+                      }}
+                    >
+                      {t('settings.palette.freeTierBadge')}
+                    </Text>
+                  ) : null}
+                  {lockedForFree ? (
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={20}
+                      color={rgbaFromHex(p, 0.45)}
+                      style={{ marginRight: 4 }}
+                    />
+                  ) : null}
                   {showNew ? (
                     <Text
                       style={{
