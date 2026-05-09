@@ -98,6 +98,16 @@ export const zhCN = {
   'settings.share.message': '推荐 Assetup：本地资产与净值记账。',
   'settings.share.failedTitle': '分享失败',
   'settings.share.failedMessage': '请重试。',
+  'settings.share.sheetTitle': '分享到社交网络',
+  'settings.share.copiedTitle': '已复制',
+  'settings.share.copiedPasteHint':
+    '推荐文案已复制到剪贴板。若未自动打开对应 App，请手动打开后粘贴分享。',
+  'settings.share.more': '更多应用…',
+  'settings.share.social.wechat': '微信',
+  'settings.share.social.weibo': '微博',
+  'settings.share.social.xiaohongshu': '小红书',
+  'settings.share.social.x': 'X',
+  'settings.share.social.instagram': 'Instagram',
   'settings.tiles.market': '市场大盘',
   'settings.tiles.attribution': '净值归因',
   'settings.tiles.fx': '汇率数据',
@@ -187,7 +197,7 @@ export const zhCN = {
   'language.resolved.en': 'English',
 
   'dashboard.empty.title': '还没有资产',
-  'dashboard.empty.subtitle': '添加第一笔资产后，这里会显示你的总净值、结构和近期变化。',
+  'dashboard.empty.subtitle': '右上角点击“+”添加资产，这里会显示你的资产净值、结构和近期变化。',
   'dashboard.addAsset': '添加资产',
   'dashboard.totalAssets': '总资产',
   'dashboard.totalValue': '总资产',
@@ -203,6 +213,7 @@ export const zhCN = {
   'dashboard.limitTitle': '已达免费上限',
   'dashboard.limitMessage': '免费版最多添加 {limit} 个资产。订阅后可继续添加。',
   'dashboard.learnSubscription': '了解订阅',
+  'dashboard.addAssetCoachHint': '点右上角圆形按钮添加第一笔资产',
 
   'asset.form.name': '资产名称',
   'asset.form.currency': '币种',
@@ -300,6 +311,9 @@ export const zhCN = {
   'asset.detail.deltaPlaceholder': '如 +1000 或 -500',
   'asset.detail.updatedBalance': '更新后余额（{symbol}）',
   'asset.detail.updatedBalancePlaceholder': '可直接填写余额，倒算变动金额',
+  /** 类现金 / 自定义：与场内「资金账户」同级语义 */
+  'asset.detail.cashLikeFundingAccount':
+    '资金账户（选填，增加为扣款来源，减少为入账去向）',
   'trade.edit.direction': '方向',
   'trade.edit.tradeDate': '成交日期（年 · 月 · 日）',
   'trade.edit.quantityPositiveGram': '克数须为正数。',

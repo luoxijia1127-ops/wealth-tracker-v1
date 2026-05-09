@@ -353,6 +353,13 @@ export const APP_PALETTE_THEMES: Record<AppPaletteId, AppPaletteTheme> = {
   },
 };
 
+/**
+ * 免费默认主题「锈岩冷调」标志性锈橙（与 mountain_twilight 的 purposeAccent 一致）。
+ * 用于新用户引导等与当前所选会员配色无关、需高辨识度的点缀。
+ */
+export const FREE_THEME_RUST_ORANGE =
+  APP_PALETTE_THEMES[FREE_TIER_PALETTE_ID].purposeAccent;
+
 export function getPaletteTheme(id: AppPaletteId): AppPaletteTheme {
   return APP_PALETTE_THEMES[id] ?? APP_PALETTE_THEMES.sea;
 }

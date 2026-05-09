@@ -87,6 +87,17 @@ export function createDashboardStyles(t: AppPaletteTheme) {
       flex: 1,
       minWidth: 0,
     },
+    /** 空资产时「添加」引导：箭头 + FAB 成组 */
+    mastheadAddCluster: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexShrink: 0,
+    },
+    mastheadAddCoachArrows: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginRight: 2,
+    },
     heroAddFabOuter: {
       flexShrink: 0,
       padding: 2,

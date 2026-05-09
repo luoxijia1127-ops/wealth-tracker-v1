@@ -5,7 +5,7 @@
 import { SettingsHubBackTopBar } from '@/components/settings-hub-back-navigation';
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
-import { rgbaFromHex } from '@/lib/color-utils';
+import { pickTextOnAccent, rgbaFromHex } from '@/lib/color-utils';
 import { getShanghaiDateString } from '@/lib/date-shanghai';
 import {
   FINANCE_DOWN,
@@ -439,7 +439,7 @@ function AttributionDayDetail({
 
 export default function SettingsAttributionScreen() {
   const insets = useSafeAreaInsets();
-  const { theme } = useAppPalette();
+  const { theme, appearance } = useAppPalette();
   const { t, locale } = useLanguage();
   const params = useLocalSearchParams<{ focusDate?: string }>();
   const hydrated = useHydrated();
@@ -534,13 +534,28 @@ export default function SettingsAttributionScreen() {
     }, [])
   );
 
-  const cardShadow = {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
-  };
+  const cardShadow = useMemo(
+    () =>
+      appearance === 'dark'
+        ? {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.35,
+            shadowRadius: 14,
+            elevation: 4,
+          }
+        : {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.05,
+            shadowRadius: 12,
+            elevation: 2,
+          },
+    [appearance]
+  );
+
+  /** 勿用硬编码白底：深色模式下 primary 为浅色油墨，叠在 #FFF 上对比度崩溃 */
+  const cardSurface = theme.surfaceWhite;
 
   const muted = rgbaFromHex(theme.primary, 0.62);
   const cellGap = 4;
@@ -660,7 +675,7 @@ export default function SettingsAttributionScreen() {
           style={{
             borderRadius: 18,
             padding: 14,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: cardSurface,
             ...cardShadow,
           }}
         >
@@ -673,7 +688,7 @@ export default function SettingsAttributionScreen() {
           style={{
             borderRadius: 18,
             padding: 14,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: cardSurface,
             ...cardShadow,
           }}
         >
@@ -686,7 +701,7 @@ export default function SettingsAttributionScreen() {
           style={{
             borderRadius: 18,
             padding: 12,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: cardSurface,
             alignSelf: 'stretch',
             width: '100%',
             ...cardShadow,
@@ -798,7 +813,10 @@ export default function SettingsAttributionScreen() {
 
                   let sub = '—';
                   let subColor = muted;
-                  let bg = rgbaFromHex(theme.primary, 0.04);
+                  let bg =
+                    appearance === 'dark'
+                      ? rgbaFromHex(theme.primary, 0.08)
+                      : rgbaFromHex(theme.primary, 0.04);
 
                   if (unitMode === 'cny') {
                     if (typeof diff === 'number') {
@@ -806,27 +824,39 @@ export default function SettingsAttributionScreen() {
                       subColor = deltaColor(diff, muted);
                       bg =
                         diff > 0
-                          ? 'rgba(229, 57, 53, 0.1)'
+                          ? appearance === 'dark'
+                            ? 'rgba(229, 57, 53, 0.22)'
+                            : 'rgba(229, 57, 53, 0.1)'
                           : diff < 0
-                            ? 'rgba(46, 125, 50, 0.1)'
-                            : rgbaFromHex(theme.primary, 0.06);
+                            ? appearance === 'dark'
+                              ? 'rgba(76, 175, 80, 0.22)'
+                              : 'rgba(46, 125, 50, 0.1)'
+                            : appearance === 'dark'
+                              ? rgbaFromHex(theme.primary, 0.1)
+                              : rgbaFromHex(theme.primary, 0.06);
                     }
                   } else if (typeof pct === 'number') {
                     sub = fmtPct(pct);
                     subColor = deltaColor(pct, muted);
                     bg =
                       pct > 0
-                        ? 'rgba(229, 57, 53, 0.1)'
+                        ? appearance === 'dark'
+                          ? 'rgba(229, 57, 53, 0.22)'
+                          : 'rgba(229, 57, 53, 0.1)'
                         : pct < 0
-                          ? 'rgba(46, 125, 50, 0.1)'
-                          : rgbaFromHex(theme.primary, 0.06);
+                          ? appearance === 'dark'
+                            ? 'rgba(76, 175, 80, 0.22)'
+                            : 'rgba(46, 125, 50, 0.1)'
+                          : appearance === 'dark'
+                            ? rgbaFromHex(theme.primary, 0.1)
+                            : rgbaFromHex(theme.primary, 0.06);
                   }
 
                   if (isSel) {
                     bg = theme.primary;
-                    subColor = '#FFFFFF';
+                    subColor = pickTextOnAccent(theme.primary);
                   } else if (isToday && !isSel) {
-                    bg = rgbaFromHex(theme.primary, 0.18);
+                    bg = rgbaFromHex(theme.primary, appearance === 'dark' ? 0.22 : 0.18);
                   }
 
                   return (
@@ -858,7 +888,7 @@ export default function SettingsAttributionScreen() {
                         style={{
                           fontSize: 12,
                           fontWeight: '800',
-                          color: isSel ? '#FFF' : theme.primary,
+                          color: isSel ? pickTextOnAccent(theme.primary) : theme.primary,
                         }}
                         numberOfLines={1}
                         adjustsFontSizeToFit
@@ -909,7 +939,7 @@ export default function SettingsAttributionScreen() {
                 style={{
                   borderRadius: 18,
                   padding: 14,
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: cardSurface,
                   ...cardShadow,
                 }}
               >

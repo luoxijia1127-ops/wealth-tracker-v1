@@ -36,6 +36,7 @@ import {
   type TrendCustomRange,
   type TrendTimeframe,
 } from '@/lib/insights-model';
+import { mergeSnapshotsWithNavBridgesForChart } from '@/lib/nav-chart-bridge';
 import { createInsightsStyles } from '@/lib/insights-styles';
 import { computeAllReturnMetrics, isPlottableMetric } from '@/lib/investment-return-metrics';
 import type { TranslationKey } from '@/lib/language';
@@ -46,11 +47,11 @@ import {
   useDisplayCurrency,
   useFxUsdRates,
   useHydrated,
+  useNavChartBridges,
   useSnapshots,
-  useSyncing,
 } from '@/lib/store/selectors';
 import type { AssetCategory } from '@/types/asset';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -126,7 +127,13 @@ export default function Insights() {
   const assets = useAssets();
   const fxRates = useFxUsdRates();
   const displayCurrency = useDisplayCurrency();
-  const refreshing = useSyncing();
+  /**
+   * 勿把全局 store.syncing 绑到 RefreshControl：新增资产等场景会在后台触发 sync，
+   * 会导致未下拉也出现大块「加载中」区域，且部分机型上 ScrollView/图表需二次点击才更新。
+   * 下拉刷新指示仅在手势触发期间展示。
+   */
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const pullRefreshGuard = useRef(false);
 
   const [chartTab, setChartTab] = useState<InsightsChartTab>('trend');
   const [chartTabSeeded, setChartTabSeeded] = useState(false);
@@ -171,15 +178,21 @@ export default function Insights() {
     () => [...snapshots].sort((a, b) => a.date.localeCompare(b.date)),
     [snapshots]
   );
+  const navChartBridges = useNavChartBridges();
+  /** 图表与区间角标：合并「滞后录入」线性回补；今日盈亏仍用 orderedSnapshots */
+  const snapshotsForTrendChart = useMemo(
+    () => mergeSnapshotsWithNavBridgesForChart(orderedSnapshots, navChartBridges),
+    [orderedSnapshots, navChartBridges]
+  );
   const trendRangeSnapshots = useMemo(() => {
     const anchor = getShanghaiDateString();
     return filterSnapshotsByTimeframe(
-      orderedSnapshots,
+      snapshotsForTrendChart,
       trendTimeframe,
       anchor,
       trendTimeframe === 'CUSTOM' ? trendCustomRange : null
     );
-  }, [orderedSnapshots, trendTimeframe, trendCustomRange]);
+  }, [snapshotsForTrendChart, trendTimeframe, trendCustomRange]);
   
   const trendModel = useMemo(
     () => toTrendChartModel(trendRangeSnapshots, { displayCurrency, usdRates: fxRates?.rates ?? null }),
@@ -187,8 +200,16 @@ export default function Insights() {
   );
 
   const onRefreshInsights = useCallback(async () => {
-    /** 强制刷新（绕节流）；store 自动同步 snapshots / assets / fxRates */
-    await useAppStore.getState().syncNetWorthFromMarket();
+    if (pullRefreshGuard.current) return;
+    pullRefreshGuard.current = true;
+    setPullRefreshing(true);
+    try {
+      /** 强制刷新（绕节流）；store 自动同步 snapshots / assets / fxRates */
+      await useAppStore.getState().syncNetWorthFromMarket();
+    } finally {
+      setPullRefreshing(false);
+      pullRefreshGuard.current = false;
+    }
   }, []);
 
   const hasSnapshotTrend = trendModel.series.length > 0;
@@ -232,7 +253,7 @@ export default function Insights() {
   const periodChange = useMemo(() => {
     const anchor = getShanghaiDateString();
     return getTrendPeriodNavChangeInDisplay(
-      orderedSnapshots,
+      snapshotsForTrendChart,
       trendTimeframe,
       anchor,
       trendTimeframe === 'CUSTOM' ? trendCustomRange : null,
@@ -240,7 +261,7 @@ export default function Insights() {
       fxRates?.rates ?? null
     );
   }, [
-    orderedSnapshots,
+    snapshotsForTrendChart,
     trendTimeframe,
     trendCustomRange,
     displayCurrency,
@@ -346,7 +367,7 @@ export default function Insights() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={pullRefreshing}
             onRefresh={() => void onRefreshInsights()}
             tintColor={theme.primary}
             title={Platform.OS === 'ios' ? t('common.loading') : undefined}

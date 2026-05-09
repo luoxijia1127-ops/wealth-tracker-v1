@@ -12,6 +12,19 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.xiga.assetup",
       "buildNumber": "2",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "weixin",
+          "weixinULAPI",
+          "sinaweibo",
+          "weibo",
+          "xhsdiscover",
+          "snssdk1128",
+          "twitter",
+          "instagram",
+          "instagram-stories"
+        ]
+      },
       "config": {
         "usesNonExemptEncryption": false
       },

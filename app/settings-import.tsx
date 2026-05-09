@@ -431,6 +431,14 @@ function PreviewCard({
     },
     { label: '每日总净值', value: `${preview.counts.snapshots} 天` },
     { label: '每日逐资产', value: `${preview.counts.assetDailySnapshots} 天` },
+    ...((preview.counts.navChartBridges ?? 0) > 0
+      ? [
+          {
+            label: '资产变动曲线回补',
+            value: `${preview.counts.navChartBridges} 条（仅图表）`,
+          },
+        ]
+      : []),
     {
       label: '归档 / 回收站',
       value: `${preview.counts.archived} / ${preview.counts.trash}`,

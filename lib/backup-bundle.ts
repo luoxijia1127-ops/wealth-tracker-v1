@@ -5,8 +5,9 @@
  *   backup.json           —— 结构化全量，唯一恢复源
  *   README.txt            —— 说明与字段字典
  *   transactions.csv      —— 手动流水（复用 manualTransactionsToCsv）
- *   daily-networth.csv    —— 每日总净值（含折算 CNY）
- *   daily-assets.csv      —— 每日逐资产市值
+ *   daily-networth.csv      —— 每日总净值（含折算 CNY）
+ *   daily-assets.csv        —— 每日逐资产市值
+ *   nav-chart-bridges.csv   —— Insights 滞后录入曲线回补参数
  *
  * 设计要点：
  *   - 明文（用户选择），不做加密；文件名里无敏感信息。
@@ -45,6 +46,13 @@ import {
   type AssetDailySnapshotItem,
 } from '@/lib/asset-daily-snapshots';
 import {
+  getNavChartBridges,
+  mergeNavChartBridgeLists,
+  replaceAllNavChartBridges,
+  sanitizeNavChartBridge,
+  type NavChartBridge,
+} from '@/lib/nav-chart-bridge';
+import {
   collectManualTransactions,
   manualTransactionsToCsv,
   getManualTransactionDateBounds,
@@ -79,6 +87,8 @@ export type BackupCounts = {
   assets: number;
   snapshots: number;
   assetDailySnapshots: number;
+  /** Insights 滞后录入历史回补条数 */
+  navChartBridges: number;
   archived: number;
   trash: number;
   tradeEntries: number;
@@ -98,6 +108,8 @@ export type BackupPayload = {
   assets: SimpleAsset[];
   snapshots: Snapshot[];
   assetDailySnapshots: AssetDailySnapshot[];
+  /** 资产变动图线性回补（不参与快照今日盈亏） */
+  navChartBridges: NavChartBridge[];
   archived: AssetRecycleRecord[];
   trash: AssetRecycleRecord[];
   /** 对去掉本字段后的 stable JSON 的 sha256 */
@@ -224,13 +236,15 @@ function countLedgerEntries(assets: SimpleAsset[]): {
 export async function collectBackupData(): Promise<
   Omit<BackupPayload, 'integrity'>
 > {
-  const [assets, snapshots, daily, archivedRaw, trashRaw] = await Promise.all([
-    getAssets(),
-    getSnapshots(),
-    getAssetDailySnapshots(),
-    readJsonArray<unknown>(ARCHIVED_KEY),
-    readJsonArray<unknown>(TRASH_KEY),
-  ]);
+  const [assets, snapshots, daily, bridges, archivedRaw, trashRaw] =
+    await Promise.all([
+      getAssets(),
+      getSnapshots(),
+      getAssetDailySnapshots(),
+      getNavChartBridges(),
+      readJsonArray<unknown>(ARCHIVED_KEY),
+      readJsonArray<unknown>(TRASH_KEY),
+    ]);
 
   const archived = archivedRaw
     .map(sanitizeRecycleRecord)
@@ -254,6 +268,7 @@ export async function collectBackupData(): Promise<
       assets: assets.length,
       snapshots: snapshots.length,
       assetDailySnapshots: daily.length,
+      navChartBridges: bridges.length,
       archived: archived.length,
       trash: trash.length,
       tradeEntries,
@@ -262,6 +277,7 @@ export async function collectBackupData(): Promise<
     assets,
     snapshots,
     assetDailySnapshots: daily,
+    navChartBridges: bridges,
     archived,
     trash,
   };
@@ -310,6 +326,7 @@ function stablePayloadJson(p: Omit<BackupPayload, 'integrity'>): string {
     assets: p.assets,
     snapshots: p.snapshots,
     assetDailySnapshots: p.assetDailySnapshots,
+    navChartBridges: p.navChartBridges,
     archived: p.archived,
     trash: p.trash,
   };
@@ -325,6 +342,31 @@ async function sha256Hex(input: string): Promise<string> {
 }
 
 /** -------- 文本产物（CSV / README） -------- */
+
+function navChartBridgesCsv(list: NavChartBridge[]): string {
+  const header = [
+    'id',
+    'assetId',
+    'tradeYmd',
+    'trackYmd',
+    'costCny',
+    'valueAtTrackCny',
+  ];
+  const lines = [
+    header.join(','),
+    ...list.map((b) =>
+      [
+        b.id,
+        b.assetId,
+        b.tradeYmd,
+        b.trackYmd,
+        String(b.costCny),
+        String(b.valueAtTrackCny),
+      ].join(',')
+    ),
+  ];
+  return `\ufeff${lines.join('\r\n')}`;
+}
 
 function networthCsv(list: Snapshot[]): string {
   const header = ['date', 'totalValue', 'totalValueCny', 'fxRateDate'];
@@ -375,13 +417,15 @@ function readmeText(payload: Omit<BackupPayload, 'integrity'>): string {
     '文件说明:',
     '  backup.json        —— 换机恢复的唯一数据源（请勿改名/移动到 zip 之外）',
     '  transactions.csv   —— 全期间手动交易流水，仅供 Excel 审阅',
-    '  daily-networth.csv —— 每日总净值与折算人民币',
-    '  daily-assets.csv   —— 每日逐资产市值，支持回填「资产变动」历史',
+    '  daily-networth.csv     —— 每日总净值与折算人民币',
+    '  daily-assets.csv       —— 每日逐资产市值，支持回填「资产变动」历史',
+    '  nav-chart-bridges.csv  —— 滞后录入仓位从交易日至入库日的曲线回补参数',
     '',
     '数据字典（backup.json 顶层字段）:',
     '  assets              SimpleAsset[]，含 history / tradeHistory / cashLedger',
     '  snapshots           每日总净值快照（date, totalValue, totalValueCny, fxRateDate）',
     '  assetDailySnapshots 每日逐资产市值（最多 730 天）',
+    '  navChartBridges     Insights 滞后录入的历史净值线性回补（仅影响曲线展示）',
     '  archived / trash    归档与最近删除记录（含原资产快照）',
     '',
     '恢复方法:',
@@ -420,6 +464,7 @@ export async function buildBackupZip(
     'transactions.csv': strToU8(txCsv),
     'daily-networth.csv': strToU8(networthCsv(payload.snapshots)),
     'daily-assets.csv': strToU8(dailyAssetsCsv(payload.assetDailySnapshots)),
+    'nav-chart-bridges.csv': strToU8(navChartBridgesCsv(payload.navChartBridges)),
   };
   return zipSync(files);
 }
@@ -485,6 +530,11 @@ export async function parseBackupJson(
     .map(sanitizeAssetDaily)
     .filter((x): x is AssetDailySnapshot => x !== null);
 
+  const bridgesRaw = Array.isArray(o.navChartBridges) ? o.navChartBridges : [];
+  const navChartBridges = bridgesRaw
+    .map(sanitizeNavChartBridge)
+    .filter((x): x is NavChartBridge => x !== null);
+
   const archived = (Array.isArray(o.archived) ? o.archived : [])
     .map(sanitizeRecycleRecord)
     .filter((x): x is AssetRecycleRecord => x !== null);
@@ -502,12 +552,18 @@ export async function parseBackupJson(
       `已跳过 ${snapshotsRaw.length - snapshots.length} 条无效的总净值快照`
     );
   }
+  if (bridgesRaw.length !== navChartBridges.length) {
+    warnings.push(
+      `已跳过 ${bridgesRaw.length - navChartBridges.length} 条无效的历史净值回补记录`
+    );
+  }
 
   const { tradeEntries, cashEntries } = countLedgerEntries(assets);
   const counts: BackupCounts = {
     assets: assets.length,
     snapshots: snapshots.length,
     assetDailySnapshots: assetDailySnapshots.length,
+    navChartBridges: navChartBridges.length,
     archived: archived.length,
     trash: trash.length,
     tradeEntries,
@@ -529,6 +585,7 @@ export async function parseBackupJson(
     assets,
     snapshots,
     assetDailySnapshots,
+    navChartBridges,
     archived,
     trash,
   };
@@ -582,6 +639,10 @@ function computeDateRange(p: BackupPayload): {
   };
   for (const s of p.snapshots) bump(s.date);
   for (const d of p.assetDailySnapshots) bump(d.date);
+  for (const b of p.navChartBridges ?? []) {
+    bump(b.tradeYmd);
+    bump(b.trackYmd);
+  }
   for (const a of p.assets) {
     for (const h of a.history ?? []) bump(h.date);
     for (const t of a.tradeHistory ?? []) bump(t.tradeDate);
@@ -689,10 +750,11 @@ function mergeRecycleRecords(
 /** -------- 写入 AsyncStorage（多键事务式，失败自动回滚） -------- */
 
 async function writeAllFromPayload(p: BackupPayload): Promise<void> {
-  // 四个键依次写入；任一失败 throw，调用方负责回滚。
+  // 各键依次写入；任一失败 throw，调用方负责回滚。
   await saveAssets(p.assets);
   await saveSnapshotsList(p.snapshots);
   await replaceAllAssetDailySnapshots(p.assetDailySnapshots);
+  await replaceAllNavChartBridges(p.navChartBridges ?? []);
   await writeJsonArray(ARCHIVED_KEY, p.archived);
   await writeJsonArray(TRASH_KEY, p.trash);
 }
@@ -722,6 +784,7 @@ export async function applyBackupPayload(
   let nextDaily: AssetDailySnapshot[];
   let nextArchived: AssetRecycleRecord[];
   let nextTrash: AssetRecycleRecord[];
+  let nextNavBridges: NavChartBridge[];
 
   if (mode === 'replace') {
     nextAssets = incoming.assets;
@@ -729,6 +792,7 @@ export async function applyBackupPayload(
     nextDaily = incoming.assetDailySnapshots;
     nextArchived = incoming.archived;
     nextTrash = incoming.trash;
+    nextNavBridges = incoming.navChartBridges ?? [];
   } else {
     nextAssets = mergeAssetList(current.assets, incoming.assets);
     nextSnapshots = mergeSnapshotsByDate(current.snapshots, incoming.snapshots);
@@ -738,6 +802,10 @@ export async function applyBackupPayload(
     );
     nextArchived = mergeRecycleRecords(current.archived, incoming.archived);
     nextTrash = mergeRecycleRecords(current.trash, incoming.trash);
+    nextNavBridges = mergeNavChartBridgeLists(
+      current.navChartBridges ?? [],
+      incoming.navChartBridges ?? []
+    );
   }
 
   const nextPayload: BackupPayload = {
@@ -750,6 +818,7 @@ export async function applyBackupPayload(
       assets: nextAssets.length,
       snapshots: nextSnapshots.length,
       assetDailySnapshots: nextDaily.length,
+      navChartBridges: nextNavBridges.length,
       archived: nextArchived.length,
       trash: nextTrash.length,
       ...countLedgerEntries(nextAssets),
@@ -757,6 +826,7 @@ export async function applyBackupPayload(
     assets: nextAssets,
     snapshots: nextSnapshots,
     assetDailySnapshots: nextDaily,
+    navChartBridges: nextNavBridges,
     archived: nextArchived,
     trash: nextTrash,
   };

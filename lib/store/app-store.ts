@@ -31,6 +31,11 @@ import {
   subscribeFxRates,
   type FxUsdMidRates,
 } from '@/lib/fx-rates';
+import {
+  getNavChartBridges,
+  subscribeNavChartBridges,
+  type NavChartBridge,
+} from '@/lib/nav-chart-bridge';
 import { syncNetWorthFromMarket as runSyncNetWorth } from '@/lib/net-worth-sync';
 import {
   getSnapshots,
@@ -51,6 +56,8 @@ export type AppStoreState = {
   assets: SimpleAsset[];
   snapshots: Snapshot[];
   assetDailySnapshots: AssetDailySnapshot[];
+  /** Insights 资产变动图：滞后录入的线性历史回补（不参与今日盈亏快照口径） */
+  navChartBridges: NavChartBridge[];
   displayCurrency: string;
   fxUsdRates: FxUsdMidRates | null;
 
@@ -74,6 +81,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   assets: [],
   snapshots: [],
   assetDailySnapshots: [],
+  navChartBridges: [],
   displayCurrency: 'CNY',
   fxUsdRates: null,
   syncing: false,
@@ -82,10 +90,11 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
   hydrate: async () => {
     if (get().hydrated) return;
-    const [assets, snapshots, daily, dc, fx] = await Promise.all([
+    const [assets, snapshots, daily, bridges, dc, fx] = await Promise.all([
       getAssets(),
       getSnapshots(),
       getAssetDailySnapshots(),
+      getNavChartBridges(),
       loadDisplayCurrency(),
       getCachedFxUsdRates(),
     ]);
@@ -93,6 +102,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       assets,
       snapshots,
       assetDailySnapshots: daily,
+      navChartBridges: bridges,
       displayCurrency: dc,
       fxUsdRates: fx,
       hydrated: true,
@@ -136,6 +146,9 @@ function subscribeRepositoriesOnce(): void {
   subscribeSnapshots((snapshots) => useAppStore.setState({ snapshots }));
   subscribeAssetDailySnapshots((daily) =>
     useAppStore.setState({ assetDailySnapshots: daily })
+  );
+  subscribeNavChartBridges((navChartBridges) =>
+    useAppStore.setState({ navChartBridges })
   );
   subscribeDisplayCurrency((dc) => useAppStore.setState({ displayCurrency: dc }));
   subscribeFxRates((fx) => useAppStore.setState({ fxUsdRates: fx }));

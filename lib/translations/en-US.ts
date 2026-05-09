@@ -102,6 +102,16 @@ export const enUS: Record<TranslationKey, string> = {
   'settings.share.message': 'Try Assetup: local asset and net-worth tracking.',
   'settings.share.failedTitle': 'Share Failed',
   'settings.share.failedMessage': 'Please try again.',
+  'settings.share.sheetTitle': 'Share to social',
+  'settings.share.copiedTitle': 'Copied',
+  'settings.share.copiedPasteHint':
+    'The message was copied. Open the app and paste to share if it did not open automatically.',
+  'settings.share.more': 'More apps…',
+  'settings.share.social.wechat': 'WeChat',
+  'settings.share.social.weibo': 'Weibo',
+  'settings.share.social.xiaohongshu': 'Xiaohongshu',
+  'settings.share.social.x': 'X',
+  'settings.share.social.instagram': 'Instagram',
   'settings.tiles.market': 'Markets',
   'settings.tiles.attribution': 'Attribution',
   'settings.tiles.fx': 'FX Data',
@@ -191,7 +201,7 @@ export const enUS: Record<TranslationKey, string> = {
   'language.resolved.en': 'English',
 
   'dashboard.empty.title': 'No assets yet',
-  'dashboard.empty.subtitle': 'Add your first asset to see net worth, allocation, and recent changes here.',
+  'dashboard.empty.subtitle': 'Tap the “+” button above to add your assets to see net worth, allocation, and recent changes here.',
   'dashboard.addAsset': 'Add Asset',
   'dashboard.totalAssets': 'Total Assets',
   'dashboard.totalValue': 'Total Assets',
@@ -207,6 +217,7 @@ export const enUS: Record<TranslationKey, string> = {
   'dashboard.limitTitle': 'Free Limit Reached',
   'dashboard.limitMessage': 'Free plan supports up to {limit} assets. Subscribe to keep adding.',
   'dashboard.learnSubscription': 'View Subscription',
+  'dashboard.addAssetCoachHint': 'Tap the circular + button above to add your first asset',
 
   'asset.form.name': 'Asset Name',
   'asset.form.currency': 'Currency',
@@ -232,7 +243,7 @@ export const enUS: Record<TranslationKey, string> = {
   'asset.form.pickTradeDate': 'Choose Trade Date',
   'asset.form.preciousMetalKind': 'Precious Metal',
   'asset.form.sgeCode': 'SGE Spot Code',
-  'asset.form.sgePlaceholder': 'Code or short name, supports fuzzy search (e.g. au99, silver)',
+  'asset.form.sgePlaceholder': 'e.g. au9999, silver',
   'asset.form.searching': 'Searching...',
   'asset.form.noMatches': 'No matches',
   'asset.form.marketName': 'Asset Name (Quote)',
@@ -304,6 +315,9 @@ export const enUS: Record<TranslationKey, string> = {
   'asset.detail.deltaPlaceholder': 'e.g. +1000 or -500',
   'asset.detail.updatedBalance': 'Updated Balance ({symbol})',
   'asset.detail.updatedBalancePlaceholder': 'Enter balance directly to calculate change',
+  /** Cash / Custom: same role as listed 「Funding Account」 */
+  'asset.detail.cashLikeFundingAccount':
+    'Funding Account (optional; source when increasing balance, destination when decreasing)',
   'trade.edit.direction': 'Direction',
   'trade.edit.tradeDate': 'Trade Date (Y · M · D)',
   'trade.edit.quantityPositiveGram': 'Grams must be positive.',

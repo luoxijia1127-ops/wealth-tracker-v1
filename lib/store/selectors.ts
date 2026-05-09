@@ -10,6 +10,8 @@ import { useAppStore } from './app-store';
 export const useHydrated = () => useAppStore((s) => s.hydrated);
 export const useAssets = () => useAppStore((s) => s.assets);
 export const useSnapshots = () => useAppStore((s) => s.snapshots);
+export const useNavChartBridges = () =>
+  useAppStore((s) => s.navChartBridges);
 export const useAssetDailySnapshots = () =>
   useAppStore((s) => s.assetDailySnapshots);
 export const useDisplayCurrency = () => useAppStore((s) => s.displayCurrency);

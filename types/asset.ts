@@ -215,6 +215,11 @@ export type SimpleAsset = {
   tradeHistory?: TradeLedgerEntry[];
   /** 类现金：增加/减少流水，重算 value */
   cashLedger?: CashLedgerEntry[];
+  /**
+   * 类现金 / 自定义：可选资金来源（新增或余额增加时从此类现金资产扣款；选填）。
+   */
+  cashFundingSourceAssetId?: string;
+  cashFundingSourceAssetName?: string;
 };
 
 export function generateAssetId(): string {
@@ -532,6 +537,21 @@ export function ensureAsset(raw: unknown): SimpleAsset {
 
   const cl = parseCashLedgerRaw(o.cashLedger);
   if (cl) asset.cashLedger = cl;
+
+  const cfsIdRaw =
+    typeof o.cashFundingSourceAssetId === 'string'
+      ? o.cashFundingSourceAssetId.trim()
+      : '';
+  const cfsNameRaw =
+    typeof o.cashFundingSourceAssetName === 'string'
+      ? o.cashFundingSourceAssetName.trim()
+      : '';
+  if (cfsIdRaw.length > 0) {
+    asset.cashFundingSourceAssetId = cfsIdRaw;
+    if (cfsNameRaw.length > 0) {
+      asset.cashFundingSourceAssetName = cfsNameRaw;
+    }
+  }
 
   const sharesHeld =
     typeof asset.shares === 'number' && asset.shares > 0 ? asset.shares : null;

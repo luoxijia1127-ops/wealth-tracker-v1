@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { canAddAnotherAsset } from '@/lib/asset-limit';
 import { addAsset, deleteAsset, getAssets } from '@/lib/asset-storage';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
+import { removeNavChartBridgesForAsset } from '@/lib/nav-chart-bridge';
 import { applyRestoredAssetSnapshotAdjustments } from '@/lib/snapshot-restore-adjust';
 import {
   computeClosedCycleRealizedPnlSeries,
@@ -79,6 +80,7 @@ export async function archiveAssetRecord(asset: SimpleAsset): Promise<void> {
   };
   list.unshift(record);
   await writeList(ARCHIVED_KEY, list.slice(0, MAX_ARCHIVED));
+  await removeNavChartBridgesForAsset(asset.id);
   await deleteAsset(asset.id);
 }
 
@@ -94,6 +96,7 @@ export async function moveAssetToTrash(id: string): Promise<void> {
     at: new Date().toISOString(),
   });
   await writeList(TRASH_KEY, trash.slice(0, MAX_TRASH));
+  await removeNavChartBridgesForAsset(id);
   await deleteAsset(id);
 }
 

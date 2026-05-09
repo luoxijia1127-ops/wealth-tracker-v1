@@ -263,6 +263,8 @@ export default function AssetActionScreen() {
   const [cashAdjustAmount, setCashAdjustAmount] = useState('');
   const [cashAdjustNewBalance, setCashAdjustNewBalance] = useState('');
   const [cashAdjustSaving, setCashAdjustSaving] = useState(false);
+  /** 类现金/自定义：资金来源（新建划入或余额增加扣款；写入 cashFundingSource*） */
+  const [cashFundingSourceId, setCashFundingSourceId] = useState('');
 
   const [fbName, setFbName] = useState('');
   const [fbValue, setFbValue] = useState('');
@@ -425,6 +427,11 @@ export default function AssetActionScreen() {
         )
       );
       setCashCurrency(normalizeAssetCurrency(asset.currency));
+      setCashFundingSourceId(
+        typeof asset.cashFundingSourceAssetId === 'string'
+          ? asset.cashFundingSourceAssetId
+          : ''
+      );
     } else {
       setFbName(asset.name);
       setFbValue(String(asset.value));
@@ -897,14 +904,69 @@ export default function AssetActionScreen() {
     try {
       const side = delta > 0 ? 'in' : 'out';
       const amt = Math.abs(delta);
-      const next = appendCashMovement(
-        asset,
-        side,
-        amt,
-        getShanghaiDateString()
-      );
-      await updateAsset(next);
-      if (await archiveIfHiddenAndGo(next)) return;
+      const td = getShanghaiDateString();
+      const listingCur = normalizeAssetCurrency(cashCurrency);
+
+      if (side === 'in' && cashFundingSourceId.trim().length > 0) {
+        const all = await getAssets();
+        const srcIdx = all.findIndex((a) => a.id === cashFundingSourceId.trim());
+        const curIdx = all.findIndex((a) => a.id === asset.id);
+        if (srcIdx < 0 || curIdx < 0) {
+          Alert.alert(t('asset.form.cannotSave'), t('asset.form.fundingMissing'));
+          return;
+        }
+        const src = all[srcIdx]!;
+        if (!usesCashAmountLedger(src)) {
+          Alert.alert(t('asset.form.cannotSave'), t('asset.form.fundingNotCash'));
+          return;
+        }
+        const conv = await convertListingCostToCnyCashDebit(amt, listingCur);
+        if (!conv.ok) {
+          Alert.alert(t('asset.form.cannotSave'), conv.message);
+          return;
+        }
+        const amountCny = conv.cny;
+        const transferId = `xf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const catLabel =
+          asset.category === 'Cash' ? '类现金' : asset.category === 'Custom' ? '自定义' : '资产';
+        const noteOut =
+          listingCur === 'CNY'
+            ? `划入${catLabel}「${asset.name}」`
+            : `划入${catLabel}「${asset.name}」（${listingCur} ${amt.toFixed(2)} 折人民币扣款）`;
+        const noteIn =
+          listingCur === 'CNY'
+            ? `自「${src.name}」划入`
+            : `自「${src.name}」划入（${listingCur} ${amt.toFixed(2)}）`;
+        let debited: SimpleAsset;
+        try {
+          debited = appendCashMovement(src, 'out', amountCny, td, {
+            relatedAssetId: asset.id,
+            relatedAssetName: asset.name,
+            note: noteOut,
+            transferId,
+          });
+        } catch (e) {
+          Alert.alert(
+            t('asset.form.cannotSave'),
+            e instanceof Error ? e.message : t('asset.form.fundingInsufficient')
+          );
+          return;
+        }
+        const credited = appendCashMovement(asset, 'in', amt, td, {
+          relatedAssetId: src.id,
+          relatedAssetName: src.name,
+          note: noteIn,
+          transferId,
+        });
+        all[srcIdx] = debited;
+        all[curIdx] = credited;
+        await saveAssets(all);
+        if (await archiveIfHiddenAndGo(credited)) return;
+      } else {
+        const next = appendCashMovement(asset, side, amt, td);
+        await updateAsset(next);
+        if (await archiveIfHiddenAndGo(next)) return;
+      }
       setCashAdjustAmount('');
       setCashAdjustNewBalance('');
       await load();
@@ -939,6 +1001,21 @@ export default function AssetActionScreen() {
       else delete next.account;
       if (!('purpose' in pf)) delete next.purpose;
       if (!('purposeTarget' in pf)) delete next.purposeTarget;
+
+      const fid = cashFundingSourceId.trim();
+      if (fid.length > 0) {
+        const src = tradeFundingOptions.find((a) => a.id === fid);
+        if (!src) {
+          Alert.alert(t('asset.form.cannotSave'), t('asset.form.fundingMissing'));
+          return;
+        }
+        next.cashFundingSourceAssetId = src.id;
+        next.cashFundingSourceAssetName = src.name;
+      } else {
+        delete next.cashFundingSourceAssetId;
+        delete next.cashFundingSourceAssetName;
+      }
+
       await updateAsset(next);
       if (await archiveIfHiddenAndGo(next)) return;
       await load();
@@ -1874,6 +1951,38 @@ export default function AssetActionScreen() {
                       placeholder={t('asset.detail.updatedBalancePlaceholder')}
                     />
                   </FormRow>
+                  <View style={[styles.formRow, { zIndex: 23 }]}>
+                    <View style={styles.formRowIconColumn}>
+                      <View style={styles.formRowIconLabelSpacer} />
+                      <View style={styles.formRowIconWrap}>
+                        <Ionicons
+                          name="wallet-outline"
+                          size={18}
+                          color={iconMuted}
+                        />
+                      </View>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.formRowLabel}>
+                        {t('asset.detail.cashLikeFundingAccount')}
+                      </Text>
+                      <FundingSourcePicker
+                        label={t('asset.detail.cashLikeFundingAccount')}
+                        emptyOptionLabel={t('asset.detail.noCashLink')}
+                        valueId={cashFundingSourceId}
+                        onSelectId={setCashFundingSourceId}
+                        fundingOptions={tradeFundingOptions}
+                        styles={styles}
+                        omitLabel
+                        mode="inline"
+                        menuKey="fundCashBal"
+                        openKey={menuOpen}
+                        setOpenKey={setMenuOpen}
+                        primaryColor={theme.primary}
+                        mutedColor={iconMuted}
+                      />
+                    </View>
+                  </View>
                   <Pressable
                     style={[
                       styles.saveButton,
@@ -2144,6 +2253,38 @@ export default function AssetActionScreen() {
                       placeholderTextColor={placeholderColor}
                     />
                   </FormRow>
+                  <View style={[styles.formRow, { zIndex: 24 }]}>
+                    <View style={styles.formRowIconColumn}>
+                      <View style={styles.formRowIconLabelSpacer} />
+                      <View style={styles.formRowIconWrap}>
+                        <Ionicons
+                          name="wallet-outline"
+                          size={18}
+                          color={iconMuted}
+                        />
+                      </View>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.formRowLabel}>
+                        {t('asset.detail.cashLikeFundingAccount')}
+                      </Text>
+                      <FundingSourcePicker
+                        label={t('asset.detail.cashLikeFundingAccount')}
+                        emptyOptionLabel={t('asset.detail.noCashLink')}
+                        valueId={cashFundingSourceId}
+                        onSelectId={setCashFundingSourceId}
+                        fundingOptions={tradeFundingOptions}
+                        styles={styles}
+                        omitLabel
+                        mode="inline"
+                        menuKey="fundCashMeta"
+                        openKey={menuOpen}
+                        setOpenKey={setMenuOpen}
+                        primaryColor={theme.primary}
+                        mutedColor={iconMuted}
+                      />
+                    </View>
+                  </View>
                   <Pressable
                     style={styles.purposeSectionHeader}
                     onPress={() => setCashPurposeExpanded((e) => !e)}

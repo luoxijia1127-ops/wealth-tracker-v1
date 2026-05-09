@@ -25,6 +25,12 @@ export type ReferencePriceResult = {
   hint: string;
 };
 
+/** 东财行情 secid：沪深 `1.600519`、上金 `118.AU9999`（点后允许字母数字） */
+function isEastMoneyQuoteSecid(secid: string): boolean {
+  const s = secid.trim();
+  return s.length > 0 && /^\d+\.[A-Za-z0-9]+$/.test(s);
+}
+
 function pickTwelveKeys(pick: UnifiedSuggestItem): {
   sym: string;
   mic: string;
@@ -94,7 +100,7 @@ export function listedAssetToReferencePricePick(
   const secidRaw =
     typeof asset.emSecid === 'string' ? asset.emSecid.trim() : '';
   const secid =
-    secidRaw.length > 0 && /^\d+\.\d+$/.test(secidRaw) ? secidRaw : '';
+    secidRaw.length > 0 && isEastMoneyQuoteSecid(secidRaw) ? secidRaw : '';
   const sym =
     typeof asset.symbol === 'string' && asset.symbol.trim().length > 0
       ? asset.symbol.trim()
@@ -237,7 +243,7 @@ export async function fetchAddAssetReferencePrice(
   }
 
   const secid = pick.quoteId?.trim();
-  if (!secid || !/^\d+\.\d+$/.test(secid)) return null;
+  if (!secid || !isEastMoneyQuoteSecid(secid)) return null;
 
   if (td === today) {
     const push = await fetchPush2LastPrice(secid, signal);

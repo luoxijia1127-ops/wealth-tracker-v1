@@ -7,7 +7,11 @@
 import { useAppPalette } from '@/contexts/app-palette-context';
 import { useLanguage } from '@/contexts/language-context';
 import type { TranslationKey } from '@/lib/language';
-import type { AppPaletteTheme } from '@/lib/app-palette';
+import {
+  FREE_THEME_RUST_ORANGE,
+  FREE_TIER_PALETTE_ID,
+  type AppPaletteTheme,
+} from '@/lib/app-palette';
 import { canAddAnotherAsset } from '@/lib/asset-limit';
 import { archiveAssetRecord, moveAssetToTrash } from '@/lib/asset-recycle';
 import { getAssets } from '@/lib/asset-storage';
@@ -44,7 +48,6 @@ import {
   useFxUsdRates,
   useHydrated,
   useSnapshots,
-  useSyncing,
 } from '@/lib/store/selectors';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import {
@@ -56,7 +59,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import * as ExpoStatusBar from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -66,10 +69,54 @@ import {
   ScrollView,
   Text,
   View,
+  type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 const CATEGORY_ORDER = ASSET_CATEGORY_ORDER;
+
+/** 无资产时指向右上角「添加」的脉动箭头，风格与标题区 chevron 一致 */
+function DashboardAddCoachArrows({ color, wrapStyle }: { color: string; wrapStyle: ViewStyle }) {
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 680, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 680, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      false
+    );
+  }, [pulse]);
+
+  const trailStyle = useAnimatedStyle(() => ({
+    opacity: 0.14 + pulse.value * 0.36,
+    transform: [{ translateX: pulse.value * 9 - 5 }],
+  }));
+  const leadStyle = useAnimatedStyle(() => ({
+    opacity: 0.38 + pulse.value * 0.52,
+    transform: [{ translateX: pulse.value * 9 }],
+  }));
+
+  return (
+    <View style={wrapStyle} pointerEvents="none">
+      <Animated.View style={trailStyle}>
+        <MaterialIcons name="chevron-right" size={22} color={color} />
+      </Animated.View>
+      <Animated.View style={[leadStyle, { marginLeft: -13 }]}>
+        <MaterialIcons name="chevron-right" size={25} color={color} />
+      </Animated.View>
+    </View>
+  );
+}
 
 /**
  * 把被隐藏的资产归档；mutation 走 saveAssets，store 会通过 listener 自动同步。
@@ -182,6 +229,9 @@ function DashboardHeroUpperHalf({
   addLabel,
   todayChangeLabel,
   totalValueLabel,
+  showAddCoachmark,
+  addCoachAccessibilityHint,
+  addCoachArrowColor,
 }: {
   insets: { top: number; right: number; left: number; bottom: number };
   styles: DashboardStyles;
@@ -195,6 +245,9 @@ function DashboardHeroUpperHalf({
   addLabel: string;
   todayChangeLabel: string;
   totalValueLabel: string;
+  showAddCoachmark: boolean;
+  addCoachAccessibilityHint: string;
+  addCoachArrowColor: string;
 }) {
   const mastheadInk = magazineStrongOnBlock(theme);
   const showMultiBand = netWorthSummary.hasMultiple;
@@ -235,16 +288,22 @@ function DashboardHeroUpperHalf({
               Dashboard
             </Text>
           </View>
-          <Pressable
-            style={({ pressed }) => [styles.heroAddFabOuter, pressed && styles.headerAddFabPressed]}
-            onPress={() => void onPressAdd()}
-            accessibilityLabel={addLabel}
-            hitSlop={8}
-          >
-            <View style={styles.heroAddFabHalo}>
-              <MaterialIcons name="add" size={26} color={mastheadInk} />
-            </View>
-          </Pressable>
+          <View style={styles.mastheadAddCluster}>
+            {showAddCoachmark ? (
+              <DashboardAddCoachArrows color={addCoachArrowColor} wrapStyle={styles.mastheadAddCoachArrows} />
+            ) : null}
+            <Pressable
+              style={({ pressed }) => [styles.heroAddFabOuter, pressed && styles.headerAddFabPressed]}
+              onPress={() => void onPressAdd()}
+              accessibilityLabel={addLabel}
+              accessibilityHint={showAddCoachmark ? addCoachAccessibilityHint : undefined}
+              hitSlop={8}
+            >
+              <View style={styles.heroAddFabHalo}>
+                <MaterialIcons name="add" size={26} color={mastheadInk} />
+              </View>
+            </Pressable>
+          </View>
         </View>
         <Text style={[styles.kicker, { color: mastheadInk }]}>PORTFOLIO SUMMARY</Text>
       </View>
@@ -439,9 +498,15 @@ function CategoryCollageRow({
 }
 
 export default function Dashboard() {
-  const { theme, appearance } = useAppPalette();
+  const { theme, appearance, paletteId } = useAppPalette();
   const { t } = useLanguage();
   const styles = useMemo(() => createDashboardStyles(theme), [theme]);
+
+  const addCoachArrowColor = useMemo(
+    () =>
+      paletteId === FREE_TIER_PALETTE_ID ? FREE_THEME_RUST_ORANGE : theme.purposeAccent,
+    [paletteId, theme.purposeAccent]
+  );
 
   const handlePressAdd = useCallback(async () => {
     const gate = await canAddAnotherAsset();
@@ -467,7 +532,9 @@ export default function Dashboard() {
     () => fxUsdRatesCached?.rates ?? null,
     [fxUsdRatesCached]
   );
-  const syncingQuotes = useSyncing();
+  /** 后台 sync 不驱动 RefreshControl，避免未下拉时出现大块加载区与手势异常（与洞察页一致） */
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const pullRefreshGuard = useRef(false);
 
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => new Set());
   const toggleCategory = useCallback((cat: string) => {
@@ -505,9 +572,17 @@ export default function Dashboard() {
   );
 
   const refreshMarketData = useCallback(async () => {
-    /** 强制刷新（绕节流）；archive 后 listener 自动通知 store */
-    await useAppStore.getState().syncNetWorthFromMarket();
-    await archiveHiddenAssetsIfAny();
+    if (pullRefreshGuard.current) return;
+    pullRefreshGuard.current = true;
+    setPullRefreshing(true);
+    try {
+      /** 强制刷新（绕节流）；archive 后 listener 自动通知 store */
+      await useAppStore.getState().syncNetWorthFromMarket();
+      await archiveHiddenAssetsIfAny();
+    } finally {
+      setPullRefreshing(false);
+      pullRefreshGuard.current = false;
+    }
   }, []);
 
   useFocusEffect(
@@ -558,7 +633,7 @@ export default function Dashboard() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={syncingQuotes}
+            refreshing={pullRefreshing}
             onRefresh={() => void refreshMarketData()}
             tintColor={theme.primary}
             title={Platform.OS === 'ios' ? t('common.loading') : undefined}
@@ -583,6 +658,9 @@ export default function Dashboard() {
           addLabel={t('dashboard.addAsset')}
           todayChangeLabel={t('dashboard.todayChange')}
           totalValueLabel={t('dashboard.totalValue')}
+          showAddCoachmark={dashboardAssets.length === 0}
+          addCoachAccessibilityHint={t('dashboard.addAssetCoachHint')}
+          addCoachArrowColor={addCoachArrowColor}
         />
         
         <View style={styles.groupsContainer}>

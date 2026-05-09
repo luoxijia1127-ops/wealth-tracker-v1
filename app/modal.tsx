@@ -41,7 +41,11 @@ import {
     formatExchangeSymbol,
     searchSgeSecuritiesMerged,
 } from '@/lib/eastmoney-suggest';
-import { convertListingCostToCnyCashDebit } from '@/lib/fx-rates';
+import {
+  convertListingCostToCnyCashDebit,
+  getCachedFxUsdRates,
+} from '@/lib/fx-rates';
+import { tryAppendNavChartBridgeForNewAsset } from '@/lib/nav-chart-bridge';
 import {
   defaultCurrencyForIntlListingExchange,
   isIntlListingExchange,
@@ -167,7 +171,7 @@ export default function AddModal() {
     showGoldForm || (showListedSecuritiesForm && !isIntlInstrumentPick);
   const showSimpleBalanceForm = !showGoldForm && !showListedSecuritiesForm;
   const canChooseFundingSource =
-    showGoldForm || showListedSecuritiesForm;
+    showGoldForm || showListedSecuritiesForm || showSimpleBalanceForm;
 
   useEffect(() => {
     let cancelled = false;
@@ -384,7 +388,14 @@ export default function AddModal() {
     if (isListedAssetCategory(cat) || cat === 'Gold') {
       setAssetCurrency('CNY');
     }
-    if (!(isListedAssetCategory(cat) || cat === 'Gold')) {
+    if (
+      !(
+        isListedAssetCategory(cat) ||
+        cat === 'Gold' ||
+        cat === 'Cash' ||
+        cat === 'Custom'
+      )
+    ) {
       setFundingSourceId('');
     }
   }, []);
@@ -593,7 +604,7 @@ export default function AddModal() {
         const rawCost =
           showGoldForm || showListedSecuritiesForm
             ? parseFloat(shares) * parseFloat(costPrice)
-            : 0;
+            : parseFloat(value);
         if (!(rawCost > 0)) {
           Alert.alert(t('asset.form.cannotSave'), t('asset.form.buyAmountFailed'));
           return;
@@ -605,8 +616,20 @@ export default function AddModal() {
           return;
         }
         const amount = conv.cny;
+        if (showSimpleBalanceForm) {
+          assetToSave.cashFundingSourceAssetId = src.id;
+          assetToSave.cashFundingSourceAssetName = src.name;
+        }
         let debited: SimpleAsset;
         try {
+          const catLabel =
+            assetToSave.category === 'Gold'
+              ? '贵金属'
+              : assetToSave.category === 'Cash'
+                ? '类现金'
+                : assetToSave.category === 'Custom'
+                  ? '自定义'
+                  : '资产';
           debited = appendCashMovement(
             src,
             'out',
@@ -617,8 +640,8 @@ export default function AddModal() {
               relatedAssetName: assetToSave.name,
               note:
                 listingCur === 'CNY'
-                  ? `买入${assetToSave.category === 'Gold' ? '贵金属' : '资产'}资金划转`
-                  : `买入${assetToSave.category === 'Gold' ? '贵金属' : '资产'}（${listingCur} ${rawCost.toFixed(2)} 折人民币扣款）`,
+                  ? `买入${catLabel}资金划转`
+                  : `买入${catLabel}（${listingCur} ${rawCost.toFixed(2)} 折人民币扣款）`,
               transferId,
             }
           );
@@ -637,10 +660,17 @@ export default function AddModal() {
         all.push(assetToSave);
         await saveAssets(all);
       }
+      const trackYmd = getShanghaiDateString();
+      const fxSnap = await getCachedFxUsdRates();
+      await tryAppendNavChartBridgeForNewAsset(
+        assetToSave,
+        trackYmd,
+        fxSnap?.rates ?? null
+      );
       /**
        * 走 store action：与其它屏幕共享 syncing flag + mutex；失败仅写入 lastSyncError，不抛出。
-       * 不 await：让用户立刻回到 Dashboard，行情通过 store listener 自动更新，
-       * 期间 useSyncing() 为 true，UI 可据此展示后台刷新指示。
+       * 不 await：让用户立刻关闭表单，资产/快照通过 repository listener 更新；
+       * 总览/洞察的下拉刷新不再绑定 syncing，避免后台 sync 误触发大块 RefreshControl。
        */
       void useAppStore.getState().syncNetWorthFromMarket();
       router.back();
@@ -1236,6 +1266,34 @@ export default function AddModal() {
                   />
                 </View>
               </FormRow>
+            </View>
+            <View style={[styles.formRow, { zIndex: 25 }]}>
+              <View style={styles.formRowIconColumn}>
+                <View style={styles.formRowIconLabelSpacer} />
+                <View style={styles.formRowIconWrap}>
+                  <Ionicons name="wallet-outline" size={18} color={iconMuted} />
+                </View>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.formRowLabel}>
+                  {t('asset.detail.cashLikeFundingAccount')}
+                </Text>
+                <FundingSourcePicker
+                  label={t('asset.detail.cashLikeFundingAccount')}
+                  emptyOptionLabel={t('asset.detail.noCashLink')}
+                  valueId={fundingSourceId}
+                  onSelectId={setFundingSourceId}
+                  fundingOptions={fundingOptions}
+                  styles={styles}
+                  omitLabel
+                  mode="inline"
+                  menuKey="fundCashAdd"
+                  openKey={menuOpen}
+                  setOpenKey={setMenuOpen}
+                  primaryColor={theme.primary}
+                  mutedColor={iconMuted}
+                />
+              </View>
             </View>
           </>
         )}

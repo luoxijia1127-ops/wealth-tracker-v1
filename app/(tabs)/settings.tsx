@@ -11,9 +11,10 @@ import { createSettingsScreenStyles } from '@/lib/settings-screen-styles';
 import { FREE_ASSET_LIMIT } from '@/lib/subscription-constants';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
+import { ShareAppSheet } from '@/components/share-app-sheet';
 import type { ComponentProps } from 'react';
-import { useCallback, useMemo } from 'react';
-import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Tile = {
@@ -41,16 +42,7 @@ export default function SettingsScreen() {
     router.push('/paywall');
   };
 
-  const onShareApp = useCallback(async () => {
-    try {
-      await Share.share({
-        message: t('settings.share.message'),
-        title: 'Assetup',
-      });
-    } catch {
-      Alert.alert(t('settings.share.failedTitle'), t('settings.share.failedMessage'));
-    }
-  }, [t]);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
 
   const toolTiles: Tile[] = useMemo(
     () => [
@@ -102,6 +94,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.screen}>
+      <ShareAppSheet visible={shareSheetOpen} onClose={() => setShareSheetOpen(false)} />
       <View style={styles.screenAmbient} pointerEvents="none" />
 
       <ScrollView
@@ -135,9 +128,9 @@ export default function SettingsScreen() {
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={t('settings.share.message')}
+              accessibilityLabel={t('settings.share.sheetTitle')}
               hitSlop={10}
-              onPress={() => void onShareApp()}
+              onPress={() => setShareSheetOpen(true)}
               style={({ pressed }) => ({
                 opacity: pressed ? 0.65 : 1,
                 padding: 4,
