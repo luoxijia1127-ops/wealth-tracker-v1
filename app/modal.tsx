@@ -619,6 +619,7 @@ export default function AddModal() {
         if (showSimpleBalanceForm) {
           assetToSave.cashFundingSourceAssetId = src.id;
           assetToSave.cashFundingSourceAssetName = src.name;
+          assetToSave.cashFundingSourceTransferId = transferId;
         }
         let debited: SimpleAsset;
         try {

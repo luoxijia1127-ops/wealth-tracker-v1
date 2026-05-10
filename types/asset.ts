@@ -220,6 +220,8 @@ export type SimpleAsset = {
    */
   cashFundingSourceAssetId?: string;
   cashFundingSourceAssetName?: string;
+  /** 与资金来源账户上「划入本资产」扣款流水对应的 transferId（编辑信息里补选/更换资金来源时用） */
+  cashFundingSourceTransferId?: string;
 };
 
 export function generateAssetId(): string {
@@ -551,6 +553,13 @@ export function ensureAsset(raw: unknown): SimpleAsset {
     if (cfsNameRaw.length > 0) {
       asset.cashFundingSourceAssetName = cfsNameRaw;
     }
+  }
+  const cfsXferTid =
+    typeof o.cashFundingSourceTransferId === 'string'
+      ? o.cashFundingSourceTransferId.trim()
+      : '';
+  if (cfsXferTid.length > 0 && cfsIdRaw.length > 0) {
+    asset.cashFundingSourceTransferId = cfsXferTid;
   }
 
   const sharesHeld =

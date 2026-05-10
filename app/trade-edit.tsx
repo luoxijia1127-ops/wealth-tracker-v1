@@ -14,7 +14,7 @@ import { getAssetCurrency } from '@/lib/asset-value';
 import { getAssets, saveAssets, updateAsset } from '@/lib/asset-storage';
 import {
   appendCashMovement,
-  deleteCashLedgerEntry,
+  stripCashTransferFromAssets,
   usesCashAmountLedger,
 } from '@/lib/cash-ledger';
 import { rgbaFromHex } from '@/lib/color-utils';
@@ -63,19 +63,6 @@ function recalcValue(a: SimpleAsset): SimpleAsset {
     return { ...a, value: sh * a.lastClose };
   }
   return a;
-}
-
-/** 从所有类现金资产中移除指定 transferId 的一条流水（用于重绑资金账户前清理旧联动）。 */
-function stripCashEntryByTransferId(
-  all: SimpleAsset[],
-  transferId: string
-): SimpleAsset[] {
-  return all.map((a) => {
-    const rows = a.cashLedger ?? [];
-    const hit = rows.find((e) => e.transferId === transferId);
-    if (!hit) return a;
-    return deleteCashLedgerEntry(a, hit.id);
-  });
 }
 
 function buildFundingPatch(
@@ -221,7 +208,7 @@ export default function TradeEditScreen() {
     try {
       let all = await getAssets();
       if (trade.transferId) {
-        all = stripCashEntryByTransferId(all, trade.transferId);
+        all = stripCashTransferFromAssets(all, trade.transferId);
       }
       const curIdx = all.findIndex((x) => x.id === asset.id);
       if (curIdx < 0) {
@@ -323,7 +310,7 @@ export default function TradeEditScreen() {
           try {
             let all = await getAssets();
             if (trade.transferId) {
-              all = stripCashEntryByTransferId(all, trade.transferId);
+              all = stripCashTransferFromAssets(all, trade.transferId);
             }
             const curIdx = all.findIndex((x) => x.id === asset.id);
             if (curIdx < 0) {

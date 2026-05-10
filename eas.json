@@ -17,6 +17,10 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/privacy.html",
+        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/terms.html"
       }
     },
     "production": {
@@ -24,6 +28,10 @@
       "autoIncrement": true,
       "ios": {
         "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/privacy.html",
+        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/terms.html"
       }
     }
   }

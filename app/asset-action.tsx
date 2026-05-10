@@ -38,6 +38,7 @@ import {
 import {
   appendCashMovement,
   ensureCashBaselineLedger,
+  stripCashTransferFromAssets,
   usesCashAmountLedger,
 } from '@/lib/cash-ledger';
 import { rgbaFromHex } from '@/lib/color-utils';
@@ -107,14 +108,32 @@ function formatListedUnitForDisplay(amount: number, currency: string): string {
 
 const CASH_TABS: { id: CashPanel }[] = [{ id: 'balance' }, { id: 'edit' }];
 
+/** 定位「首笔买入」流水（baseline 或日期最早的一笔买入） */
+function getBaselineBuyRow(asset: SimpleAsset): TradeLedgerEntry | null {
+  const th = asset.tradeHistory;
+  if (!th?.length) return null;
+  let idx = th.findIndex((t) => t.id === `baseline-${asset.id}`);
+  if (idx < 0) {
+    const buys = th
+      .map((t, i) => ({ t, i }))
+      .filter(({ t }) => t.side === 'buy');
+    if (buys.length === 0) return null;
+    buys.sort((a, b) => a.t.tradeDate.localeCompare(b.t.tradeDate));
+    idx = buys[0]!.i;
+  }
+  const row = th[idx];
+  return row?.side === 'buy' ? row : null;
+}
+
 /**
- * 写入「首笔买入」流水上的资金来源（baseline 行或日期最早的一笔买入），
- * 供编辑信息里补选与新增页一致的资金账户。
+ * 写入「首笔买入」流水上的资金来源；可选写入 transferId（与类现金扣款流水对齐）。
+ * `transferIdIfFunding` 省略且 linkId 非空时保留该行原有 transferId。
  */
 function patchBaselineBuyFunding(
   asset: SimpleAsset,
   linkId: string,
-  resolveName: (id: string) => string | undefined
+  resolveName: (id: string) => string | undefined,
+  transferIdIfFunding?: string
 ): SimpleAsset {
   const th = asset.tradeHistory ? [...asset.tradeHistory] : [];
   if (th.length === 0) return asset;
@@ -135,9 +154,13 @@ function patchBaselineBuyFunding(
     nextRow.fundingSourceAssetId = id;
     const nm = resolveName(id);
     if (nm) nextRow.fundingSourceAssetName = nm;
+    if (transferIdIfFunding !== undefined) {
+      nextRow.transferId = transferIdIfFunding;
+    }
   } else {
     delete nextRow.fundingSourceAssetId;
     delete nextRow.fundingSourceAssetName;
+    delete nextRow.transferId;
   }
   th[idx] = nextRow;
   return { ...asset, tradeHistory: th };
@@ -157,6 +180,14 @@ function parseSignedCashDelta(s: string): number | null {
 
 function roundMoney2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** 类现金资金来源联动扣款：入账日期取最早流水日，无流水则用今日 */
+function cashFundingLinkEntryDate(a: SimpleAsset): string {
+  const led = a.cashLedger ?? [];
+  if (led.length === 0) return getShanghaiDateString();
+  return [...led].sort((x, y) => x.entryDate.localeCompare(y.entryDate))[0]!
+    .entryDate;
 }
 
 function formatBalanceInputValue(n: number): string {
@@ -865,12 +896,110 @@ export default function AssetActionScreen() {
       else delete next.account;
       if (!('purpose' in pf)) delete next.purpose;
       if (!('purposeTarget' in pf)) delete next.purposeTarget;
-      const nextWithFunding = patchBaselineBuyFunding(
-        next,
-        listedMetaFundingCashId,
-        (fid) => tradeFundingOptions.find((a) => a.id === fid)?.name
-      );
-      await updateAsset(nextWithFunding);
+
+      const prevBaseline = getBaselineBuyRow(asset);
+      const prevFund = prevBaseline?.fundingSourceAssetId?.trim() ?? '';
+      const prevTid = prevBaseline?.transferId;
+      const newFund = listedMetaFundingCashId.trim();
+      /** 资金来源未变且已有 transferId，或仍为空：不必动类现金流水 */
+      const skipCashMutation =
+        newFund === prevFund && (!!prevTid || newFund.length === 0);
+
+      const resolveName = (fid: string) =>
+        tradeFundingOptions.find((a) => a.id === fid)?.name;
+
+      let nextWithFunding: SimpleAsset;
+
+      if (skipCashMutation) {
+        nextWithFunding = patchBaselineBuyFunding(
+          next,
+          listedMetaFundingCashId,
+          resolveName
+        );
+        await updateAsset(nextWithFunding);
+      } else {
+        let all = await getAssets();
+        if (prevTid) {
+          all = stripCashTransferFromAssets(all, prevTid);
+        }
+        const newTid =
+          newFund.length > 0
+            ? `xf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+            : undefined;
+
+        nextWithFunding = patchBaselineBuyFunding(
+          next,
+          listedMetaFundingCashId,
+          resolveName,
+          newTid
+        );
+
+        const heldIdx = all.findIndex((a) => a.id === asset.id);
+        if (heldIdx < 0) {
+          Alert.alert(t('asset.form.cannotSave'), t('trade.edit.assetChanged'));
+          return;
+        }
+
+        if (newFund.length > 0) {
+          const srcIdx = all.findIndex((a) => a.id === newFund);
+          if (srcIdx < 0) {
+            Alert.alert(t('asset.form.cannotSave'), t('asset.form.fundingMissing'));
+            return;
+          }
+          const src = all[srcIdx]!;
+          if (!usesCashAmountLedger(src)) {
+            Alert.alert(t('asset.form.cannotSave'), t('asset.form.fundingNotCash'));
+            return;
+          }
+          const bl = getBaselineBuyRow(nextWithFunding);
+          if (!bl) {
+            Alert.alert(t('asset.form.cannotSave'), t('trade.edit.positionMismatch'));
+            return;
+          }
+          const rawCost = bl.shares * bl.unitPriceCny;
+          if (!(rawCost > 0)) {
+            Alert.alert(t('asset.form.cannotSave'), t('asset.form.buyAmountFailed'));
+            return;
+          }
+          const listingCur = getAssetCurrency(nextWithFunding);
+          const conv = await convertListingCostToCnyCashDebit(rawCost, listingCur);
+          if (!conv.ok) {
+            Alert.alert(t('asset.form.cannotSave'), conv.message);
+            return;
+          }
+          const amount = conv.cny;
+          const catLabel =
+            nextWithFunding.category === 'Gold' ? '贵金属' : '资产';
+          try {
+            const debited = appendCashMovement(
+              src,
+              'out',
+              amount,
+              bl.tradeDate,
+              {
+                relatedAssetId: nextWithFunding.id,
+                relatedAssetName: nextWithFunding.name,
+                note:
+                  listingCur === 'CNY'
+                    ? `买入${catLabel}资金划转`
+                    : `买入${catLabel}（${listingCur} ${rawCost.toFixed(2)} 折人民币扣款）`,
+                transferId: newTid!,
+              }
+            );
+            all[srcIdx] = debited;
+          } catch (e) {
+            Alert.alert(
+              t('asset.form.cannotSave'),
+              e instanceof Error ? e.message : t('asset.form.fundingInsufficient')
+            );
+            return;
+          }
+        }
+
+        all[heldIdx] = nextWithFunding;
+        await saveAssets(all);
+      }
+
       if (await archiveIfHiddenAndGo(nextWithFunding)) return;
       await load();
       /**
@@ -1002,6 +1131,15 @@ export default function AssetActionScreen() {
       if (!('purpose' in pf)) delete next.purpose;
       if (!('purposeTarget' in pf)) delete next.purposeTarget;
 
+      const prevCashFund =
+        typeof asset.cashFundingSourceAssetId === 'string'
+          ? asset.cashFundingSourceAssetId.trim()
+          : '';
+      const prevCashXferTid =
+        typeof asset.cashFundingSourceTransferId === 'string'
+          ? asset.cashFundingSourceTransferId.trim()
+          : '';
+
       const fid = cashFundingSourceId.trim();
       if (fid.length > 0) {
         const src = tradeFundingOptions.find((a) => a.id === fid);
@@ -1014,11 +1152,97 @@ export default function AssetActionScreen() {
       } else {
         delete next.cashFundingSourceAssetId;
         delete next.cashFundingSourceAssetName;
+        delete next.cashFundingSourceTransferId;
       }
 
-      await updateAsset(next);
+      const skipCashFundingMutation =
+        fid === prevCashFund &&
+        (!!prevCashXferTid || fid.length === 0);
+
+      if (skipCashFundingMutation) {
+        await updateAsset(next);
+      } else {
+        let all = await getAssets();
+        if (prevCashXferTid) {
+          all = stripCashTransferFromAssets(all, prevCashXferTid);
+        }
+        const newXferTid =
+          fid.length > 0
+            ? `xf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+            : undefined;
+
+        if (fid.length > 0) {
+          next.cashFundingSourceTransferId = newXferTid;
+        } else {
+          delete next.cashFundingSourceTransferId;
+        }
+
+        const heldIdx = all.findIndex((a) => a.id === asset.id);
+        if (heldIdx < 0) {
+          Alert.alert(t('asset.form.cannotSave'), t('trade.edit.assetChanged'));
+          return;
+        }
+
+        if (fid.length > 0) {
+          const srcIdx = all.findIndex((a) => a.id === fid);
+          if (srcIdx < 0) {
+            Alert.alert(t('asset.form.cannotSave'), t('asset.form.fundingMissing'));
+            return;
+          }
+          const src = all[srcIdx]!;
+          if (!usesCashAmountLedger(src)) {
+            Alert.alert(t('asset.form.cannotSave'), t('asset.form.fundingNotCash'));
+            return;
+          }
+          const rawBal = getAssetDisplayValue(asset);
+          if (!(rawBal > 0)) {
+            Alert.alert(t('asset.form.cannotSave'), t('asset.form.buyAmountFailed'));
+            return;
+          }
+          const listingCur = normalizeAssetCurrency(cashCurrency);
+          const conv = await convertListingCostToCnyCashDebit(rawBal, listingCur);
+          if (!conv.ok) {
+            Alert.alert(t('asset.form.cannotSave'), conv.message);
+            return;
+          }
+          const amountCny = conv.cny;
+          const td = cashFundingLinkEntryDate(asset);
+          const catLabel =
+            next.category === 'Cash' ? '类现金' : '自定义';
+          const noteOut =
+            listingCur === 'CNY'
+              ? `划入${catLabel}「${next.name}」`
+              : `划入${catLabel}「${next.name}」（${listingCur} ${rawBal.toFixed(2)} 折人民币扣款）`;
+          try {
+            const debited = appendCashMovement(
+              src,
+              'out',
+              amountCny,
+              td,
+              {
+                relatedAssetId: next.id,
+                relatedAssetName: next.name,
+                note: noteOut,
+                transferId: newXferTid!,
+              }
+            );
+            all[srcIdx] = debited;
+          } catch (e) {
+            Alert.alert(
+              t('asset.form.cannotSave'),
+              e instanceof Error ? e.message : t('asset.form.fundingInsufficient')
+            );
+            return;
+          }
+        }
+
+        all[heldIdx] = next;
+        await saveAssets(all);
+      }
+
       if (await archiveIfHiddenAndGo(next)) return;
       await load();
+      void useAppStore.getState().syncNetWorthFromMarket();
       Alert.alert(t('common.success'));
     } finally {
       setCashSaving(false);

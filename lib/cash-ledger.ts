@@ -149,3 +149,17 @@ export function deleteCashLedgerEntry(
   }
   return applyCashLedgerReplay({ ...asset, cashLedger: h }, h);
 }
+
+/** 从所有类现金资产中移除指定 transferId 的一条流水（重绑资金来源前清理旧联动） */
+export function stripCashTransferFromAssets(
+  all: SimpleAsset[],
+  transferId: string
+): SimpleAsset[] {
+  if (!transferId) return all;
+  return all.map((a) => {
+    const rows = a.cashLedger ?? [];
+    const hit = rows.find((e) => e.transferId === transferId);
+    if (!hit) return a;
+    return deleteCashLedgerEntry(a, hit.id);
+  });
+}
