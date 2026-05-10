@@ -2,7 +2,7 @@
   "expo": {
     "name": "Assetup",
     "slug": "assetup",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "assetup",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.xiga.assetup",
-      "buildNumber": "2",
+      "buildNumber": "4",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "weixin",

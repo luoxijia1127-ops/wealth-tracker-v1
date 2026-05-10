@@ -20,7 +20,9 @@
       },
       "env": {
         "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/privacy.html",
-        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/terms.html"
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL_EN": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/privacy.html",
+        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/terms.html",
+        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL_EN": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/terms.html"
       }
     },
     "production": {
@@ -31,7 +33,9 @@
       },
       "env": {
         "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/privacy.html",
-        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/terms.html"
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL_EN": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/privacy.html",
+        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/terms.html",
+        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL_EN": "https://luoxijia1127-ops.github.io/wealth-tracker-v1/terms.html"
       }
     }
   }
