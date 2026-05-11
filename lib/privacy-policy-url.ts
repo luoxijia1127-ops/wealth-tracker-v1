@@ -4,7 +4,9 @@
  * 仅支持 http(s)，供应用内 WebView 加载。
  */
 
+import { DEFAULT_HOSTED_PRIVACY_POLICY_URL } from '@/lib/legal-default-hosted-urls';
 import type { SupportedLocale } from '@/lib/language';
+import { applyLegalPageLocaleHash } from '@/lib/legal-hosted-url';
 
 function readHttpUrlFromEnv(name: string): string | null {
   try {
@@ -19,14 +21,15 @@ function readHttpUrlFromEnv(name: string): string | null {
   }
 }
 
-export function getPrivacyPolicyUrl(): string | null {
-  return readHttpUrlFromEnv('EXPO_PUBLIC_PRIVACY_POLICY_URL');
+export function getPrivacyPolicyUrl(): string {
+  return readHttpUrlFromEnv('EXPO_PUBLIC_PRIVACY_POLICY_URL') ?? DEFAULT_HOSTED_PRIVACY_POLICY_URL;
 }
 
-export function getPrivacyPolicyUrlForLocale(locale: SupportedLocale): string | null {
-  if (locale === 'en-US') {
-    const en = readHttpUrlFromEnv('EXPO_PUBLIC_PRIVACY_POLICY_URL_EN');
-    if (en) return en;
-  }
-  return getPrivacyPolicyUrl();
+export function getPrivacyPolicyUrlForLocale(locale: SupportedLocale): string {
+  const primary = getPrivacyPolicyUrl();
+  const base =
+    locale === 'en-US'
+      ? (readHttpUrlFromEnv('EXPO_PUBLIC_PRIVACY_POLICY_URL_EN') ?? primary)
+      : primary;
+  return applyLegalPageLocaleHash(base, locale);
 }

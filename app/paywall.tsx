@@ -176,6 +176,14 @@ export default function PaywallScreen() {
     [packages, selectedId]
   );
 
+  /** 1–3 个套餐：与外层 pad 对齐的可用宽度内等分、占满一行；>3 时保持可横向滑动 */
+  const planGap = 10;
+  const rowInnerW = width - pad * 2;
+  const compactPlanRow = !loading && packages.length > 0 && packages.length <= 3;
+  const equalPlanPillWidth = compactPlanRow
+    ? (rowInnerW - planGap * (packages.length - 1)) / packages.length
+    : null;
+
   const featureKeys = useMemo(
     () =>
       ['paywall.feature1', 'paywall.feature2', 'paywall.feature3', 'paywall.feature4'] as const,
@@ -450,11 +458,17 @@ export default function PaywallScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{
-              gap: 10,
-              paddingVertical: 4,
-              paddingRight: 8,
-            }}
+            contentContainerStyle={[
+              {
+                flexDirection: 'row',
+                alignItems: 'stretch',
+                gap: planGap,
+                paddingVertical: 4,
+              },
+              compactPlanRow
+                ? { flexGrow: 1, minWidth: rowInnerW, justifyContent: 'flex-start' as const }
+                : { paddingHorizontal: 8 },
+            ]}
           >
             {packages.map((pkg) => {
               const selected = pkg.identifier === selectedId;
@@ -468,8 +482,9 @@ export default function PaywallScreen() {
                   onPress={() => setSelectedId(pkg.identifier)}
                   disabled={!!purchasingId}
                   style={({ pressed }) => ({
-                    minWidth: width * 0.26,
-                    maxWidth: width * 0.34,
+                    ...(equalPlanPillWidth != null
+                      ? { width: equalPlanPillWidth }
+                      : { minWidth: width * 0.26, maxWidth: width * 0.34 }),
                     paddingVertical: 14,
                     paddingHorizontal: 12,
                     borderRadius: 999,

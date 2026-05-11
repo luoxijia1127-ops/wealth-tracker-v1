@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.xiga.assetup",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "weixin",
