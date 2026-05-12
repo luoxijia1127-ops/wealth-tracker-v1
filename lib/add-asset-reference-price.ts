@@ -21,7 +21,7 @@ import type { SimpleAsset } from '@/types/asset';
 
 export type ReferencePriceResult = {
   price: number;
-  /** 展示用：现价 / 收盘日期 */
+  /** 展示用：现价，或成交/收盘所在日 YYYY-MM-DD */
   hint: string;
 };
 
@@ -126,9 +126,8 @@ export function listedAssetToReferencePricePick(
 }
 
 function hintFromBarDate(barDate: string | null, td: string): string {
-  if (!barDate) return '收盘';
-  if (barDate < td) return `收盘 ${barDate}（最近交易日）`;
-  return `收盘 ${barDate}`;
+  if (!barDate) return td;
+  return barDate.length >= 10 ? barDate.slice(0, 10) : barDate;
 }
 
 async function fetchIntlReferenceFromTwelve(
@@ -151,7 +150,7 @@ async function fetchIntlReferenceFromTwelve(
     ) {
       return {
         price: last.close,
-        hint: `收盘 ${last.tradeDate.slice(0, 10)}`,
+        hint: last.tradeDate.slice(0, 10),
       };
     }
     const hist = await fetchTwelveQuoteViaProxy(sym, mic, signal, td);
@@ -175,7 +174,7 @@ async function fetchIntlReferenceFromTwelve(
   ) {
     return {
       price: last.close,
-      hint: `收盘 ${last.tradeDate.slice(0, 10)}`,
+      hint: last.tradeDate.slice(0, 10),
     };
   }
   return null;
@@ -193,7 +192,7 @@ async function fetchIntlReferenceFromStooq(
   if (td === today) {
     const last = await fetchStooqQuote(sym, signal);
     if (last && last.tradeDate <= td) {
-      return { price: last.close, hint: `收盘 ${last.tradeDate}` };
+      return { price: last.close, hint: hintFromBarDate(last.tradeDate, td) };
     }
     const hist = await fetchStooqCloseOnOrBefore(sym, td, signal);
     if (hist) {
@@ -214,7 +213,7 @@ async function fetchIntlReferenceFromStooq(
   }
   const last = await fetchStooqQuote(sym, signal);
   if (last && last.tradeDate <= td) {
-    return { price: last.close, hint: `收盘 ${last.tradeDate}` };
+    return { price: last.close, hint: hintFromBarDate(last.tradeDate, td) };
   }
   return null;
 }
@@ -268,10 +267,7 @@ export async function fetchAddAssetReferencePrice(
   if (pushFallback && pushFallback.price > 0) {
     return {
       price: pushFallback.price,
-      hint:
-        td === today
-          ? '现价'
-          : `现价（${td} 当日收盘未取到，最新价供参考）`,
+      hint: td === today ? '现价' : td,
     };
   }
   return null;

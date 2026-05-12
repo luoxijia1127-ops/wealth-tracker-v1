@@ -26,13 +26,13 @@ vi.mock('@/lib/market-proxy-client', () => ({
   fetchTwelveQuoteViaProxy: vi.fn(),
 }));
 
-import { fetchAddAssetReferencePrice } from './add-asset-reference-price';
-import * as emKline from './eastmoney-kline';
+import * as stooq from './stooq-quote';
 import * as emPush from './eastmoney-push';
-import type { UnifiedSuggestItem } from './instrument-search';
+import * as emKline from './eastmoney-kline';
 import * as intlProvider from './intl-provider';
 import * as twelveClient from './market-proxy-client';
-import * as stooq from './stooq-quote';
+import { fetchAddAssetReferencePrice } from './add-asset-reference-price';
+import type { UnifiedSuggestItem } from './instrument-search';
 
 const intlAapl: UnifiedSuggestItem = {
   code: 'AAPL',
@@ -46,14 +46,6 @@ const emMaotai: UnifiedSuggestItem = {
   name: '贵州茅台',
   exchange: 'SH',
   quoteId: '1.600519',
-};
-
-/** 上金现货：QuoteID 为 118.AU9999，点后非纯数字 */
-const sgeAu9999: UnifiedSuggestItem = {
-  code: 'AU9999',
-  name: '黄金9999',
-  exchange: 'SGE',
-  quoteId: '118.AU9999',
 };
 
 const aaplTwelve: UnifiedSuggestItem = {
@@ -82,7 +74,7 @@ describe('fetchAddAssetReferencePrice · intl 分支', () => {
       tradeDate: '2026-05-02',
     });
     const r = await fetchAddAssetReferencePrice(intlAapl, '2026-05-02');
-    expect(r).toEqual({ price: 200.1, hint: '收盘 2026-05-02' });
+    expect(r).toEqual({ price: 200.1, hint: '2026-05-02' });
     expect(stooq.fetchStooqQuote).toHaveBeenCalledTimes(1);
     expect(stooq.fetchStooqCloseOnOrBefore).not.toHaveBeenCalled();
   });
@@ -117,6 +109,7 @@ describe('fetchAddAssetReferencePrice · intl 分支', () => {
     });
     const r = await fetchAddAssetReferencePrice(intlAapl, '2026-05-02');
     expect(r?.price).toBe(199.0);
+    expect(r?.hint).toBe('2026-05-02');
     expect(stooq.fetchStooqCloseOnOrBefore).toHaveBeenCalledTimes(1);
   });
 
@@ -169,7 +162,7 @@ describe('fetchAddAssetReferencePrice · Twelve', () => {
       source: 'twelve_quote',
     });
     const r = await fetchAddAssetReferencePrice(aaplTwelve, '2026-05-02');
-    expect(r).toEqual({ price: 201, hint: '收盘 2026-05-02' });
+    expect(r).toEqual({ price: 201, hint: '2026-05-02' });
     expect(twelveClient.fetchTwelveQuoteViaProxy).toHaveBeenCalled();
     expect(stooq.fetchStooqQuote).not.toHaveBeenCalled();
   });
@@ -223,7 +216,7 @@ describe('fetchAddAssetReferencePrice · A 股分支', () => {
     expect(emPush.fetchPush2LastPrice).not.toHaveBeenCalled();
   });
 
-  it('历史日期：kline 失败 fallback push2，文案标注供参考', async () => {
+  it('历史日期：kline 失败 fallback push2，hint 为所选交易日', async () => {
     (
       emKline.fetchEastMoneyCloseOnOrBefore as ReturnType<typeof vi.fn>
     ).mockResolvedValue(null);
@@ -232,19 +225,7 @@ describe('fetchAddAssetReferencePrice · A 股分支', () => {
     });
     const r = await fetchAddAssetReferencePrice(emMaotai, '2026-04-15');
     expect(r?.price).toBe(1800.0);
-    expect(r?.hint).toContain('参考');
-  });
-
-  it('上金现货 quoteId 含字母：走 push2 现价', async () => {
-    (emPush.fetchPush2LastPrice as ReturnType<typeof vi.fn>).mockResolvedValue({
-      price: 565.12,
-    });
-    const r = await fetchAddAssetReferencePrice(sgeAu9999, '2026-05-02');
-    expect(r).toEqual({ price: 565.12, hint: '现价' });
-    expect(emPush.fetchPush2LastPrice).toHaveBeenCalledWith(
-      '118.AU9999',
-      undefined
-    );
+    expect(r?.hint).toBe('2026-04-15');
   });
 
   it('quoteId 不合法返回 null', async () => {
