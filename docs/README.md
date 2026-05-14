@@ -1,6 +1,6 @@
 # GitHub Pages（Assetup 隐私政策与用户协议）
 
-本目录为静态页面，用于公开展示隐私政策与用户协议，供 App 内 WebView 与 App Store 填写链接。
+本目录为静态页面，用于公开展示隐私政策、用户协议与技术支持说明，供 App 内 WebView 与 App Store 填写链接。
 
 ## 仓库与地址
 
@@ -10,6 +10,7 @@
 | 仓库名 | `wealth-tracker-v1` |
 | 隐私政策页 | <https://luoxijia1127-ops.github.io/wealth-tracker-v1/privacy.html> |
 | 用户协议页 | <https://luoxijia1127-ops.github.io/wealth-tracker-v1/terms.html> |
+| 技术支持页（App Store「技术支持网址」可填） | <https://luoxijia1127-ops.github.io/wealth-tracker-v1/support.html> |
 | 站点根（会跳转到隐私页） | <https://luoxijia1127-ops.github.io/wealth-tracker-v1/> |
 
 ## 在 GitHub 上开启 Pages
@@ -21,6 +22,8 @@
 5. **Save**，等待 1～5 分钟后访问上表链接
 
 若根路径 404，请确认已把包含 `docs/` 的提交推送到 GitHub。
+
+新增或更新 `support.html` 后，请与 `privacy.html` / `terms.html` 一并提交并推送；Pages 生效后再在 App Store Connect 填写技术支持 URL。
 
 ## 应用内配置
 
