@@ -4,28 +4,9 @@
 
 import { useLanguage } from '@/contexts/language-context';
 import type { SupportedLocale } from '@/lib/language';
+import { buildYmdString, parseYmd } from '@/lib/ymd-date-string';
 import { useEffect, useState } from 'react';
 import { Text, TextInput, View, type TextStyle } from 'react-native';
-
-function parseYmd(s: string): { y: string; m: string; d: string } {
-  const t = s.trim();
-  const full = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t);
-  if (full) {
-    return {
-      y: full[1]!,
-      m: full[2]!.padStart(2, '0'),
-      d: full[3]!.padStart(2, '0'),
-    };
-  }
-  const ym = /^(\d{4})-(\d{1,2})$/.exec(t);
-  if (ym) {
-    return { y: ym[1]!, m: ym[2]!.padStart(2, '0'), d: '' };
-  }
-  if (/^\d{1,4}$/.test(t)) {
-    return { y: t.slice(0, 4), m: '', d: '' };
-  }
-  return { y: '', m: '', d: '' };
-}
 
 /** 将 YYYY-MM-DD 格式化为界面展示：中文「2026年04月02日」，英文如 Apr 2, 2026 */
 export function formatYmdForLocale(ymd: string, locale: SupportedLocale): string {
@@ -49,17 +30,6 @@ export function formatYmdForLocale(ymd: string, locale: SupportedLocale): string
 /** 始终按中文展示（兼容旧调用） */
 export function formatYmdChineseLine(ymd: string): string {
   return formatYmdForLocale(ymd, 'zh-CN');
-}
-
-function buildYmdString(y: string, m: string, d: string): string {
-  const ys = y.replace(/\D/g, '').slice(0, 4);
-  const ms = m.replace(/\D/g, '').slice(0, 2);
-  const ds = d.replace(/\D/g, '').slice(0, 2);
-  if (!ys && !ms && !ds) return '';
-  if (ys && !ms && !ds) return ys;
-  if (ys && ms && !ds) return `${ys}-${ms.padStart(2, '0')}`;
-  if (ys && ms && ds) return `${ys}-${ms.padStart(2, '0')}-${ds.padStart(2, '0')}`;
-  return ys ? `${ys}-${ms.padStart(2, '0')}` : '';
 }
 
 export function YmdDateFields({
