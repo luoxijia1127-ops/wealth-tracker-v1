@@ -1,5 +1,6 @@
 import { zhCN } from '@/lib/translations/zh-CN';
 import { enUS } from '@/lib/translations/en-US';
+import { getLocales } from 'expo-localization';
 
 export type SupportedLocale = 'zh-CN' | 'en-US';
 export type LanguageMode = 'system' | SupportedLocale;
@@ -32,7 +33,16 @@ export function resolveLanguageMode(
   return mode === 'system' ? resolveSystemLocale(systemLocale) : mode;
 }
 
+/** 设备首选语言（与系统/「App 语言」设置一致），勿用 Intl（RN 上常不准）。 */
 export function getSystemLocale(): string {
+  try {
+    const locales = getLocales();
+    const primary = locales[0];
+    if (primary?.languageTag) return primary.languageTag;
+    if (primary?.languageCode) return primary.languageCode;
+  } catch {
+    /* ignore */
+  }
   try {
     return Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
   } catch {

@@ -19,6 +19,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { AppState } from 'react-native';
 
 type LanguageContextValue = {
   languageMode: LanguageMode;
@@ -48,6 +49,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  /** 系统语言或 iOS「App 语言」变更后，回到前台时刷新跟随系统模式 */
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setSystemLocale(getSystemLocale());
+    });
+    return () => sub.remove();
   }, []);
 
   const setLanguageMode = useCallback(async (mode: LanguageMode) => {
