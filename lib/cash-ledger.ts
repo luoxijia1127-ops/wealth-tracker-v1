@@ -14,6 +14,11 @@ export function usesCashAmountLedger(asset: SimpleAsset): boolean {
   return asset.category === 'Cash' || asset.category === 'Custom';
 }
 
+/** 推断/补全的期初余额流水，用于回放余额，不计入外部净流归因 */
+export function isCashBaselineEntry(e: CashLedgerEntry): boolean {
+  return e.id.startsWith('cash-baseline-');
+}
+
 export function ensureCashBaselineLedger(asset: SimpleAsset): CashLedgerEntry[] {
   const existing =
     asset.cashLedger && asset.cashLedger.length > 0

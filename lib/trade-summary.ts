@@ -1,3 +1,4 @@
+import { isCashBaselineEntry } from '@/lib/cash-ledger';
 import type { AssetDailySnapshot } from '@/lib/asset-daily-snapshots';
 import type { FxUsdMidRates } from '@/lib/fx-rates';
 import { convertDisplayValueToCny } from '@/lib/fx-rates';
@@ -192,6 +193,7 @@ export function buildDailyTradeSummaries(
 
     const cl = a.cashLedger ?? [];
     for (const e of cl) {
+      if (isCashBaselineEntry(e)) continue;
       const date = e.entryDate;
       if (typeof date !== 'string' || date.length < 8) continue;
       const amt = safeNum(e.amount);

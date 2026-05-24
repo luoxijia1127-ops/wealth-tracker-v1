@@ -139,7 +139,7 @@ export default function Insights() {
   const [chartTabSeeded, setChartTabSeeded] = useState(false);
   const [selectedDistributionCategory, setSelectedDistributionCategory] = useState<AssetCategory | null>(null);
   const [trendTip, setTrendTip] = useState<{ index: number; x: number; y: number } | null>(null);
-  const [trendTimeframe, setTrendTimeframe] = useState<TrendTimeframe>('ALL');
+  const [trendTimeframe, setTrendTimeframe] = useState<TrendTimeframe>('7D');
   const [trendCustomRange, setTrendCustomRange] = useState<TrendCustomRange | null>(null);
 
   const chartHeight = useMemo(() => {
