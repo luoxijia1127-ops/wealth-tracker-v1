@@ -36,6 +36,12 @@ type TwelvePriceJson = {
   status?: string;
 };
 
+type StooqFallbackQuote = {
+  close: number;
+  tradeDate: string | null;
+  currency: string | null;
+};
+
 type UpstreamResponse = {
   response: Response;
   text: string;
@@ -87,6 +93,49 @@ async function fetchTwelveLatestPrice(
   url.searchParams.set('apikey', apikey);
   const response = await fetch(url.toString(), { signal });
   return { response, text: await response.text() };
+}
+
+/** Stooq 的交易所后缀；只作为 Twelve 连基础价格端点都不可用时的保底。 */
+function stooqSymbolFor(symbol: string, mic: string): string | null {
+  const s = symbol.trim().toLowerCase();
+  if (!/^[a-z0-9.-]+$/.test(s)) return null;
+  const m = mic.trim().toUpperCase();
+  if (['XNAS', 'XNYS', 'XASE', 'ARCX', 'BATS'].includes(m)) return `${s}.us`;
+  if (m === 'XHKG') return `${s}.hk`;
+  if (m === 'XLON') return `${s}.uk`;
+  return null;
+}
+
+async function fetchStooqFallbackQuote(
+  symbol: string,
+  mic: string,
+  signal: AbortSignal
+): Promise<StooqFallbackQuote | null> {
+  const stooqSymbol = stooqSymbolFor(symbol, mic);
+  if (!stooqSymbol) return null;
+  const url = new URL('https://stooq.com/q/l/');
+  url.searchParams.set('s', stooqSymbol);
+  url.searchParams.set('f', 'sd2t2ohlcv');
+  url.searchParams.set('h', '');
+  url.searchParams.set('e', 'csv');
+  const response = await fetch(url.toString(), {
+    signal,
+    headers: { 'User-Agent': 'Mozilla/5.0 AssetupMarketProxy/1.0' },
+  });
+  if (!response.ok) return null;
+  const rows = (await response.text()).trim().split(/\r?\n/);
+  if (rows.length < 2) return null;
+  const cols = rows[1]!.split(',').map((x) => x.trim());
+  const close = parseFloat(cols[6] ?? '');
+  if (!Number.isFinite(close) || close <= 0) return null;
+  const date = cols[1] ?? '';
+  return {
+    close,
+    tradeDate: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
+    currency: ['XNAS', 'XNYS', 'XASE', 'ARCX', 'BATS'].includes(mic.toUpperCase())
+      ? 'USD'
+      : null,
+  };
 }
 
 export default async function handler(req: any, res: any): Promise<void> {
@@ -152,6 +201,23 @@ export default async function handler(req: any, res: any): Promise<void> {
               });
               return;
             }
+          }
+          const stooq = await fetchStooqFallbackQuote(symbol, mic, ac.signal);
+          if (stooq) {
+            res.setHeader(
+              'Cache-Control',
+              'public, s-maxage=300, stale-while-revalidate=3600'
+            );
+            res.status(200).json({
+              ok: true,
+              close: stooq.close,
+              tradeDate: stooq.tradeDate,
+              currency: stooq.currency,
+              symbol,
+              mic_code: mic,
+              source: 'stooq_server_fallback',
+            });
+            return;
           }
         }
         if (!upstream.response.ok) {
