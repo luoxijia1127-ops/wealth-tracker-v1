@@ -31,6 +31,43 @@ type TwelveTsJson = {
   values?: { datetime?: string; close?: string }[];
 };
 
+type UpstreamResponse = {
+  response: Response;
+  text: string;
+  /** Twelve 能按交易所精确查到数据时为 true；404 回退到 ticker 时为 false。 */
+  matchedMic: boolean;
+};
+
+/**
+ * Twelve 的 MIC 映射会随其数据源调整。先精确查 symbol + MIC；若上游明确返回
+ * 404，则仅以 symbol 重试一次，避免 AAPL 等唯一 ticker 因历史 MIC 映射失效而
+ * 整条行情链路中断。其它 HTTP 状态（额度、权限、密钥等）不重试。
+ */
+async function fetchTwelveWithMicFallback(
+  path: '/quote' | '/time_series',
+  symbol: string,
+  mic: string,
+  apikey: string,
+  signal: AbortSignal,
+  extra?: Record<string, string>
+): Promise<UpstreamResponse> {
+  const request = async (includeMic: boolean): Promise<UpstreamResponse> => {
+    const url = new URL(`${BASE}${path}`);
+    url.searchParams.set('symbol', symbol);
+    if (includeMic) url.searchParams.set('mic_code', mic);
+    url.searchParams.set('apikey', apikey);
+    for (const [key, value] of Object.entries(extra ?? {})) {
+      url.searchParams.set(key, value);
+    }
+    const response = await fetch(url.toString(), { signal });
+    return { response, text: await response.text(), matchedMic: includeMic };
+  };
+
+  const exact = await request(true);
+  if (exact.response.status !== 404) return exact;
+  return request(false);
+}
+
 export default async function handler(req: any, res: any): Promise<void> {
   try {
     if (req.method !== 'GET') {
@@ -62,20 +99,20 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     try {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) {
-        const url = new URL(`${BASE}/quote`);
-        url.searchParams.set('symbol', symbol);
-        url.searchParams.set('mic_code', mic);
-        url.searchParams.set('apikey', apikey);
-
-        const r = await fetch(url.toString(), { signal: ac.signal });
-        const text = await r.text();
-        if (!r.ok) {
+        const upstream = await fetchTwelveWithMicFallback(
+          '/quote',
+          symbol,
+          mic,
+          apikey,
+          ac.signal
+        );
+        if (!upstream.response.ok) {
           res
             .status(502)
-            .json({ error: 'Upstream quote error', status: r.status });
+            .json({ error: 'Upstream quote error', status: upstream.response.status });
           return;
         }
-        const json = JSON.parse(text) as TwelveQuoteJson & { status?: string };
+        const json = JSON.parse(upstream.text) as TwelveQuoteJson & { status?: string };
         if (json.status && json.status !== 'ok') {
           res.status(200).json({ ok: false, reason: json.status });
           return;
@@ -105,28 +142,28 @@ export default async function handler(req: any, res: any): Promise<void> {
           currency: typeof json.currency === 'string' ? json.currency : null,
           symbol,
           mic_code: mic,
-          source: 'twelve_quote',
+          source: upstream.matchedMic
+            ? 'twelve_quote'
+            : 'twelve_quote_symbol_fallback',
         });
         return;
       }
 
-      const url = new URL(`${BASE}/time_series`);
-      url.searchParams.set('symbol', symbol);
-      url.searchParams.set('mic_code', mic);
-      url.searchParams.set('interval', '1day');
-      url.searchParams.set('outputsize', '120');
-      url.searchParams.set('end_date', asOf);
-      url.searchParams.set('apikey', apikey);
-
-      const r = await fetch(url.toString(), { signal: ac.signal });
-      const text = await r.text();
-      if (!r.ok) {
+      const upstream = await fetchTwelveWithMicFallback(
+        '/time_series',
+        symbol,
+        mic,
+        apikey,
+        ac.signal,
+        { interval: '1day', outputsize: '120', end_date: asOf }
+      );
+      if (!upstream.response.ok) {
         res
           .status(502)
-          .json({ error: 'Upstream time_series error', status: r.status });
+          .json({ error: 'Upstream time_series error', status: upstream.response.status });
         return;
       }
-      const json = JSON.parse(text) as TwelveTsJson & { status?: string };
+      const json = JSON.parse(upstream.text) as TwelveTsJson & { status?: string };
       if (json.status && json.status !== 'ok') {
         res.status(200).json({ ok: false, reason: json.status });
         return;
@@ -155,7 +192,9 @@ export default async function handler(req: any, res: any): Promise<void> {
         currency: null,
         symbol,
         mic_code: mic,
-        source: 'twelve_time_series',
+        source: upstream.matchedMic
+          ? 'twelve_time_series'
+          : 'twelve_time_series_symbol_fallback',
       });
     } catch {
       res.status(502).json({ error: 'Upstream timeout or network error' });
