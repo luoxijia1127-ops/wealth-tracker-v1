@@ -31,6 +31,11 @@ type TwelveTsJson = {
   values?: { datetime?: string; close?: string }[];
 };
 
+type TwelvePriceJson = {
+  price?: string | number;
+  status?: string;
+};
+
 type UpstreamResponse = {
   response: Response;
   text: string;
@@ -66,6 +71,22 @@ async function fetchTwelveWithMicFallback(
   const exact = await request(true);
   if (exact.response.status !== 404) return exact;
   return request(false);
+}
+
+/**
+ * `/quote` 在部分 Twelve 套餐中不可用或没有相应数据时，以其基础 `/price`
+ * 端点取得最新价。该端点仅返回价格，故不伪造交易日期或币种。
+ */
+async function fetchTwelveLatestPrice(
+  symbol: string,
+  apikey: string,
+  signal: AbortSignal
+): Promise<{ response: Response; text: string }> {
+  const url = new URL(`${BASE}/price`);
+  url.searchParams.set('symbol', symbol);
+  url.searchParams.set('apikey', apikey);
+  const response = await fetch(url.toString(), { signal });
+  return { response, text: await response.text() };
 }
 
 export default async function handler(req: any, res: any): Promise<void> {
@@ -106,6 +127,33 @@ export default async function handler(req: any, res: any): Promise<void> {
           apikey,
           ac.signal
         );
+        if (!upstream.response.ok && upstream.response.status === 404) {
+          const price = await fetchTwelveLatestPrice(symbol, apikey, ac.signal);
+          if (price.response.ok) {
+            const json = JSON.parse(price.text) as TwelvePriceJson;
+            const closeRaw = json.price;
+            const close =
+              typeof closeRaw === 'number'
+                ? closeRaw
+                : parseFloat(String(closeRaw ?? ''));
+            if (Number.isFinite(close) && close > 0) {
+              res.setHeader(
+                'Cache-Control',
+                'public, s-maxage=15, stale-while-revalidate=60'
+              );
+              res.status(200).json({
+                ok: true,
+                close,
+                tradeDate: null,
+                currency: null,
+                symbol,
+                mic_code: mic,
+                source: 'twelve_price_fallback',
+              });
+              return;
+            }
+          }
+        }
         if (!upstream.response.ok) {
           res
             .status(502)
