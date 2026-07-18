@@ -398,6 +398,24 @@ function CategoryCollageRow({
   const catUnified = sumDisplayValuesInCurrency(assets, displayCurrency, fxUsdRates);
   const subtitle = categoryNamesSubtitle(assets);
 
+  const quoteDateText = (asset: SimpleAsset): string | null => {
+    if (!asset.markPriceDate) return null;
+    if (
+      asset.exchange === 'OTC' &&
+      asset.lastCloseDate &&
+      asset.markPriceDate > asset.lastCloseDate
+    ) {
+      return t('dashboard.fundEstimateAndNav', {
+        estimateDate: asset.markPriceDate,
+        navDate: asset.lastCloseDate,
+      });
+    }
+    if (asset.exchange === 'OTC' && asset.lastCloseDate) {
+      return t('dashboard.fundNavDate', { date: asset.lastCloseDate });
+    }
+    return asset.markPriceDate;
+  };
+
   const mastheadInk = magazineStrongOnBlock(theme);
   const accent = theme.categoryAccents[category as AssetCategory] ?? theme.primary;
   
@@ -483,8 +501,8 @@ function CategoryCollageRow({
                     >
                       {formatMoney(amt, cur)}
                     </Text>
-                    {a.markPriceDate ? (
-                      <Text style={[styles.assetQuoteDate, { color: rgbaFromHex(mastheadInk, 0.4) }]}>{a.markPriceDate}</Text>
+                    {quoteDateText(a) ? (
+                      <Text style={[styles.assetQuoteDate, { color: rgbaFromHex(mastheadInk, 0.4) }]}>{quoteDateText(a)}</Text>
                     ) : null}
                   </View>
                 </Pressable>

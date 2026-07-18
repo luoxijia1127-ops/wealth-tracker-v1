@@ -253,20 +253,23 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
       const sample = emListed.find((a) => listedEastMoneySecid(a) === secid);
       try {
         if (sample?.exchange === 'OTC' && sample.symbol) {
-          const nav = await withTimeout(8000, (signal) =>
-            fetchOtcFundLatestNav(sample.symbol!.trim(), signal)
-          );
-          if (nav) {
-            secidPack.set(secid, {
-              push: { price: nav.close },
-              kline: {
-                close: nav.close,
-                tradeDate: nav.tradeDate,
-              },
-            });
-          } else {
-            secidPack.set(secid, { push: null, kline: null });
-          }
+          /**
+           * 场外基金：官方单位净值与盘中估值同时读取。
+           * - lastClose / lastCloseDate：基金公司已披露的单位净值
+           * - markPrice / markPriceDate：东财当日估值，仅在实际返回有效价格时使用
+           */
+          const [nav, estimate] = await Promise.all([
+            withTimeout(8000, (signal) =>
+              fetchOtcFundLatestNav(sample.symbol!.trim(), signal)
+            ),
+            withTimeout(8000, (signal) => fetchPush2LastPrice(secid, signal)),
+          ]);
+          secidPack.set(secid, {
+            push: estimate ?? null,
+            kline: nav
+              ? { close: nav.close, tradeDate: nav.tradeDate }
+              : null,
+          });
           return;
         }
         const [push, kline] = await Promise.all([

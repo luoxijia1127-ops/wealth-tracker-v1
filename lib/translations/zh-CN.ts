@@ -203,6 +203,8 @@ export const zhCN = {
   'dashboard.totalValue': '总资产',
   'dashboard.todayChange': '今日盈亏',
   'dashboard.shareUnit': '份',
+  'dashboard.fundEstimateAndNav': '估值 {estimateDate} · 净值 {navDate}',
+  'dashboard.fundNavDate': '净值 {date}',
   'dashboard.gramUnit': '克',
   'dashboard.assets': '资产',
   'dashboard.cashflow': '现金流水',

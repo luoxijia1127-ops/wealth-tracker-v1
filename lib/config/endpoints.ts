@@ -37,6 +37,11 @@ export const ENDPOINTS = {
     'EXPO_PUBLIC_EASTMONEY_FUND_F10_URL',
     'https://fundf10.eastmoney.com/F10DataApi.aspx'
   ),
+  /** 场外基金历史净值 JSON；比 F10 HTML 表格更适合作为 App 刷新主来源。 */
+  eastmoneyFundNavApi: envUrl(
+    'EXPO_PUBLIC_EASTMONEY_FUND_NAV_API_URL',
+    'https://api.fund.eastmoney.com/f10/lsjz'
+  ),
   openfigiSearch: envUrl(
     'EXPO_PUBLIC_OPENFIGI_SEARCH_URL',
     'https://api.openfigi.com/v3/search'

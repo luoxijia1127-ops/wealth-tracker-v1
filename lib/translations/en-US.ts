@@ -207,6 +207,8 @@ export const enUS: Record<TranslationKey, string> = {
   'dashboard.totalValue': 'Total Assets',
   'dashboard.todayChange': 'Today‘s Change',
   'dashboard.shareUnit': 'shares',
+  'dashboard.fundEstimateAndNav': 'Est. {estimateDate} · NAV {navDate}',
+  'dashboard.fundNavDate': 'NAV {date}',
   'dashboard.gramUnit': 'g',
   'dashboard.assets': 'Assets',
   'dashboard.cashflow': 'Cash Flow',
