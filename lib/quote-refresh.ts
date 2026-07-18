@@ -47,6 +47,28 @@ function assetHasTwelveKeys(a: SimpleAsset): boolean {
   );
 }
 
+type TwelveKey = { symbol: string; mic: string; inferredFromLegacy: boolean };
+
+/**
+ * 旧版本保存的美股只有 `aapl.us` 这一 Stooq 键，因此不会命中后来加入的
+ * Twelve 代理。对无歧义的普通美股 ticker 自动补为 Twelve 键；成功刷新后
+ * 会写回资产，用户无需删除持仓或重录交易。
+ */
+function twelveKeyForAsset(a: SimpleAsset): TwelveKey | null {
+  if (assetHasTwelveKeys(a)) {
+    return {
+      symbol: a.twelveDataSymbol!.trim(),
+      mic: a.twelveDataMic!.trim().toUpperCase(),
+      inferredFromLegacy: false,
+    };
+  }
+  if (a.exchange !== 'US') return null;
+  const legacy = a.intlQuoteSymbol?.trim();
+  if (!legacy || !/^([a-z0-9]+)\.us$/i.test(legacy)) return null;
+  const symbol = legacy.slice(0, -3).toUpperCase();
+  return { symbol, mic: 'XNAS', inferredFromLegacy: true };
+}
+
 function isEmQuoteEligibleListedAsset(a: SimpleAsset): boolean {
   if (!isListedAssetCategory(a.category)) return false;
   if (typeof a.intlQuoteSymbol === 'string' && a.intlQuoteSymbol.trim().length > 0) {
@@ -262,11 +284,11 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
 
   const twelveEnabled = isTwelveIntlProviderEnabled();
   const twelveKeysList = intlListed
-    .filter((a) => twelveEnabled && assetHasTwelveKeys(a))
-    .map(
-      (a) =>
-        `${a.twelveDataSymbol!.trim()}|${a.twelveDataMic!.trim().toUpperCase()}`
-    );
+    .flatMap((a) => {
+      if (!twelveEnabled) return [];
+      const key = twelveKeyForAsset(a);
+      return key ? [`${key.symbol}|${key.mic}`] : [];
+    });
   const uniqueTwelve = [...new Set(twelveKeysList)];
 
   const twelvePack = new Map<string, TwelveQuoteOk | null>();
@@ -284,11 +306,12 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
   );
 
   const needStooqSymbols = intlListed.flatMap((a) => {
-    if (!twelveEnabled || !assetHasTwelveKeys(a)) {
+    const twelveKey = twelveKeyForAsset(a);
+    if (!twelveEnabled || !twelveKey) {
       const s = a.intlQuoteSymbol?.trim().toLowerCase();
       return s ? [s] : [];
     }
-    const k = `${a.twelveDataSymbol!.trim()}|${a.twelveDataMic!.trim().toUpperCase()}`;
+    const k = `${twelveKey.symbol}|${twelveKey.mic}`;
     if (!isIntlStooqFallbackEnabled()) return [];
     if (twelvePack.get(k)) return [];
     const s = a.intlQuoteSymbol?.trim().toLowerCase();
@@ -314,10 +337,20 @@ export async function refreshListedQuotes(): Promise<SimpleAsset[]> {
       return mergeListedQuotes(a, pack.push, pack.kline);
     }
     if (isIntlQuoteEligibleListedAsset(a)) {
-      if (twelveEnabled && assetHasTwelveKeys(a)) {
-        const k = `${a.twelveDataSymbol!.trim()}|${a.twelveDataMic!.trim().toUpperCase()}`;
+      const twelveKey = twelveKeyForAsset(a);
+      if (twelveEnabled && twelveKey) {
+        const k = `${twelveKey.symbol}|${twelveKey.mic}`;
         const trow = twelvePack.get(k);
-        if (trow) return mergeTwelveQuote(a, trow);
+        if (trow) {
+          const resolved = twelveKey.inferredFromLegacy
+            ? {
+                ...a,
+                twelveDataSymbol: twelveKey.symbol,
+                twelveDataMic: twelveKey.mic,
+              }
+            : a;
+          return mergeTwelveQuote(resolved, trow);
+        }
         if (
           isIntlStooqFallbackEnabled() &&
           typeof a.intlQuoteSymbol === 'string' &&
